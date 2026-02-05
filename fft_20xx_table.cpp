@@ -1,3 +1,4 @@
+#include "fft_20xx_common.h"
 #include "fft_20xx_table.h"
 #include "include/fft_20xx.h"
 

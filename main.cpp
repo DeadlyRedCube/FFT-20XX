@@ -1,12 +1,10 @@
+#include "fft_20xx_common.h"
+
 #include "include/fft_20xx.h"
 
-#include "fft_20xx_common.h"
+
 #include <complex>
 #include <vector>
-
-#if COMPILER_MSVC
-  #pragma warning (disable : 5045)
-#endif
 
 int main()
 {
@@ -22,7 +20,7 @@ int main()
     input[i] = {float(i), -float(2 * i) };
   }
 
-  FFTComplex32(table32, reinterpret_cast<float *>(input.data()), reinterpret_cast<float *>(output.data()), 64);
+  FFTComplex32(table32, input.data(), output.data(), 64);
 
   printf("\n\n");
   #if COMPILER_CLANG
@@ -46,6 +44,33 @@ int main()
   #else
     printf("  Unknown CPU\n");
   #endif
+
+  printf("Compiled with:\n");
+  #if SIMD_SSE2
+    printf("  - SSE2\n");
+  #endif
+  #if SIMD_SSE3
+    printf("  - SSE3\n");
+  #endif
+  #if SIMD_SSE4_1
+    printf("  - SSE4.1\n");
+  #endif
+  #if SIMD_SSE4_2
+    printf("  - SSE4.2\n");
+  #endif
+  #if SIMD_AVX
+    printf("  - AVX2\n");
+  #endif
+  #if SIMD_AVX2
+    printf("  - AVX2\n");
+  #endif
+  #if SIMD_NEON
+    printf("  - ARM NEON\n");
+  #endif
+  #if SIMD_NEON64
+    printf("  - ARM64 NEON\n");
+  #endif
+
   printf("\n\n");
   for (auto v : output)
   {

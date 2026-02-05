@@ -1,7 +1,8 @@
+#include "fft_20xx_common.h"
+
 #include <concepts>
 #include <cinttypes>
 
-#include "fft_20xx_common.h"
 
 
 namespace FFT20XX::Scalar
@@ -216,25 +217,7 @@ namespace FFT20XX::Scalar
   template <std::floating_point F>
   void ForwardFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength)
     { RunFFT<F, 1>(table, input, output, fftLength); }
-}
 
-
-extern "C"
-{
-  void FFTComplex32(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
-  {
-    using namespace FFT20XX;
-
-    assert(table != nullptr);
-    assert(input != nullptr);
-    assert(output != nullptr);
-    assert(IsPowerOfTwo(fftLength));
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
-
-    assert(t->MaxFFTLength() >= fftLength);
-
-    const auto *inCplx = reinterpret_cast<const Complex<float> *>(input);
-    auto *outCplx = reinterpret_cast<Complex<float> *>(output);
-    Scalar::ForwardFFT<float>(t->Data(), inCplx, outCplx, fftLength);
-  }
+  template void ForwardFFT(const Complex<float> *table, const Complex<float> *input, Complex<float> *output, std::size_t fftLength);
+  template void ForwardFFT(const Complex<double> *table, const Complex<double> *input, Complex<double> *output, std::size_t fftLength);
 }
