@@ -2,6 +2,7 @@
   #define FFT_20XX_INCLUDE_GUARD
 
   #include <inttypes.h>
+  #include <stddef.h>
 
   #ifdef __cplusplus
     extern "C"

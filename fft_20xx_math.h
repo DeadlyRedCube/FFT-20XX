@@ -18,7 +18,7 @@ namespace FFT20XX
   template <std::unsigned_integral I>
   constexpr auto BitReverse(I i) -> I
   {
-    #ifdef _MSC_VER
+    #if COMPILER_MSVC
       #pragma warning (push)
     #endif
 
@@ -43,7 +43,7 @@ namespace FFT20XX
       { i = ((i >> 32) & Mask5) | ((i & Mask5) << 32); }
     return i;
 
-    #ifdef _MSC_VER
+    #if COMPILER_MSVC
       #pragma warning (pop)
     #endif
   }

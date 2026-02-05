@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cinttypes>
 #include <ranges>
 #include "fft_20xx_complex.h"

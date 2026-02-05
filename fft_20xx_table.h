@@ -1,6 +1,5 @@
 #pragma once
 
-#pragma warning (disable: 5045) // Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
 
 #include <cassert>
 #include <cinttypes>
@@ -8,13 +7,14 @@
 
 #include "fft_20xx_bit_reverse_copy.h"
 #include "fft_20xx_complex.h"
+#include "fft_20xx_common.h"
 #include "fft_20xx_math.h"
 
 
 
 namespace FFT20XX
 {
-  #ifdef _MSC_VER
+  #if COMPILER_MSVC
     #pragma warning (push)
     #pragma warning (disable: 4820) // 'N' bytes padding added after data member 'Foo'
   #endif
@@ -64,7 +64,7 @@ namespace FFT20XX
     size_t _maxFFTLength = 0;
   };
 
-  #ifdef _MSC_VER
+  #if COMPILER_MSVC
     #pragma warning (pop)
   #endif
 }

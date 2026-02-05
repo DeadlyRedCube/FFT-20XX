@@ -1,4 +1,3 @@
 .vs/
 FFT-20XX/
-*.user
-x64/
+out/
