@@ -44,6 +44,9 @@ namespace FFT20XX
     friend constexpr auto operator*(INegType, Complex a) noexcept -> Complex
       { return { .r = a.i, .i = -a.r }; }
 
+    constexpr auto operator*(F s) noexcept -> Complex
+      { return { .r = r * s, .i = i * s }; }
+
     constexpr auto operator+=(Complex b) noexcept -> Complex &
       { *this = *this + b; return *this; }
 
@@ -58,6 +61,9 @@ namespace FFT20XX
 
     constexpr auto operator*=(INegType) noexcept -> Complex &
       { *this = { .r = i, .i = -r }; return *this; }
+
+    constexpr auto operator*=(F s) noexcept -> Complex &
+      { r *= s; i *= s; return *this; }
 
     auto operator-() const noexcept -> Complex
       { return { .r = -r, .i = -i }; }

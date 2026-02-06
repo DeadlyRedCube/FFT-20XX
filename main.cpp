@@ -6,21 +6,29 @@
 #include <complex>
 #include <vector>
 
+using namespace FFT20XX;
+
+
+
 int main()
 {
   constexpr auto MaxFFTLength = 65536u;
   auto table32 = AllocateFFTTable32(MaxFFTLength);
   auto table64 = AllocateFFTTable64(MaxFFTLength);
 
-  std::vector<std::complex<float>> input(64);
-  std::vector<std::complex<float>> output(64);
+  constexpr auto size = 64u;
+  std::vector<std::complex<float>> input(size);
+  std::vector<std::complex<float>> output(size);
+  std::vector<std::complex<float>> output2(size);
 
   for (auto i = 0u; i < input.size(); i++)
   {
     input[i] = {float(i), -float(2 * i) };
   }
 
-  FFTComplex32(table32, input.data(), output.data(), 64);
+  FFTComplex32(table32, input.data(), output.data(), size);
+
+  IFFTComplex32(table32, output.data(), output2.data(), size);
 
   printf("\n\n");
   #if COMPILER_CLANG
@@ -72,7 +80,7 @@ int main()
   #endif
 
   printf("\n\n");
-  for (auto v : output)
+  for (auto v : output2)
   {
     if (v.imag() < 0)
       { printf("%f - i*%f\n", v.real(), -v.imag()); }

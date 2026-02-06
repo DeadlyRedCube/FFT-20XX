@@ -12,7 +12,7 @@ namespace FFT20XX
   enum class Dir
   {
     Forward,
-    Reverse,
+    Inverse,
   };
 
   template <typename F>
@@ -24,7 +24,7 @@ namespace FFT20XX
     if constexpr (D == Dir::Forward)
       { return v * w; }
     else
-      {  } // !!! multiply with conjugate (as a single operation), I think
+      { return v * Conjugate(w); }
   }
 
   template <Dir D, typename F>
@@ -33,7 +33,7 @@ namespace FFT20XX
     if constexpr (D == Dir::Forward)
       { return { .r = InvSqrt2<F> * (v.r + v.i), .i = InvSqrt2<F> * (v.i - v.r) }; }
     else
-      { } // !!!
+      { return { .r = InvSqrt2<F> * (v.r - v.i), .i = InvSqrt2<F> * (v.r + v.i) }; }
   }
 
   template <Dir D, typename F>
@@ -51,7 +51,7 @@ namespace FFT20XX
     if constexpr (D == Dir::Forward)
       { return { .r = InvSqrt2<F> * (v.i - v.r), .i = -InvSqrt2<F> * (v.r + v.i) }; }
     else
-      { } // !!!
+      { return { .r = -InvSqrt2<F> * (v.r + v.i), .i = InvSqrt2<F> * (v.r - v.i) }; }
   }
 }
 

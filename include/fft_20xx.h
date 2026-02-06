@@ -42,13 +42,18 @@
     void FFTComplex32(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
     void FFTComplex64(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
 
-    void FFTComplex32F(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
-    void FFTComplex64F(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+    void FFTComplex32Interleaved(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void FFTComplex64Interleaved(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
     void FFTComplex32InPlace(const struct FFTTable32 *table, float *data, size_t fftLength);
     void FFTComplex64InPlace(const struct FFTTable64 *table, double *data, size_t fftLength);
 
     // TODO: Inverse FFT
+    void IFFTComplex32(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+    void IFFTComplex64(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+
+    void IFFTComplex32F(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void IFFTComplex64F(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
     // TODO: Real-valued FFT
 
