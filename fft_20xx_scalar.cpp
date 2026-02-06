@@ -185,7 +185,7 @@ namespace FFT20XX::Scalar
     auto i0 = baseIndex;
     auto i1 = i0 + butterflyStep;
 
-    auto even = data[i0];
+    auto even = data[i0]; 
     auto odd = data[i1];
 
     data[i0] = even + odd;
@@ -200,6 +200,7 @@ FORCE_INLINE void RescaleForIFFT(Complex<F> *data, std::size_t fftLength, std::s
   for (auto i = dataOffset; i < dataOffset + spanLength; i++)
     { data[i] *= scale; }
 }
+static_assert(!SIMD_AVX);
 
 
 

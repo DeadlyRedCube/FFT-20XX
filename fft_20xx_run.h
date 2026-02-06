@@ -15,14 +15,14 @@ FORCE_INLINE void RunMultipleFixed45Butterflies(Complex<F> *data, std::uint32_t 
 }
 
 
-template <Dir D, std::floating_point F>
+template <Dir D, std::floating_point F, std::uint32_t NativeComplexCount>
 FORCE_INLINE void RunMultipleMainButterflies(const Complex<F> *table, Complex<F> *data, std::size_t groupIndex, std::size_t butterflyStep)
 {
   auto groupBase = groupIndex * butterflyStep * 4;
   auto w1 = table[groupIndex << 1];
   auto w2 = table[groupIndex];
   auto w3 = table[(groupIndex << 1) + 1];
-  for (auto butterflyIndex = 0u; butterflyIndex < butterflyStep; butterflyIndex ++)
+  for (auto butterflyIndex = 0u; butterflyIndex < butterflyStep; butterflyIndex += NativeComplexCount)
     { DoMainButterfly<D, F>(data, groupBase + butterflyIndex, butterflyStep, w1, w2, w3); }
 
   // Next group is a 45 degree rotation from the current one.
@@ -31,7 +31,7 @@ FORCE_INLINE void RunMultipleMainButterflies(const Complex<F> *table, Complex<F>
   w3 = table[(groupIndex << 1) + 3];
 
   groupBase += butterflyStep * 4;
-  for (auto butterflyIndex = 0u; butterflyIndex < butterflyStep; butterflyIndex ++)
+  for (auto butterflyIndex = 0u; butterflyIndex < butterflyStep; butterflyIndex += NativeComplexCount)
     { DoMainButterfly<D, F>(data, groupBase + butterflyIndex, butterflyStep, w1, w2, w3); }
 }
 
@@ -64,7 +64,7 @@ FORCE_INLINE void RunFirstPartialFFT(const Complex<F> *table, const Complex<F> *
 
     // Now iterate the rest of the groups two at a time
     for (auto groupIndex = 2u; groupIndex < spanLength / butterflySpan; groupIndex += 2)
-      { RunMultipleMainButterflies<D>(table, output, groupIndex, butterflySpan / 4); }
+      { RunMultipleMainButterflies<D, F, NativeComplexCount>(table, output, groupIndex, butterflySpan / 4); }
   }
 }
 
@@ -84,7 +84,7 @@ FORCE_INLINE void RunPartialFFT(const Complex<F> *table, const Complex<F> *input
   for (auto butterflySpan = 16u; butterflySpan < spanLength; butterflySpan *= 4)
   {
     for (auto groupIndex = dataOffset / butterflySpan; groupIndex < (dataOffset + spanLength) / butterflySpan; groupIndex += 2)
-      { RunMultipleMainButterflies<D>(table, output, groupIndex, butterflySpan / 4); }
+      { RunMultipleMainButterflies<D, F, NativeComplexCount>(table, output, groupIndex, butterflySpan / 4); }
   }
 }
 
@@ -111,7 +111,7 @@ void RunFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output
     for (auto butterflySpan = MaxSpanLength; butterflySpan < fftLength; butterflySpan *= 4)
     {
       for (auto groupIndex = 0u; groupIndex < fftLength / butterflySpan; groupIndex += 2)
-        { RunMultipleMainButterflies<D>(table, output, groupIndex, butterflySpan / 4); }
+        { RunMultipleMainButterflies<D, F, NativeComplexCount>(table, output, groupIndex, butterflySpan / 4); }
     }
   }
   else

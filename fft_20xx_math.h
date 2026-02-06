@@ -22,6 +22,7 @@ namespace FFT20XX
   {
     #if COMPILER_MSVC
       #pragma warning (push)
+      #pragma warning (disable: 4310) // cast truncates constant value
     #endif
 
     // TODO: ARM has a dedicated reverse instruction

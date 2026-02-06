@@ -37,4 +37,23 @@ target_sources(
     "main.cpp" 
 )
 
+if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
+    OR (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64") 
+    OR (CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64")
+    OR (CMAKE_SYSTEM_PROCESSOR MATCHES "x64")
+  )
+  target_sources(
+      fft-20xx
+
+      PRIVATE
+        "fft_20xx_fma.cpp"
+  )
+
+  if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    set_source_files_properties(fft_20xx_fma.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+  else()
+    set_source_files_properties(fft_20xx_fma.cpp PROPERTIES COMPILE_OPTIONS "-mfma")
+  endif()
+endif()
+
 target_link_libraries(fft-20xx-test fft-20xx)

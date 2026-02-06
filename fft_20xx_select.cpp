@@ -11,6 +11,14 @@ namespace FFT20XX::Scalar
   void InverseFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength);
 }
 
+namespace FFT20XX::FMA
+{
+  template <std::floating_point F>
+  void ForwardFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength);
+
+  template <std::floating_point F>
+  void InverseFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength);
+}
 
 extern "C"
 {
@@ -29,7 +37,7 @@ extern "C"
 
     const auto *inCplx = reinterpret_cast<const Complex<float> *>(input);
     auto *outCplx = reinterpret_cast<Complex<float> *>(output);
-    Scalar::ForwardFFT<float>(t->Data(), inCplx, outCplx, fftLength);
+    FMA::ForwardFFT<float>(t->Data(), inCplx, outCplx, fftLength);
   }
 
   void FFTComplex64Interleaved(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
@@ -47,7 +55,7 @@ extern "C"
 
     const auto *inCplx = reinterpret_cast<const Complex<double> *>(input);
     auto *outCplx = reinterpret_cast<Complex<double> *>(output);
-    Scalar::ForwardFFT<double>(t->Data(), inCplx, outCplx, fftLength);
+    FMA::ForwardFFT<double>(t->Data(), inCplx, outCplx, fftLength);
   }
 
 
@@ -66,7 +74,7 @@ extern "C"
 
     const auto *inCplx = reinterpret_cast<const Complex<float> *>(input);
     auto *outCplx = reinterpret_cast<Complex<float> *>(output);
-    Scalar::InverseFFT<float>(t->Data(), inCplx, outCplx, fftLength);
+    FMA::InverseFFT<float>(t->Data(), inCplx, outCplx, fftLength);
   }
 
   void IFFTComplex64Interleaved(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
@@ -84,7 +92,7 @@ extern "C"
 
     const auto *inCplx = reinterpret_cast<const Complex<double> *>(input);
     auto *outCplx = reinterpret_cast<Complex<double> *>(output);
-    Scalar::InverseFFT<double>(t->Data(), inCplx, outCplx, fftLength);
+    FMA::InverseFFT<double>(t->Data(), inCplx, outCplx, fftLength);
   }
 
 
