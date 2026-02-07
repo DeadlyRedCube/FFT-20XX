@@ -243,6 +243,9 @@ FORCE_INLINE void RunFirstPartialFFT(const Complex<F> *table, const Complex<F> *
       { RunContiguousButterflySetMin2<D>(table, output + groupIndex * 4, groupIndex); }
   }
 
+  // NOTE: If we ever have a native type that is more than 4, we'll need another special case here for when the 
+  //  butterflySpan is 16 (making butterflyStep 4, which would be half of an 8-element complex 
+  static_assert(NativeComplexCount <= 4);
   for (auto butterflySpan = 16u; butterflySpan < spanLength; butterflySpan *= 4)
   {
     // First group has no rotation

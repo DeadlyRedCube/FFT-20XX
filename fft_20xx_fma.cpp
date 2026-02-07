@@ -32,7 +32,7 @@ namespace FFT20XX::FMA
 
     operator N() const { return nat; }
 
-    explicit SIMDComplex(Complex<F> c)
+    explicit FORCE_INLINE SIMDComplex(Complex<F> c)
     {
       if constexpr (std::same_as<F, float>)
         { nat = _mm256_castpd_ps(_mm256_set1_pd(std::bit_cast<double>(c))); }
@@ -40,7 +40,7 @@ namespace FFT20XX::FMA
         { nat = _mm256_set_pd(c.i, c.r, c.i, c.r); }
     }
 
-    friend auto operator+(SIMDComplex a, SIMDComplex b) -> SIMDComplex
+    friend FORCE_INLINE auto operator+(SIMDComplex a, SIMDComplex b) -> SIMDComplex
     { 
       if constexpr (std::same_as<F, float>)
         { return _mm256_add_ps(a, b); }
@@ -48,7 +48,7 @@ namespace FFT20XX::FMA
         { return _mm256_add_pd(a, b); }
     }
 
-    friend auto operator-(SIMDComplex a, SIMDComplex b) -> SIMDComplex
+    friend FORCE_INLINE auto operator-(SIMDComplex a, SIMDComplex b) -> SIMDComplex
     { 
       if constexpr (std::same_as<F, float>)
         { return _mm256_sub_ps(a, b); }
@@ -56,7 +56,7 @@ namespace FFT20XX::FMA
         { return _mm256_sub_pd(a, b); }
     }
 
-    friend auto operator*(SIMDComplex a, F b) -> SIMDComplex
+    friend FORCE_INLINE auto operator*(SIMDComplex a, F b) -> SIMDComplex
     {
       if constexpr (std::same_as<F, float>)
         { return _mm256_mul_ps(a, _mm256_set1_ps(b)); }
@@ -64,7 +64,7 @@ namespace FFT20XX::FMA
         { return _mm256_mul_pd(a, _mm256_set1_pd(b)); }
     }
 
-    friend auto operator*(SIMDComplex a, SIMDComplex b) -> SIMDComplex
+    friend FORCE_INLINE auto operator*(SIMDComplex a, SIMDComplex b) -> SIMDComplex
     {
       if constexpr (std::same_as<F, float>)
         { return _mm256_fmaddsub_ps(b, DuplicateEven(a), _mm256_mul_ps(SwapEvenOdd(b), DuplicateOdd(a))); }
@@ -72,7 +72,7 @@ namespace FFT20XX::FMA
         { return _mm256_fmaddsub_pd(b, DuplicateEven(a), _mm256_mul_pd(SwapEvenOdd(b), DuplicateOdd(a))); }
     }
 
-    friend auto MultiplyWithConjugate(SIMDComplex a, SIMDComplex b) -> SIMDComplex
+    friend FORCE_INLINE auto MultiplyWithConjugate(SIMDComplex a, SIMDComplex b) -> SIMDComplex
     {
       if constexpr (std::same_as<F, float>)
         { return _mm256_fmsubadd_ps(SwapEvenOdd(b), DuplicateOdd(a), _mm256_mul_ps(b, DuplicateEven(a))); }
@@ -396,8 +396,6 @@ namespace FFT20XX::FMA
     w3 = LoadComplex<F>(w3Array);
   }
 
-
-
   #include "fft_20xx_run.h"
 
 
@@ -414,4 +412,64 @@ namespace FFT20XX::FMA
 
   template void InverseFFT(const Complex<float> *table, const Complex<float> *input, Complex<float> *output, std::size_t fftLength);
   template void InverseFFT(const Complex<double> *table, const Complex<double> *input, Complex<double> *output, std::size_t fftLength);
+}
+
+
+using namespace FFT20XX;
+
+extern "C"
+{
+  #define COMMON_ASSERTS() \
+    assert(table != nullptr); \
+    assert(input != nullptr); \
+    assert(output != nullptr); \
+    assert(IsPowerOfTwo(fftLength)); \
+    assert(t->MaxFFTLength() >= fftLength)
+
+  void FFTComplex32Interleaved_FMA(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  {
+    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    COMMON_ASSERTS();
+
+    FMA::ForwardFFT<float>(
+      t->Data(), 
+      reinterpret_cast<const Complex<float> *>(input), 
+      reinterpret_cast<Complex<float> *>(output), 
+      fftLength);
+  }
+
+  void FFTComplex64Interleaved_FMA(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  {
+    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    COMMON_ASSERTS();
+    FMA::ForwardFFT<double>(
+      t->Data(), 
+      reinterpret_cast<const Complex<double> *>(input), 
+      reinterpret_cast<Complex<double> *>(output), 
+      fftLength);
+  }
+
+
+  void IFFTComplex32Interleaved_FMA(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  {
+    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    COMMON_ASSERTS();
+
+    FMA::InverseFFT<float>(
+      t->Data(), 
+      reinterpret_cast<const Complex<float> *>(input), 
+      reinterpret_cast<Complex<float> *>(output), 
+      fftLength);
+  }
+
+  void IFFTComplex64Interleaved_FMA(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  {
+    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    COMMON_ASSERTS();
+    FMA::InverseFFT<double>(
+      t->Data(), 
+      reinterpret_cast<const Complex<double> *>(input), 
+      reinterpret_cast<Complex<double> *>(output), 
+      fftLength);
+  }
 }

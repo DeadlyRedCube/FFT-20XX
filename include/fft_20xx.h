@@ -48,12 +48,13 @@
     void FFTComplex32InPlace(const struct FFTTable32 *table, float *data, size_t fftLength);
     void FFTComplex64InPlace(const struct FFTTable64 *table, double *data, size_t fftLength);
 
-    // TODO: Inverse FFT
     void IFFTComplex32(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
     void IFFTComplex64(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
 
-    void IFFTComplex32F(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
-    void IFFTComplex64F(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+    void IFFTComplex32Interleaved(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void IFFTComplex64Interleaved(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+    
+    // TODO: IFFT Complex In-Place
 
     // TODO: Real-valued FFT
 
@@ -61,7 +62,23 @@
 
 
     // TODO: Explicit Scalar, AVX, FMA, SSE, NEON, AARCH64 variants
+    void FFTComplex32_Scalar(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+    void FFTComplex64_Scalar(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+    void FFTComplex32Interleaved_Scalar(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void FFTComplex64Interleaved_Scalar(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+    void IFFTComplex32_Scalar(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+    void IFFTComplex64_Scalar(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+    void IFFTComplex32Interleaved_Scalar(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void IFFTComplex64Interleaved_Scalar(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
+    void FFTComplex32_FMA(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+    void FFTComplex64_FMA(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+    void FFTComplex32Interleaved_FMA(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void FFTComplex64Interleaved_FMA(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+    void IFFTComplex32_FMA(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+    void IFFTComplex64_FMA(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+    void IFFTComplex32Interleaved_FMA(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void IFFTComplex64Interleaved_FMA(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
 
     // TODO: C and C++ complex versions?
