@@ -17,7 +17,7 @@ int main()
   auto table32 = AllocateFFTTable32(MaxFFTLength);
   auto table64 = AllocateFFTTable64(MaxFFTLength);
 
-  constexpr auto size = 64u;
+  constexpr auto size = 1024u;
   std::vector<std::complex<F>> input(size);
   std::vector<std::complex<F>> output(size);
   std::vector<std::complex<F>> output2(size);
