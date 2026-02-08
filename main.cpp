@@ -102,10 +102,41 @@ void Benchmark(const char *name, auto fftFunction, std::uint32_t maxFFTLength)
 }
 
 
+#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
+  void FlushSubnormals()
+  {
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+  }
+#elif defined(_M_ARM64) || defined(__aarch64__) || defined(_M_ARM) || defined (__arm__)
+  void FlushSubnormals()
+  {
+    #if defined(_MSC_VER)
+      std::uint32_t current;
+      _controlfp_s(&current, _DN_FLUSH, _MCW_DN);
+    #elif defined(_M_ARM64) || defined(__aarch64__)
+      // From:
+      //  https://developer.arm.com/documentation/ddi0595/2021-06/AArch64-Registers/FPCR--Floating-point-Control-Register
+      std::uint64_t current;
+      __asm__ ("mrs %0, fpcr" : "=r"(current) : ); // Read the current control values
+      current |= (1 << 24); // Add the flush-to-zero flag
+      __asm__ ("msr fpcr, %0" : : "r"(current)); // Write the updated value
+    #else
+      // From:
+      //  https://developer.arm.com/documentation/ddi0595/2021-06/AArch32-Registers/FPSCR--Floating-Point-Status-and-Control-Register
+      std::uint32_t current;
+      __asm__ ("vmrs %0, fpscr" : "=r"(current) : ); // Read the current control values
+      current |= (1 << 24); // Add the flush-to-zero flag
+      __asm__ ("vmsr fpscr, %0" : : "r"(current)); // Write the updated value
+    #endif
+  }
+#else
+  #error Unknown CPU type.
+#endif
+
 int main()
 {
-  _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-  _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+  FlushSubnormals();
 
   constexpr auto MaxFFTLength = 512 * 1024u;
   auto table32 = AllocateFFTTable32(MaxFFTLength);
@@ -123,9 +154,9 @@ int main()
     input[i] = {F(i), -F(2 * i) };
   }
 
-  FFTComplex64_AVX(table64, input.data(), output.data(), size);
+  FFTComplex64(table64, input.data(), output.data(), size);
 
-  IFFTComplex64_AVX(table64, output.data(), output2.data(), size);
+  IFFTComplex64(table64, output.data(), output2.data(), size);
    
   printf("\n\n");
 
