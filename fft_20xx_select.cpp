@@ -252,8 +252,9 @@ extern "C"
         else if ((s_simdSupport & SIMDSupport::AVX) == SIMDSupport::AVX) \
           { name##_AVX(__VA_ARGS__); } \
         else if ((s_simdSupport & SIMDSupport::SSE2) == SIMDSupport::SSE2) \
-        else \
           { name##_SSE2(__VA_ARGS__); } \
+        else \
+          { name##_Scalar(__VA_ARGS__); } \
       } while (false)
   #else
     #define SELECT(name) name##_Scalar(table, input, output, fftLength)

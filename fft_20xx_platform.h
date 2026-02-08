@@ -58,7 +58,7 @@
   #define FORCE_INLINE inline
 #endif
 
-#if defined(__SSE2__) || CPU_X64 // All x64 processors have SSE and SSE2
+#if defined(__SSE2__) || CPU_X64 || COMPILER_MSVC // All x64 processors have SSE and SSE2, MSVC always sets this.
   #define SIMD_SSE2 1
 #else
   #define SIMD_SSE2 0
