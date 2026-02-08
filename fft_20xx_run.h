@@ -291,7 +291,7 @@ void RunFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output
 
   }
 
-  constexpr auto MaxSpanLength = std::size_t(1024);
+  constexpr auto MaxSpanLength = std::size_t(4096);
   if (fftLength > MaxSpanLength)
   {
     RunFirstPartialFFT<D, F, NativeComplexCount>(table, input, output, fftLength, MaxSpanLength);

@@ -226,51 +226,56 @@ namespace FFT20XX::FMA
   {
     if constexpr (std::same_as<F, float>)
     {
-      auto a = _mm_loadu_ps(reinterpret_cast<const float *>(&input[0]));
-      auto b = _mm_loadu_ps(reinterpret_cast<const float *>(&input[2]));
-      auto c = _mm_loadu_ps(reinterpret_cast<const float *>(&input[4]));
-      auto d = _mm_loadu_ps(reinterpret_cast<const float *>(&input[6]));
-      auto e = _mm_loadu_ps(reinterpret_cast<const float *>(&input[8]));
-      auto f = _mm_loadu_ps(reinterpret_cast<const float *>(&input[10]));
-      auto g = _mm_loadu_ps(reinterpret_cast<const float *>(&input[12]));
-      auto h = _mm_loadu_ps(reinterpret_cast<const float *>(&input[14]));
+      
+      // This is effectively a 4x4 complex matrix transpose from memory - memory layout is
+      //    x00 x10 x20 x30 | x01 x11 x21 x31 | x02 x12 x22 x32 | x03 x13 x23 x33
+      // Start by doing a series of 128-bit loads to effectively swap the upper right and lower-left quadrants
+      //  of the matrix.
+      // Note that I tested doing 256-bit loads and doing the swaps using _mm256_permute2f128_ps and that was slightly
+      //  slower.
+      auto x00x10x02x12 = _mm256_insertf128_ps(
+        _mm256_castps128_ps256(_mm_loadu_ps(reinterpret_cast<const float *>(&input[0]))), 
+        _mm_loadu_ps(reinterpret_cast<const float *>(&input[8])), 
+        1);
+      auto x20x30x22x32 = _mm256_insertf128_ps(
+        _mm256_castps128_ps256(_mm_loadu_ps(reinterpret_cast<const float *>(&input[2]))), 
+        _mm_loadu_ps(reinterpret_cast<const float *>(&input[10])), 
+        1);
+      auto x01x11x03x13 = _mm256_insertf128_ps(
+        _mm256_castps128_ps256(_mm_loadu_ps(reinterpret_cast<const float *>(&input[4]))), 
+        _mm_loadu_ps(reinterpret_cast<const float *>(&input[12])), 
+        1);
+      auto x21x31x23x33 = _mm256_insertf128_ps(
+        _mm256_castps128_ps256(_mm_loadu_ps(reinterpret_cast<const float *>(&input[6]))), 
+        _mm_loadu_ps(reinterpret_cast<const float *>(&input[14])), 
+        1);
 
-      // Now what we have is effectively:
-      //  a: (x0r0 x0i0 x1r0 x1i0), b: (x2r0 x2i0 x3r0 x3i0)
-      //  c: (x0r1 x0i1 x1r1 x1i1), d: (x2r1 x2i1 x3r1 x3i1)
-      //  e: (x0r2 x0i2 x1r2 x1i2), f: (x2r2 x2i2 x3r2 x3i2)
-      //  g: (x0r3 x0i3 x1r3 x1i3), h: (x2r3 x2i3 x3r3 x3i3)
-
-      // We want to do a 4x4 (complex) matrix transpose on this data.
-      // First thing is to combine the 128 bits things
-      auto t0 = _mm256_insertf128_ps(_mm256_castps128_ps256(a), c, 1);
-      auto t1 = _mm256_insertf128_ps(_mm256_castps128_ps256(b), d, 1);
-      auto t2 = _mm256_insertf128_ps(_mm256_castps128_ps256(e), g, 1);
-      auto t3 = _mm256_insertf128_ps(_mm256_castps128_ps256(f), h, 1);
-
-      // Now t0 is (x0r0 x0i0 x1r0 x1i0 x0r2 x0i2 x1r2 x1i2), t1-t3 are similar.
-      // Do some shuffles into the final position
-      x0 = _mm256_shuffle_ps(t0, t2, _MM_SHUFFLE(1, 0, 1, 0));
-      x2 = _mm256_shuffle_ps(t0, t2, _MM_SHUFFLE(3, 2, 3, 2));
-      x1 = _mm256_shuffle_ps(t1, t3, _MM_SHUFFLE(1, 0, 1, 0));
-      x3 = _mm256_shuffle_ps(t1, t3, _MM_SHUFFLE(3, 2, 3, 2));
+      // Now, shuffle around the remaining elements, intentionally swapping x1 and x2.
+      x0 = _mm256_shuffle_ps(x00x10x02x12, x01x11x03x13, _MM_SHUFFLE(1, 0, 1, 0));
+      x2 = _mm256_shuffle_ps(x00x10x02x12, x01x11x03x13, _MM_SHUFFLE(3, 2, 3, 2));
+      x1 = _mm256_shuffle_ps(x20x30x22x32, x21x31x23x33, _MM_SHUFFLE(1, 0, 1, 0));
+      x3 = _mm256_shuffle_ps(x20x30x22x32, x21x31x23x33, _MM_SHUFFLE(3, 2, 3, 2));
     }
     else
     {
-      // Load the 128-bit halves separately (makes the interleaving easier)
-      auto x0Lo = _mm_loadu_pd(reinterpret_cast<const double *>(&input[0]));
-      auto x2Lo = _mm_loadu_pd(reinterpret_cast<const double *>(&input[1]));
-      auto x1Lo = _mm_loadu_pd(reinterpret_cast<const double *>(&input[2]));
-      auto x3Lo = _mm_loadu_pd(reinterpret_cast<const double *>(&input[3]));
-      auto x0Hi = _mm_loadu_pd(reinterpret_cast<const double *>(&input[4]));
-      auto x2Hi = _mm_loadu_pd(reinterpret_cast<const double *>(&input[5]));
-      auto x1Hi = _mm_loadu_pd(reinterpret_cast<const double *>(&input[6]));
-      auto x3Hi = _mm_loadu_pd(reinterpret_cast<const double *>(&input[7]));
-
-      x0 = _mm256_insertf128_pd(_mm256_castpd128_pd256(x0Lo), x0Hi, 1);
-      x1 = _mm256_insertf128_pd(_mm256_castpd128_pd256(x1Lo), x1Hi, 1);
-      x2 = _mm256_insertf128_pd(_mm256_castpd128_pd256(x2Lo), x2Hi, 1);
-      x3 = _mm256_insertf128_pd(_mm256_castpd128_pd256(x3Lo), x3Hi, 1);
+      // Like with the f32 case, load the 128-bit halves independently. However, since each half is just a single
+      //  complex number (2 doubles), there's no additional shuffling to be done.
+      x0 = _mm256_insertf128_pd(
+        _mm256_castpd128_pd256(_mm_loadu_pd(reinterpret_cast<const double *>(&input[0]))), 
+        _mm_loadu_pd(reinterpret_cast<const double *>(&input[4])), 
+        1);
+      x2 = _mm256_insertf128_pd(
+        _mm256_castpd128_pd256(_mm_loadu_pd(reinterpret_cast<const double *>(&input[1]))), 
+        _mm_loadu_pd(reinterpret_cast<const double *>(&input[5])), 
+        1);
+      x1 = _mm256_insertf128_pd(
+        _mm256_castpd128_pd256(_mm_loadu_pd(reinterpret_cast<const double *>(&input[2]))), 
+        _mm_loadu_pd(reinterpret_cast<const double *>(&input[6])), 
+        1);
+      x3 = _mm256_insertf128_pd(
+        _mm256_castpd128_pd256(_mm_loadu_pd(reinterpret_cast<const double *>(&input[3]))), 
+        _mm_loadu_pd(reinterpret_cast<const double *>(&input[7])), 
+        1);
     }
   }
 
@@ -286,39 +291,30 @@ namespace FFT20XX::FMA
     if constexpr (std::same_as<F, float>)
     {
       // Do the opposite of the LoadAndTranspose function
-      auto a = _mm256_shuffle_ps(x0, x1, _MM_SHUFFLE(1, 0, 1, 0));
-      auto b = _mm256_shuffle_ps(x0, x1, _MM_SHUFFLE(3, 2, 3, 2));
-      auto c = _mm256_shuffle_ps(x2, x3, _MM_SHUFFLE(1, 0, 1, 0));
-      auto d = _mm256_shuffle_ps(x2, x3, _MM_SHUFFLE(3, 2, 3, 2));
+      auto x00x10x02x12 = _mm256_shuffle_ps(x0, x1, _MM_SHUFFLE(1, 0, 1, 0));
+      auto x01x11x03x13 = _mm256_shuffle_ps(x0, x1, _MM_SHUFFLE(3, 2, 3, 2));
+      auto x20x30x22x32 = _mm256_shuffle_ps(x2, x3, _MM_SHUFFLE(1, 0, 1, 0));
+      auto x21x31x23x33 = _mm256_shuffle_ps(x2, x3, _MM_SHUFFLE(3, 2, 3, 2));
 
-      auto aHi = _mm256_extractf128_ps(a, 1);
-      auto bHi = _mm256_extractf128_ps(b, 1);
-      auto cHi = _mm256_extractf128_ps(c, 1);
-      auto dHi = _mm256_extractf128_ps(d, 1);
-
-      _mm_storeu_ps(reinterpret_cast<float *>(&output[0]), _mm256_castps256_ps128(a));
-      _mm_storeu_ps(reinterpret_cast<float *>(&output[2]), _mm256_castps256_ps128(c));
-      _mm_storeu_ps(reinterpret_cast<float *>(&output[4]), aHi);
-      _mm_storeu_ps(reinterpret_cast<float *>(&output[6]), cHi);
-      _mm_storeu_ps(reinterpret_cast<float *>(&output[8]), _mm256_castps256_ps128(b));
-      _mm_storeu_ps(reinterpret_cast<float *>(&output[10]), _mm256_castps256_ps128(d));
-      _mm_storeu_ps(reinterpret_cast<float *>(&output[12]), bHi);
-      _mm_storeu_ps(reinterpret_cast<float *>(&output[14]), dHi);
+      _mm_storeu_ps(reinterpret_cast<float *>(&output[0]), _mm256_castps256_ps128(x00x10x02x12));
+      _mm_storeu_ps(reinterpret_cast<float *>(&output[2]), _mm256_castps256_ps128(x20x30x22x32));
+      _mm_storeu_ps(reinterpret_cast<float *>(&output[4]), _mm256_castps256_ps128(x01x11x03x13));
+      _mm_storeu_ps(reinterpret_cast<float *>(&output[6]), _mm256_castps256_ps128(x21x31x23x33));
+      _mm_storeu_ps(reinterpret_cast<float *>(&output[8]), _mm256_extractf128_ps(x00x10x02x12, 1));
+      _mm_storeu_ps(reinterpret_cast<float *>(&output[10]), _mm256_extractf128_ps(x20x30x22x32, 1));
+      _mm_storeu_ps(reinterpret_cast<float *>(&output[12]), _mm256_extractf128_ps(x01x11x03x13, 1));
+      _mm_storeu_ps(reinterpret_cast<float *>(&output[14]), _mm256_extractf128_ps(x21x31x23x33, 1));
     }
     else
     {
-      auto x0Hi = _mm256_extractf128_pd(x0, 1);
-      auto x1Hi = _mm256_extractf128_pd(x1, 1);
-      auto x2Hi = _mm256_extractf128_pd(x2, 1);
-      auto x3Hi = _mm256_extractf128_pd(x3, 1);
       _mm_storeu_pd(reinterpret_cast<double *>(&output[0]), _mm256_castpd256_pd128(x0));
       _mm_storeu_pd(reinterpret_cast<double *>(&output[1]), _mm256_castpd256_pd128(x1));
       _mm_storeu_pd(reinterpret_cast<double *>(&output[2]), _mm256_castpd256_pd128(x2));
       _mm_storeu_pd(reinterpret_cast<double *>(&output[3]), _mm256_castpd256_pd128(x3));
-      _mm_storeu_pd(reinterpret_cast<double *>(&output[4]), x0Hi);
-      _mm_storeu_pd(reinterpret_cast<double *>(&output[5]), x1Hi);
-      _mm_storeu_pd(reinterpret_cast<double *>(&output[6]), x2Hi);
-      _mm_storeu_pd(reinterpret_cast<double *>(&output[7]), x3Hi);
+      _mm_storeu_pd(reinterpret_cast<double *>(&output[4]), _mm256_extractf128_pd(x0, 1));
+      _mm_storeu_pd(reinterpret_cast<double *>(&output[5]), _mm256_extractf128_pd(x1, 1));
+      _mm_storeu_pd(reinterpret_cast<double *>(&output[6]), _mm256_extractf128_pd(x2, 1));
+      _mm_storeu_pd(reinterpret_cast<double *>(&output[7]), _mm256_extractf128_pd(x3, 1));
     }
   }
 
@@ -333,23 +329,18 @@ namespace FFT20XX::FMA
       w2Array[0] = { 1.0f, 0.0f };
       w3Array[0] = { 1.0f, 0.0f };
 
-      constexpr auto HalfIndex = (SIMDComplexCount<F> == 2) ? 1u : 2u;
-      w1Array[HalfIndex] = { InvSqrt2<float>, -InvSqrt2<float> };
-      w2Array[HalfIndex] = { 0.0f, -1.0f };
-      w3Array[HalfIndex] = { -InvSqrt2<float>, -InvSqrt2<float> };
+      w1Array[1] = { InvSqrt2<F>, -InvSqrt2<F> };
+      w2Array[1] = { 0.0f, -1.0f };
+      w3Array[1] = { -InvSqrt2<F>, -InvSqrt2<F> };
 
     if constexpr (SIMDComplexCount<F> > 2)
     {
-      w1Array[2] = { InvSqrt2<float>, -InvSqrt2<float> };
-      w2Array[2] = { 0.0f, -1.0f };
-      w3Array[2] = { -InvSqrt2<float>, -InvSqrt2<float> };
-
       // The first 2 contiguous butterflies use these angles from the table
-      w1Array[1] = table[4];
-      w2Array[1] = table[2];
-      w3Array[1] = table[5];
+      w1Array[2] = table[4];
+      w2Array[2] = table[2];
+      w3Array[2] = table[5];
       w1Array[3] = table[6];
-      w2Array[3] = w2Array[1] * -II;
+      w2Array[3] = w2Array[2] * -II;
       w3Array[3] = table[7];
     }
 
@@ -369,23 +360,15 @@ namespace FFT20XX::FMA
     w2Array[0] = table[groupIndex];
     w3Array[0] = table[(groupIndex << 1) + 1];
 
-    constexpr auto HalfIndex = (SIMDComplexCount<F> == 2) ? 1u : 2u;
-    w1Array[HalfIndex] = table[(groupIndex  << 1) + 2];
-    w2Array[HalfIndex] = w2Array[0] * -II;
-    w3Array[HalfIndex] = table[(groupIndex << 1) + 3];
+    w1Array[1] = table[(groupIndex  << 1) + 2];
+    w2Array[1] = w2Array[0] * -II;
+    w3Array[1] = table[(groupIndex << 1) + 3];
 
     if constexpr (SIMDComplexCount<F> > 2)
     {
-      w1Array[0] = table[groupIndex << 1];
-      w2Array[0] = table[groupIndex];
-      w3Array[0] = table[(groupIndex << 1) + 1];
-      w1Array[2] = table[(groupIndex  << 1) + 2];
-      w2Array[2] = w2Array[0] * -II;
-      w3Array[2] = table[(groupIndex << 1) + 3];
-
-      w1Array[1] = table[(groupIndex << 1) + 4];
-      w2Array[1] = table[groupIndex + 2];
-      w3Array[1] = table[(groupIndex << 1) + 5];
+      w1Array[2] = table[(groupIndex << 1) + 4];
+      w2Array[2] = table[groupIndex + 2];
+      w3Array[2] = table[(groupIndex << 1) + 5];
       w1Array[3] = table[(groupIndex  << 1) + 6];
       w2Array[3] = w2Array[1] * -II;
       w3Array[3] = table[(groupIndex << 1) + 7];
