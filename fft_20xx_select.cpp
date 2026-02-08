@@ -212,6 +212,8 @@ extern "C"
       { \
         if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX)) \
           { name##_FMA(__VA_ARGS__); } \
+        else if ((s_simdSupport & SIMDSupport::AVX) == SIMDSupport::AVX) \
+          { name##_AVX(__VA_ARGS__); } \
         else \
           { name##_Scalar(__VA_ARGS__); } \
       } while (false)
