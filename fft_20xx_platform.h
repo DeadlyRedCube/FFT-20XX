@@ -12,6 +12,12 @@
   #define COMPILER_MSVC 0
 #endif
 
+#if defined(_WIN32)
+  #define OS_WINDOWS 1
+#else
+  #define OS_WINDOWS 0
+#endif
+
 #if defined (__GNUC__) && !defined(__clang__) && !defined(__llvm__) && !defined(__INTEL_COMPILER)
   #define COMPILER_GCC 1
 #else

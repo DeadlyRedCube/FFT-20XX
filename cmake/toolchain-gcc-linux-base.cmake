@@ -1,6 +1,6 @@
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER g++)
-set(CMAKE_CXX_FLAGS_INIT "-fno-fast-math -ffp-contract=off -Werror -Wall -pedantic")
+set(CMAKE_CXX_FLAGS_INIT "-fno-fast-math -ffp-contract=off -Werror -Wall -pedantic -Wextra -Wshadow -Wcast-qual -Wpacked -Wundef -Wcast-align")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 set(CMAKE_SYSTEM_NAME Linux)
