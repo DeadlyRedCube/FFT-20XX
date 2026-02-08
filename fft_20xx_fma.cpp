@@ -11,6 +11,13 @@ static_assert(SIMD_FMA);
 #include <immintrin.h>
 
 
+namespace FFT20XX::Scalar
+{
+  template <Dir D, std::floating_point F>
+  void RunFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength);
+
+}
+
 namespace FFT20XX::FMA
 {
   #if COMPILER_GCC
@@ -379,22 +386,11 @@ namespace FFT20XX::FMA
     w3 = LoadComplex<F>(w3Array);
   }
 
+  template <Dir D, std::floating_point F>
+  FORCE_INLINE void SmallFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength)
+    { Scalar::RunFFT<D>(table, input, output, fftLength); }
+
   #include "fft_20xx_run.h"
-
-
-  template <std::floating_point F>
-  void ForwardFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength)
-    { RunFFT<Dir::Forward, F, SIMDComplexCount<F>>(table, input, output, fftLength); }
-
-  template void ForwardFFT(const Complex<float> *table, const Complex<float> *input, Complex<float> *output, std::size_t fftLength);
-  template void ForwardFFT(const Complex<double> *table, const Complex<double> *input, Complex<double> *output, std::size_t fftLength);
-
-  template <std::floating_point F>
-  void InverseFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength)
-    { RunFFT<Dir::Inverse, F, SIMDComplexCount<F>>(table, input, output, fftLength); }
-
-  template void InverseFFT(const Complex<float> *table, const Complex<float> *input, Complex<float> *output, std::size_t fftLength);
-  template void InverseFFT(const Complex<double> *table, const Complex<double> *input, Complex<double> *output, std::size_t fftLength);
 }
 
 
@@ -414,7 +410,7 @@ extern "C"
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
 
-    FMA::ForwardFFT<float>(
+    FMA::RunFFT<Dir::Forward, float>(
       t->Data(), 
       reinterpret_cast<const Complex<float> *>(input), 
       reinterpret_cast<Complex<float> *>(output), 
@@ -425,7 +421,7 @@ extern "C"
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
-    FMA::ForwardFFT<double>(
+    FMA::RunFFT<Dir::Forward, double>(
       t->Data(), 
       reinterpret_cast<const Complex<double> *>(input), 
       reinterpret_cast<Complex<double> *>(output), 
@@ -438,7 +434,7 @@ extern "C"
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
 
-    FMA::InverseFFT<float>(
+    FMA::RunFFT<Dir::Inverse, float>(
       t->Data(), 
       reinterpret_cast<const Complex<float> *>(input), 
       reinterpret_cast<Complex<float> *>(output), 
@@ -449,7 +445,7 @@ extern "C"
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
-    FMA::InverseFFT<double>(
+    FMA::RunFFT<Dir::Inverse, double>(
       t->Data(), 
       reinterpret_cast<const Complex<double> *>(input), 
       reinterpret_cast<Complex<double> *>(output), 

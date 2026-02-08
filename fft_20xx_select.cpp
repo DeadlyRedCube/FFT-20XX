@@ -55,6 +55,26 @@ extern "C"
 
 
   #if CPU_X86 || CPU_X64
+    void FFTComplex32_AVX(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
+    {
+      FFTComplex32Interleaved_AVX(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
+    }
+
+    void FFTComplex64_AVX(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
+    {
+      FFTComplex64Interleaved_AVX(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
+    }
+
+    void IFFTComplex32_AVX(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
+    {
+      IFFTComplex32Interleaved_AVX(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
+    }
+
+    void IFFTComplex64_AVX(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
+    {
+      IFFTComplex64Interleaved_AVX(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
+    }
+
     void FFTComplex32_FMA(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
     {
       FFTComplex32Interleaved_FMA(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
@@ -180,51 +200,34 @@ SIMDSupport operator~(SIMDSupport a) { return SIMDSupport(~int(a)); }
 
 extern "C"
 {
-  void FFTComplex32Interleaved(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
-  {
-    #if SIMD_AVX && SIMD_FMA
-      FFTComplex32Interleaved_FMA(table, input, output, fftLength);
-    #elif CPU_X86 || CPU_X64
-      if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX))
-        { FFTComplex32Interleaved_FMA(table, input, output, fftLength); }
-      else
-        { FFTComplex32Interleaved_Scalar(table, input, output, fftLength); }
+  #if SIMD_AVX
+    #if SIMD_FMA
+      #define SELECT(name, ...) name##_FMA(__VA_ARGS__)
+    #else
+      #define SELECT(name, ...) name##_AVX(__VA_ARGS__)
     #endif
-  }
+  #elif CPU_X86 || CPU_X64
+    #define SELECT(name, ...) \
+      do \
+      { \
+        if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX)) \
+          { name##_FMA(__VA_ARGS__); } \
+        else \
+          { name##_Scalar(__VA_ARGS__); } \
+      } while (false)
+  #else
+    #define SELECT(name) name##_Scalar(table, input, output, fftLength)
+  #endif
+
+  void FFTComplex32Interleaved(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+    { SELECT(FFTComplex32Interleaved, table, input, output, fftLength); }
 
   void IFFTComplex32Interleaved(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
-  {
-    #if SIMD_AVX && SIMD_FMA
-      IFFTComplex32Interleaved_FMA(table, input, output, fftLength);
-    #elif CPU_X86 || CPU_X64
-      if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX))
-        { IFFTComplex32Interleaved_FMA(table, input, output, fftLength); }
-      else
-        { IFFTComplex32Interleaved_Scalar(table, input, output, fftLength); }
-    #endif
-  }
+    { SELECT(IFFTComplex32Interleaved, table, input, output, fftLength); }
 
   void FFTComplex64Interleaved(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-  {
-    #if SIMD_AVX && SIMD_FMA
-      FFTComplex64Interleaved_FMA(table, input, output, fftLength);
-    #elif CPU_X86 || CPU_X64
-      if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX))
-        { FFTComplex64Interleaved_FMA(table, input, output, fftLength); }
-      else
-        { FFTComplex64Interleaved_Scalar(table, input, output, fftLength); }
-    #endif
-  }
+    { SELECT(FFTComplex64Interleaved, table, input, output, fftLength); }
 
   void IFFTComplex64Interleaved(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-  {
-    #if SIMD_AVX && SIMD_FMA
-      IFFTComplex64Interleaved_FMA(table, input, output, fftLength);
-    #elif CPU_X86 || CPU_X64
-      if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX))
-        { IFFTComplex64Interleaved_FMA(table, input, output, fftLength); }
-      else
-        { IFFTComplex64Interleaved_Scalar(table, input, output, fftLength); }
-    #endif
-  }
+    { SELECT(IFFTComplex64Interleaved, table, input, output, fftLength); }
 }
