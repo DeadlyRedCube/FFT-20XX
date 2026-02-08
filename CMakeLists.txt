@@ -46,14 +46,17 @@ if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
       fft-20xx
 
       PRIVATE
+        "fft_20xx_sse2.cpp"
         "fft_20xx_avx.cpp"
         "fft_20xx_fma.cpp"
   )
 
   if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    set_source_files_properties(fft_20xx_sse2.cpp PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
     set_source_files_properties(fft_20xx_avx.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX")
     set_source_files_properties(fft_20xx_fma.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
   else()
+    set_source_files_properties(fft_20xx_avx.cpp PROPERTIES COMPILE_OPTIONS -march=core2)
     set_source_files_properties(fft_20xx_avx.cpp PROPERTIES COMPILE_OPTIONS -march=sandybridge)
     set_source_files_properties(fft_20xx_fma.cpp PROPERTIES COMPILE_OPTIONS -mfma)
   endif()

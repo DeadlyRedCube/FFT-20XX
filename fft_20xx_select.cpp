@@ -55,6 +55,26 @@ extern "C"
 
 
   #if CPU_X86 || CPU_X64
+    void FFTComplex32_SSE2(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
+    {
+      FFTComplex32Interleaved_SSE2(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
+    }
+
+    void FFTComplex64_SSE2(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
+    {
+      FFTComplex64Interleaved_SSE2(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
+    }
+
+    void IFFTComplex32_SSE2(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
+    {
+      IFFTComplex32Interleaved_SSE2(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
+    }
+
+    void IFFTComplex64_SSE2(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
+    {
+      IFFTComplex64Interleaved_SSE2(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
+    }
+
     void FFTComplex32_AVX(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
     {
       FFTComplex32Interleaved_AVX(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
@@ -204,9 +224,15 @@ extern "C"
     #if SIMD_FMA
       #define SELECT(name, ...) name##_FMA(__VA_ARGS__)
     #else
-      #define SELECT(name, ...) name##_AVX(__VA_ARGS__)
+      do \
+      { \
+        if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX)) \
+          { name##_FMA(__VA_ARGS__); } \
+        else \
+          { name##_AVX(__VA_ARGS__); } \
+      } while (false)
     #endif
-  #elif CPU_X86 || CPU_X64
+  #elif SIMD_SSE2
     #define SELECT(name, ...) \
       do \
       { \
@@ -215,7 +241,19 @@ extern "C"
         else if ((s_simdSupport & SIMDSupport::AVX) == SIMDSupport::AVX) \
           { name##_AVX(__VA_ARGS__); } \
         else \
-          { name##_Scalar(__VA_ARGS__); } \
+          { name##_SSE2(__VA_ARGS__); } \
+      } while (false)
+  #elif CPU_X86 || CPU_X64
+    #define SELECT(name, ...) \
+      do \
+      { \
+        if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX)) \
+          { name##_FMA(__VA_ARGS__); } \
+        else if ((s_simdSupport & SIMDSupport::AVX) == SIMDSupport::AVX) \
+          { name##_AVX(__VA_ARGS__); } \
+        else if ((s_simdSupport & SIMDSupport::SSE2) == SIMDSupport::SSE2) \
+        else \
+          { name##_SSE2(__VA_ARGS__); } \
       } while (false)
   #else
     #define SELECT(name) name##_Scalar(table, input, output, fftLength)

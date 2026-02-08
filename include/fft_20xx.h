@@ -71,24 +71,34 @@
     void IFFTComplex32Interleaved_Scalar(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
     void IFFTComplex64Interleaved_Scalar(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
-    void FFTComplex32_AVX(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
-    void FFTComplex64_AVX(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
-    void FFTComplex32Interleaved_AVX(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
-    void FFTComplex64Interleaved_AVX(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
-    void IFFTComplex32_AVX(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
-    void IFFTComplex64_AVX(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
-    void IFFTComplex32Interleaved_AVX(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
-    void IFFTComplex64Interleaved_AVX(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+    #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
+      void FFTComplex32_SSE2(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+      void FFTComplex64_SSE2(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+      void FFTComplex32Interleaved_SSE2(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+      void FFTComplex64Interleaved_SSE2(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+      void IFFTComplex32_SSE2(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+      void IFFTComplex64_SSE2(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+      void IFFTComplex32Interleaved_SSE2(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+      void IFFTComplex64Interleaved_SSE2(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
-    void FFTComplex32_FMA(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
-    void FFTComplex64_FMA(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
-    void FFTComplex32Interleaved_FMA(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
-    void FFTComplex64Interleaved_FMA(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
-    void IFFTComplex32_FMA(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
-    void IFFTComplex64_FMA(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
-    void IFFTComplex32Interleaved_FMA(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
-    void IFFTComplex64Interleaved_FMA(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+      void FFTComplex32_AVX(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+      void FFTComplex64_AVX(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+      void FFTComplex32Interleaved_AVX(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+      void FFTComplex64Interleaved_AVX(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+      void IFFTComplex32_AVX(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+      void IFFTComplex64_AVX(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+      void IFFTComplex32Interleaved_AVX(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+      void IFFTComplex64Interleaved_AVX(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
+      void FFTComplex32_FMA(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+      void FFTComplex64_FMA(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+      void FFTComplex32Interleaved_FMA(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+      void FFTComplex64Interleaved_FMA(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+      void IFFTComplex32_FMA(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+      void IFFTComplex64_FMA(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+      void IFFTComplex32Interleaved_FMA(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+      void IFFTComplex64Interleaved_FMA(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+    #endif
   #ifdef __cplusplus
     }
   #endif
