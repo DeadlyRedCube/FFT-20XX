@@ -61,10 +61,16 @@ if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
     set_source_files_properties(fft_20xx_fma.cpp PROPERTIES COMPILE_OPTIONS -mfma)
   endif()
 elseif((CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
-  OR (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-  OR (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
-  OR (CMAKE_SYSTEM_PROCESSOR MATCHES "armv7a"))
+    OR (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+    OR (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+    OR (CMAKE_SYSTEM_PROCESSOR MATCHES "armv7a")
+  )
+  target_sources(
+      fft-20xx
 
+      PRIVATE
+        "fft_20xx_neon.cpp"
+  )
 else()
   if (CMAKE_SYSTEM_PROCESSOR STREQUAL "")
     message(FATAL_ERROR "CMAKE_SYSTEM_PROCESSOR must be set.")

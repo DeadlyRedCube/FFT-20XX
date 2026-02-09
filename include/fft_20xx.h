@@ -99,6 +99,17 @@
       void IFFTComplex32Interleaved_FMA(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
       void IFFTComplex64Interleaved_FMA(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
     #endif
+
+    #if defined(__ARM_NEON) && (defined(_M_ARM64) || defined(__aarch64__))
+      void FFTComplex32_NEON(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+      void FFTComplex64_NEON(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+      void FFTComplex32Interleaved_NEON(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+      void FFTComplex64Interleaved_NEON(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+      void IFFTComplex32_NEON(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
+      void IFFTComplex64_NEON(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
+      void IFFTComplex32Interleaved_NEON(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
+      void IFFTComplex64Interleaved_NEON(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+    #endif
   #ifdef __cplusplus
     }
   #endif

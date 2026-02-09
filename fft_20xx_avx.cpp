@@ -72,17 +72,17 @@ namespace FFT20XX::AVX
     friend FORCE_INLINE auto operator*(SIMDComplex a, SIMDComplex b) -> SIMDComplex
     {
       if constexpr (std::same_as<F, float>)
-        { return AddSub(_mm256_mul_ps(b, DuplicateEven(a)), _mm256_mul_ps(SwapEvenOdd(b), DuplicateOdd(a))); }
+        { return _mm256_sub_ps(_mm256_mul_ps(b, DuplicateEven(a)), NegateOddElements(_mm256_mul_ps(SwapEvenOdd(b), DuplicateOdd(a)))); }
       else
-        { return AddSub(_mm256_mul_pd(b, DuplicateEven(a)), _mm256_mul_pd(SwapEvenOdd(b), DuplicateOdd(a))); }
+        { return _mm256_sub_pd(_mm256_mul_pd(b, DuplicateEven(a)), NegateOddElements(_mm256_mul_pd(SwapEvenOdd(b), DuplicateOdd(a)))); }
     }
 
     friend FORCE_INLINE auto MultiplyWithConjugate(SIMDComplex a, SIMDComplex b) -> SIMDComplex
     {
       if constexpr (std::same_as<F, float>)
-        { return SubAdd(_mm256_mul_ps(SwapEvenOdd(b), DuplicateOdd(a)), _mm256_mul_ps(b, DuplicateEven(a))); }
+        { return _mm256_add_ps(_mm256_mul_ps(SwapEvenOdd(b), DuplicateOdd(a)), NegateOddElements(_mm256_mul_ps(b, DuplicateEven(a)))); }
       else
-        { return SubAdd(_mm256_mul_pd(SwapEvenOdd(b), DuplicateOdd(a)), _mm256_mul_pd(b, DuplicateEven(a))); }
+        { return _mm256_add_pd(_mm256_mul_pd(SwapEvenOdd(b), DuplicateOdd(a)), NegateOddElements(_mm256_mul_pd(b, DuplicateEven(a)))); }
     }
 
     template <Dir D>
@@ -91,36 +91,26 @@ namespace FFT20XX::AVX
       if constexpr (std::same_as<F, float>)
       {
         if constexpr (D == Dir::Forward)
-          { return _mm256_mul_ps(_mm256_set1_ps(InvSqrt2<float>), SubAdd(a, SwapEvenOdd(a)));  }
+          { return _mm256_mul_ps(_mm256_set1_ps(InvSqrt2<float>), _mm256_add_ps(a, NegateOddElements(SwapEvenOdd(a))));  }
         else
-          { return _mm256_mul_ps(_mm256_set1_ps(InvSqrt2<float>), AddSub(a, SwapEvenOdd(a)));  }
+          { return _mm256_mul_ps(_mm256_set1_ps(InvSqrt2<float>), _mm256_sub_ps(a, NegateOddElements(SwapEvenOdd(a))));  }
       }
       else
       {
         if constexpr (D == Dir::Forward)
-          { return _mm256_mul_pd(_mm256_set1_pd(InvSqrt2<double>), SubAdd(a, SwapEvenOdd(a))); }
+          { return _mm256_mul_pd(_mm256_set1_pd(InvSqrt2<double>), _mm256_add_pd(a, NegateOddElements(SwapEvenOdd(a)))); }
         else
-          { return _mm256_mul_pd(_mm256_set1_pd(InvSqrt2<double>), AddSub(a, SwapEvenOdd(a))); }
+          { return _mm256_mul_pd(_mm256_set1_pd(InvSqrt2<double>), _mm256_sub_pd(a, NegateOddElements(SwapEvenOdd(a)))); }
       }
     }
 
     template <Dir D>
     friend FORCE_INLINE auto Rot90(SIMDComplex a) -> SIMDComplex
     { 
-      if constexpr (std::same_as<F, float>)
-      {
-        if constexpr (D == Dir::Forward)
-          { return SwapEvenOdd(AddSub(_mm256_setzero_ps(), a)); }
-        else
-          { return AddSub(_mm256_setzero_ps(), SwapEvenOdd(a)); }
-      }
+      if constexpr (D == Dir::Forward)
+        { return NegateOddElements(SwapEvenOdd(a)); }
       else
-      { 
-        if constexpr (D == Dir::Forward)
-          { return SwapEvenOdd(AddSub(_mm256_setzero_pd(), a)); }
-        else
-          { return AddSub(_mm256_setzero_pd(), SwapEvenOdd(a)); }
-      }
+        { return SwapEvenOdd(NegateOddElements(a)); }
     }
 
 
@@ -130,16 +120,16 @@ namespace FFT20XX::AVX
       if constexpr (std::same_as<F, float>)
       {
         if constexpr (D == Dir::Forward)
-          { return _mm256_mul_ps(_mm256_set1_ps(-InvSqrt2<float>), AddSub(a, SwapEvenOdd(a)));  }
+          { return _mm256_mul_ps(_mm256_set1_ps(-InvSqrt2<float>), _mm256_add_ps(a, NegateOddElements(SwapEvenOdd(a)))); }
         else
-          { return _mm256_mul_ps(_mm256_set1_ps(-InvSqrt2<float>), SubAdd(a, SwapEvenOdd(a)));  }
+          { return _mm256_mul_ps(_mm256_set1_ps(-InvSqrt2<float>), _mm256_sub_ps(a, NegateOddElements(SwapEvenOdd(a))));  }
       }
       else
       {
         if constexpr (D == Dir::Forward)
-          { return _mm256_mul_pd(_mm256_set1_pd(-InvSqrt2<double>), AddSub(a, SwapEvenOdd(a)));  }
+          { return _mm256_mul_pd(_mm256_set1_pd(-InvSqrt2<double>), _mm256_add_pd(a, NegateOddElements(SwapEvenOdd(a)))); }
         else
-          { return _mm256_mul_pd(_mm256_set1_pd(-InvSqrt2<double>), SubAdd(a, SwapEvenOdd(a)));  }
+          { return _mm256_mul_pd(_mm256_set1_pd(-InvSqrt2<double>), _mm256_sub_pd(a, NegateOddElements(SwapEvenOdd(a)))); }
       }
     }
 
@@ -166,32 +156,12 @@ namespace FFT20XX::AVX
   private:
     N nat;
 
-    static FORCE_INLINE auto AddSub(N a, N b) // Using intel's backwards naming here for consistency w/FMA
+    static FORCE_INLINE auto NegateOddElements(N v)
     {
       if constexpr (std::same_as<F, float>)
-      {
-        auto signBits = _mm256_castpd_ps(_mm256_set1_pd(-0.0));
-        return _mm256_sub_ps(a, _mm256_xor_ps(b, signBits));
-      }
+        { return _mm256_xor_ps(v, _mm256_castpd_ps(_mm256_set1_pd(-0.0))); }
       else
-      {
-        auto signBits = _mm256_set_pd(-0.0, 0.0, -0.0, 0.0);
-        return _mm256_sub_pd(a, _mm256_xor_pd(b, signBits));
-      }
-    }
-
-    static FORCE_INLINE auto SubAdd(N a, N b) // Using intel's backwards naming here for consistency w/FMA
-    {
-      if constexpr (std::same_as<F, float>)
-      {
-        auto signBits = _mm256_castpd_ps(_mm256_set1_pd(-0.0));
-        return _mm256_add_ps(a, _mm256_xor_ps(b, signBits));
-      }
-      else
-      {
-        auto signBits = _mm256_set_pd(-0.0, 0.0, -0.0, 0.0);
-        return _mm256_add_pd(a, _mm256_xor_pd(b, signBits));
-      }
+        { return _mm256_xor_pd(v, _mm256_set_pd(-0.0, 0.0, -0.0, 0.0)); }
     }
 
     static FORCE_INLINE auto SwapEvenOdd(N v)

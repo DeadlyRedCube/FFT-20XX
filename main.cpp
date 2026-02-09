@@ -143,7 +143,7 @@ int main()
   auto table64 = AllocateFFTTable64(MaxFFTLength);
 
   
-  using F = double;
+  using F = float;
   constexpr auto size = 16u;
   std::vector<std::complex<F>> input(size);
   std::vector<std::complex<F>> output(size);
@@ -154,14 +154,14 @@ int main()
     input[i] = {F(i), -F(2 * i) };
   }
 
-  FFTComplex64(table64, input.data(), output.data(), size);
+  FFTComplex32_AVX(table32, input.data(), output.data(), size);
 
-  IFFTComplex64(table64, output.data(), output2.data(), size);
+  IFFTComplex32_AVX(table32, output.data(), output2.data(), size);
    
   printf("\n\n");
 
   printf("\n\n");
-  for (auto v : output)
+  for (auto v : output2)
   {
     if (v.imag() < 0)
       { printf("%f - i*%f\n", v.real(), -v.imag()); }
@@ -180,6 +180,8 @@ int main()
     Benchmark<float>("SSE2     (f32)", [&](auto &&...args) { FFTComplex32_SSE2(table32, args...); }, MaxFFTLength);
     Benchmark<float>("AVX only (f32)", [&](auto &&...args) { FFTComplex32_AVX(table32, args...); }, MaxFFTLength);
     Benchmark<float>("AVX/FMA  (f32)", [&](auto &&...args) { FFTComplex32_FMA(table32, args...); }, MaxFFTLength);
+  #elif defined(__ARM_NEON) && (defined(_M_ARM64) || defined(__aarch64__))
+    Benchmark<float>("NEON     (f32)", [&](auto &&...args) { FFTComplex32_NEON(table32, args...); }, MaxFFTLength);
   #endif
 
   Benchmark<double>("Auto     (f64)", [&](auto &&...args) { FFTComplex64(table64, args...); }, MaxFFTLength);
@@ -189,8 +191,9 @@ int main()
     Benchmark<double>("SSE2     (f64)", [&](auto &&...args) { FFTComplex64_SSE2(table64, args...); }, MaxFFTLength);
     Benchmark<double>("AVX only (f64)", [&](auto &&...args) { FFTComplex64_AVX(table64, args...); }, MaxFFTLength);
     Benchmark<double>("AVX/FMA  (f64)", [&](auto &&...args) { FFTComplex64_FMA(table64, args...); }, MaxFFTLength);
+  #elif defined(__ARM_NEON) && (defined(_M_ARM64) || defined(__aarch64__))
+    Benchmark<double>("NEON     (f64)", [&](auto &&...args) { FFTComplex64_NEON(table64, args...); }, MaxFFTLength);
   #endif
-
   FreeFFTTable32(table32);
   FreeFFTTable64(table64);
   return 0;

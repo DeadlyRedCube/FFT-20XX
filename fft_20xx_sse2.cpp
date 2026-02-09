@@ -16,6 +16,8 @@ namespace FFT20XX::Scalar
 
 }
 
+// !!! 32-bit float output is wrong and I only just noticed :|
+
 namespace FFT20XX::SSE2
 {
   #if COMPILER_GCC
@@ -110,16 +112,16 @@ namespace FFT20XX::SSE2
       if constexpr (std::same_as<F, float>)
       {
         if constexpr (D == Dir::Forward)
-          { return SwapEvenOdd(AddSub(_mm_setzero_ps(), a)); }
+          { return SwapEvenOdd(AddSub(_mm_setzero_ps(), a)); } // !!! This could be more efficient since there's no native AddSub
         else
-          { return AddSub(_mm_setzero_ps(), SwapEvenOdd(a)); }
+          { return AddSub(_mm_setzero_ps(), SwapEvenOdd(a)); } // !!! This could be more efficient since there's no native AddSub
       }
       else
       { 
         if constexpr (D == Dir::Forward)
-          { return SwapEvenOdd(AddSub(_mm_setzero_pd(), a)); }
+          { return SwapEvenOdd(AddSub(_mm_setzero_pd(), a)); } // !!! This could be more efficient since there's no native AddSub
         else
-          { return AddSub(_mm_setzero_pd(), SwapEvenOdd(a)); }
+          { return AddSub(_mm_setzero_pd(), SwapEvenOdd(a)); } // !!! This could be more efficient since there's no native AddSub
       }
     }
 

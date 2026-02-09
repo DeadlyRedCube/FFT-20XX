@@ -114,6 +114,27 @@ extern "C"
     {
       IFFTComplex64Interleaved_FMA(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
     }
+  #elif SIMD_NEON64
+    void FFTComplex32_NEON(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
+    {
+      FFTComplex32Interleaved_NEON(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
+    }
+
+    void FFTComplex64_NEON(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
+    {
+      FFTComplex64Interleaved_NEON(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
+    }
+
+    void IFFTComplex32_NEON(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
+    {
+      IFFTComplex32Interleaved_NEON(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
+    }
+
+    void IFFTComplex64_NEON(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
+    {
+      IFFTComplex64Interleaved_NEON(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
+    }
+
   #endif
 }
 
@@ -256,6 +277,8 @@ extern "C"
         else \
           { name##_Scalar(__VA_ARGS__); } \
       } while (false)
+  #elif SIMD_NEON64
+    #define SELECT(name, ...) name##_NEON(__VA_ARGS__)
   #else
     #define SELECT(name, ...) name##_Scalar(__VA_ARGS__)
   #endif
