@@ -90,9 +90,9 @@ FORCE_INLINE void DoMainButterfly(
   Complex<F> *data,
   std::size_t baseIndex,
   std::size_t butterflyStep,
-  Complex<F> w1In,
-  Complex<F> w2In,
-  Complex<F> w3In)
+  auto w1In,
+  auto w2In,
+  auto w3In)
 {
   auto w1 = SIMDComplex{w1In};
   auto w2 = SIMDComplex{w2In};
@@ -208,16 +208,28 @@ template <Dir D, std::floating_point F>
 FORCE_INLINE void RunMultipleMainButterflies(const Complex<F> *table, Complex<F> *data, std::size_t groupIndex, std::size_t butterflyStep)
 {
   auto groupBase = groupIndex * butterflyStep * 4;
-  auto w1 = table[groupIndex << 1];
-  auto w2 = table[groupIndex];
-  auto w3 = table[(groupIndex << 1) + 1];
+
+  #ifdef CUSTOM_BUTTERFLY_LOAD
+    SIMDComplex<F> w1;
+    SIMDComplex<F> w2;
+    SIMDComplex<F> w3;
+    LoadPrimaryMainButterflyAngles(table, groupIndex, w1, w2, w3);
+  #else
+    auto w1 = table[groupIndex << 1];
+    auto w2 = table[groupIndex];
+    auto w3 = table[(groupIndex << 1) + 1];
+  #endif
   for (auto butterflyIndex = 0u; butterflyIndex < butterflyStep; butterflyIndex += SIMDComplexCount<F>)
     { DoMainButterfly<D, F>(data, groupBase + butterflyIndex, butterflyStep, w1, w2, w3); }
 
   // Next group is a 45 degree rotation from the current one.
-  w1 = table[(groupIndex  << 1) + 2];
-  w2 *= -II; // This 90 degree rotate without using Rot is fine
-  w3 = table[(groupIndex << 1) + 3];
+  #ifdef CUSTOM_BUTTERFLY_LOAD
+    MakeSecondaryMainButterflyAngles(table, groupIndex, w1, w2, w3);
+  #else
+    w1 = table[(groupIndex  << 1) + 2];
+    w2 *= -II; // This 90 degree rotate without using Rot is fine
+    w3 = table[(groupIndex << 1) + 3];
+  #endif
 
   groupBase += butterflyStep * 4;
   for (auto butterflyIndex = 0u; butterflyIndex < butterflyStep; butterflyIndex += SIMDComplexCount<F>)

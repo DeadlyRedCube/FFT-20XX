@@ -373,7 +373,7 @@ namespace FFT20XX::AVX
       w2Array[2] = table[groupIndex + 2];
       w3Array[2] = table[(groupIndex << 1) + 5];
       w1Array[3] = table[(groupIndex  << 1) + 6];
-      w2Array[3] = w2Array[1] * -II;
+      w2Array[3] = w2Array[2] * -II;
       w3Array[3] = table[(groupIndex << 1) + 7];
     }
 
