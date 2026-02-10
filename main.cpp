@@ -13,6 +13,10 @@
 #include <cstdlib>
 #include <vector>
 
+#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
+  #include <immintrin.h>
+#endif
+
 template <typename T>
 T *AlignedAlloc(std::size_t count, std::size_t elementAlignment)
 {
@@ -139,39 +143,39 @@ int main()
   FlushSubnormals();
 
   constexpr auto MaxFFTLength = 512 * 1024u;
-  auto table32 = AllocateFFTTable32(MaxFFTLength);
-  auto table64 = AllocateFFTTable64(MaxFFTLength);
+  [[maybe_unused]] auto table32 = AllocateFFTTable32(MaxFFTLength);
+  [[maybe_unused]] auto table64 = AllocateFFTTable64(MaxFFTLength);
 
   
-  using F = float;
-  constexpr auto size = 16u;
-  std::vector<std::complex<F>> input(size);
-  std::vector<std::complex<F>> output(size);
-  std::vector<std::complex<F>> output2(size);
+  #if 0
+    using F = double;
+    constexpr auto size = 256u;
+    std::vector<std::complex<F>> input(size);
+    std::vector<std::complex<F>> output(size);
+    std::vector<std::complex<F>> output2(size);
 
-  for (auto i = 0u; i < input.size(); i++)
-  {
-    input[i] = {F(i), -F(2 * i) };
-  }
+    for (auto i = 0u; i < input.size(); i++)
+    {
+      input[i] = {F(i), -F(2 * i) };
+    }
 
-  FFTComplex32_AVX(table32, input.data(), output.data(), size);
+    printf("Scalar\n");
+    FFTComplex64_Scalar(table64, input.data(), output.data(), size);
 
-  IFFTComplex32_AVX(table32, output.data(), output2.data(), size);
+    printf("SSE2\n");
+    FFTComplex64_SSE2(table64, input.data(), output.data(), size);
    
-  printf("\n\n");
+    printf("\n\n");
 
-  printf("\n\n");
-  for (auto v : output2)
-  {
-    if (v.imag() < 0)
-      { printf("%f - i*%f\n", v.real(), -v.imag()); }
-    else
-      { printf("%f + i*%f,\n", v.real(), v.imag()); }
-  }
-
-  // Flags are here: 
-  //  https://en.wikipedia.org/wiki/CPUID
-  //
+    printf("\n\n");
+    for (auto v : output)
+    {
+      if (v.imag() < 0)
+        { printf("%f - i*%f\n", v.real(), -v.imag()); }
+      else
+        { printf("%f + i*%f,\n", v.real(), v.imag()); }
+    }
+  #endif
 
   Benchmark<float>("Auto     (f32)", [&](auto &&...args) { FFTComplex32(table32, args...); }, MaxFFTLength);
   Benchmark<float>("Scalar   (f32)", [&](auto &&...args) { FFTComplex32_Scalar(table32, args...); }, MaxFFTLength);

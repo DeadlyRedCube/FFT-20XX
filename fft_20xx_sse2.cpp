@@ -267,15 +267,15 @@ namespace FFT20XX::SSE2
       auto x21x31 = _mm_load_ps(reinterpret_cast<const float *>(&input[6]));
 
       x0 = _mm_shuffle_ps(x00x10, x01x11, _MM_SHUFFLE(1, 0, 1, 0));
-      x1 = _mm_shuffle_ps(x00x10, x01x11, _MM_SHUFFLE(3, 2, 3, 2));
-      x2 = _mm_shuffle_ps(x20x30, x21x31, _MM_SHUFFLE(1, 0, 1, 0));
+      x2 = _mm_shuffle_ps(x00x10, x01x11, _MM_SHUFFLE(3, 2, 3, 2));
+      x1 = _mm_shuffle_ps(x20x30, x21x31, _MM_SHUFFLE(1, 0, 1, 0));
       x3 = _mm_shuffle_ps(x20x30, x21x31, _MM_SHUFFLE(3, 2, 3, 2));
     }
     else
     {
       x0 = _mm_load_pd(reinterpret_cast<const double *>(&input[0]));
-      x1 = _mm_load_pd(reinterpret_cast<const double *>(&input[1]));
-      x2 = _mm_load_pd(reinterpret_cast<const double *>(&input[2]));
+      x2 = _mm_load_pd(reinterpret_cast<const double *>(&input[1]));
+      x1 = _mm_load_pd(reinterpret_cast<const double *>(&input[2]));
       x3 = _mm_load_pd(reinterpret_cast<const double *>(&input[3]));
     }
   }
@@ -292,8 +292,8 @@ namespace FFT20XX::SSE2
     if constexpr (std::same_as<F, float>)
     {
       _mm_store_ps(reinterpret_cast<float *>(&output[0]), _mm_shuffle_ps(x0, x1, _MM_SHUFFLE(1, 0, 1, 0)));
-      _mm_store_ps(reinterpret_cast<float *>(&output[2]), _mm_shuffle_ps(x0, x1, _MM_SHUFFLE(3, 2, 3, 2)));
-      _mm_store_ps(reinterpret_cast<float *>(&output[4]), _mm_shuffle_ps(x2, x3, _MM_SHUFFLE(1, 0, 1, 0)));
+      _mm_store_ps(reinterpret_cast<float *>(&output[2]), _mm_shuffle_ps(x2, x3, _MM_SHUFFLE(1, 0, 1, 0)));
+      _mm_store_ps(reinterpret_cast<float *>(&output[4]), _mm_shuffle_ps(x0, x1, _MM_SHUFFLE(3, 2, 3, 2)));
       _mm_store_ps(reinterpret_cast<float *>(&output[6]), _mm_shuffle_ps(x2, x3, _MM_SHUFFLE(3, 2, 3, 2)));
     }
     else
