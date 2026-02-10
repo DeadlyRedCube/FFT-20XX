@@ -138,6 +138,76 @@ void Benchmark(const char *name, auto fftFunction, std::uint32_t maxFFTLength)
   #error Unknown CPU type.
 #endif
 
+template <typename F>
+void SmokeTest(const char *name, auto testFwd, auto testInv)
+{
+  constexpr auto MaxFFTLength = 4096;
+  [[maybe_unused]] auto table32 = AllocateFFTTable32(MaxFFTLength);
+  [[maybe_unused]] auto table64 = AllocateFFTTable64(MaxFFTLength);
+
+  auto *table = 
+    [&]
+    {
+      if constexpr (std::same_as<F, float>)
+        { return table32; }
+      else
+        { return table64; }
+    }();
+
+  for (auto size = 1u; size <= MaxFFTLength; size *= 2)
+  {
+    std::vector<std::complex<F>> input(size);
+    std::vector<std::complex<F>> outputGood(size);
+    std::vector<std::complex<F>> outputTest(size);
+    std::vector<std::complex<F>> ioutputGood(size);
+    std::vector<std::complex<F>> ioutputTest(size);
+
+    for (auto i = 0u; i < input.size(); i++)
+      { input[i] = {F(i), -F(2 * i) }; }
+
+
+    if constexpr (std::same_as<F, float>)
+    {
+      FFTComplex32_Scalar(table, input.data(), outputGood.data(), size);
+      IFFTComplex32_Scalar(table, input.data(), ioutputGood.data(), size);
+    }
+    else
+    {
+      FFTComplex64_Scalar(table, input.data(), outputGood.data(), size);
+      IFFTComplex64_Scalar(table, input.data(), ioutputGood.data(), size);
+    }
+
+    testFwd(table, input.data(), outputTest.data(), size);
+    testInv(table, input.data(), ioutputTest.data(), size);
+
+    // The float32 epsilon is fairly high because of differences in using fma vs not
+    constexpr F Epsilon = F(std::same_as<F, float> ? 5e-3 : 1e-9);
+
+    for (auto i = 0u; i < size; i++)
+    {
+      auto maxR = std::max(std::abs(outputTest[i].real()), std::abs(outputGood[i].real()));
+      auto maxI = std::max(std::abs(outputTest[i].imag()), std::abs(outputGood[i].imag()));
+      if (std::abs(outputTest[i].real() - outputGood[i].real()) / maxR > Epsilon)
+        { printf("Fwd FFT %s %u, at %u r: %f != %f\n", name, size, i, outputGood[i].real(), outputTest[i].real()); abort(); }
+      if (std::abs(outputTest[i].imag() - outputGood[i].imag()) / maxI > Epsilon)
+        { printf("Fwd FFT %s %u, at %u i: %f != %f\n", name, size, i, outputGood[i].imag(), outputTest[i].imag()); abort(); }
+    }
+
+    for (auto i = 0u; i < size; i++)
+    {
+      auto maxR = std::max(std::abs(ioutputTest[i].real()), std::abs(ioutputGood[i].real()));
+      auto maxI = std::max(std::abs(ioutputTest[i].imag()), std::abs(ioutputGood[i].imag()));
+      if (std::abs(ioutputTest[i].real() - ioutputGood[i].real()) / maxR > Epsilon)
+        { printf("Inv FFT %s %u, at %u r: %f != %f\n", name, size, i, ioutputGood[i].real(), ioutputTest[i].real()); abort(); }
+      if (std::abs(ioutputTest[i].imag() - ioutputGood[i].imag()) / maxI > Epsilon)
+        { printf("Inv FFT %s %u, at %u i: %f != %f\n", name, size, i, ioutputGood[i].imag(), ioutputTest[i].imag()); abort(); }
+    }
+  }
+
+  FreeFFTTable32(table32);
+  FreeFFTTable64(table64);
+}
+
 int main()
 {
   FlushSubnormals();
@@ -149,7 +219,7 @@ int main()
   
   #if 0
     using F = double;
-    constexpr auto size = 256u;
+    constexpr auto size = 128u;
     std::vector<std::complex<F>> input(size);
     std::vector<std::complex<F>> output(size);
     std::vector<std::complex<F>> output2(size);
@@ -159,14 +229,9 @@ int main()
       input[i] = {F(i), -F(2 * i) };
     }
 
-    printf("Scalar\n");
-    FFTComplex64_Scalar(table64, input.data(), output.data(), size);
-
-    printf("SSE2\n");
-    FFTComplex64_SSE2(table64, input.data(), output.data(), size);
+    IFFTComplex64_Scalar(table64, input.data(), output.data(), size);
+    IFFTComplex64_AVX(table64, input.data(), output2.data(), size);
    
-    printf("\n\n");
-
     printf("\n\n");
     for (auto v : output)
     {
@@ -181,21 +246,28 @@ int main()
   Benchmark<float>("Scalar   (f32)", [&](auto &&...args) { FFTComplex32_Scalar(table32, args...); }, MaxFFTLength);
 
   #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
+    SmokeTest<float>("SSE2 f32", [&](auto &&...args) { FFTComplex32_SSE2(args...); }, [&](auto &&...args) { IFFTComplex32_SSE2(args...); });
     Benchmark<float>("SSE2     (f32)", [&](auto &&...args) { FFTComplex32_SSE2(table32, args...); }, MaxFFTLength);
+    SmokeTest<float>("AVX f32", [&](auto &&...args) { FFTComplex32_AVX(args...); }, [&](auto &&...args) { IFFTComplex32_AVX(args...); });
     Benchmark<float>("AVX only (f32)", [&](auto &&...args) { FFTComplex32_AVX(table32, args...); }, MaxFFTLength);
+    SmokeTest<float>("FMA f32", [&](auto &&...args) { FFTComplex32_FMA(args...); }, [&](auto &&...args) { IFFTComplex32_FMA(args...); });
     Benchmark<float>("AVX/FMA  (f32)", [&](auto &&...args) { FFTComplex32_FMA(table32, args...); }, MaxFFTLength);
   #elif defined(__ARM_NEON) && (defined(_M_ARM64) || defined(__aarch64__))
+    SmokeTest<float>("NEON f32", [&](auto &&...args) { FFTComplex32_NEON(args...); }, [&](auto &&...args) { IFFTComplex32_NEON(args...); });
     Benchmark<float>("NEON     (f32)", [&](auto &&...args) { FFTComplex32_NEON(table32, args...); }, MaxFFTLength);
   #endif
 
-  Benchmark<double>("Auto     (f64)", [&](auto &&...args) { FFTComplex64(table64, args...); }, MaxFFTLength);
   Benchmark<double>("Scalar   (f64)", [&](auto &&...args) { FFTComplex64_Scalar(table64, args...); }, MaxFFTLength);
   
   #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
+    SmokeTest<double>("SSE2 f64", [&](auto &&...args) { FFTComplex64_SSE2(args...); }, [&](auto &&...args) { IFFTComplex64_SSE2(args...); });
     Benchmark<double>("SSE2     (f64)", [&](auto &&...args) { FFTComplex64_SSE2(table64, args...); }, MaxFFTLength);
+    SmokeTest<double>("AVX f64", [&](auto &&...args) { FFTComplex64_AVX(args...); }, [&](auto &&...args) { IFFTComplex64_AVX(args...); });
     Benchmark<double>("AVX only (f64)", [&](auto &&...args) { FFTComplex64_AVX(table64, args...); }, MaxFFTLength);
+    SmokeTest<double>("FMA f64", [&](auto &&...args) { FFTComplex64_FMA(args...); }, [&](auto &&...args) { IFFTComplex64_FMA(args...); });
     Benchmark<double>("AVX/FMA  (f64)", [&](auto &&...args) { FFTComplex64_FMA(table64, args...); }, MaxFFTLength);
   #elif defined(__ARM_NEON) && (defined(_M_ARM64) || defined(__aarch64__))
+    SmokeTest<double>("NEON f64", [&](auto &&...args) { FFTComplex64_NEON(args...); }, [&](auto &&...args) { IFFTComplex64_NEON(args...); });
     Benchmark<double>("NEON     (f64)", [&](auto &&...args) { FFTComplex64_NEON(table64, args...); }, MaxFFTLength);
   #endif
   FreeFFTTable32(table32);

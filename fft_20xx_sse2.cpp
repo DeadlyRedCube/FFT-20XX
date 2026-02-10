@@ -16,8 +16,6 @@ namespace FFT20XX::Scalar
 
 }
 
-// !!! 32-bit float output is wrong and I only just noticed :|
-
 namespace FFT20XX::SSE2
 {
   #if COMPILER_GCC
@@ -73,18 +71,19 @@ namespace FFT20XX::SSE2
 
     friend FORCE_INLINE auto operator*(SIMDComplex a, SIMDComplex b) -> SIMDComplex
     {
+      // ar * br - ai * bi, ar*bi + br*ai
       if constexpr (std::same_as<F, float>)
-        { return AddSub(_mm_mul_ps(b, DuplicateEven(a)), _mm_mul_ps(SwapEvenOdd(b), DuplicateOdd(a))); }
+        { return _mm_sub_ps(_mm_mul_ps(b, DuplicateEven(a)), NegateOddElements(_mm_mul_ps(SwapEvenOdd(b), DuplicateOdd(a)))); }
       else
-        { return AddSub(_mm_mul_pd(b, DuplicateEven(a)), _mm_mul_pd(SwapEvenOdd(b), DuplicateOdd(a))); }
+        { return _mm_sub_pd(_mm_mul_pd(b, DuplicateEven(a)), NegateOddElements(_mm_mul_pd(SwapEvenOdd(b), DuplicateOdd(a)))); }
     }
 
     friend FORCE_INLINE auto MultiplyWithConjugate(SIMDComplex a, SIMDComplex b) -> SIMDComplex
     {
       if constexpr (std::same_as<F, float>)
-        { return SubAdd(_mm_mul_ps(SwapEvenOdd(b), DuplicateOdd(a)), _mm_mul_ps(b, DuplicateEven(a))); }
+        { return _mm_add_ps(_mm_mul_ps(SwapEvenOdd(b), DuplicateOdd(a)), NegateOddElements(_mm_mul_ps(b, DuplicateEven(a)))); }
       else
-        { return SubAdd(_mm_mul_pd(SwapEvenOdd(b), DuplicateOdd(a)), _mm_mul_pd(b, DuplicateEven(a))); }
+        { return _mm_add_pd(_mm_mul_pd(SwapEvenOdd(b), DuplicateOdd(a)), NegateOddElements(_mm_mul_pd(b, DuplicateEven(a)))); }
     }
 
     template <Dir D>
@@ -93,36 +92,26 @@ namespace FFT20XX::SSE2
       if constexpr (std::same_as<F, float>)
       {
         if constexpr (D == Dir::Forward)
-          { return _mm_mul_ps(_mm_set1_ps(InvSqrt2<float>), SubAdd(a, SwapEvenOdd(a)));  }
+          { return _mm_mul_ps(_mm_set1_ps(InvSqrt2<float>), _mm_add_ps(a, NegateOddElements(SwapEvenOdd(a))));  }
         else
-          { return _mm_mul_ps(_mm_set1_ps(InvSqrt2<float>), AddSub(a, SwapEvenOdd(a)));  }
+          { return _mm_mul_ps(_mm_set1_ps(InvSqrt2<float>), _mm_sub_ps(a, NegateOddElements(SwapEvenOdd(a))));  }
       }
       else
       {
         if constexpr (D == Dir::Forward)
-          { return _mm_mul_pd(_mm_set1_pd(InvSqrt2<double>), SubAdd(a, SwapEvenOdd(a))); }
+          { return _mm_mul_pd(_mm_set1_pd(InvSqrt2<double>), _mm_add_pd(a, NegateOddElements(SwapEvenOdd(a)))); }
         else
-          { return _mm_mul_pd(_mm_set1_pd(InvSqrt2<double>), AddSub(a, SwapEvenOdd(a))); }
+          { return _mm_mul_pd(_mm_set1_pd(InvSqrt2<double>), _mm_sub_pd(a, NegateOddElements(SwapEvenOdd(a)))); }
       }
     }
 
     template <Dir D>
     friend FORCE_INLINE auto Rot90(SIMDComplex a) -> SIMDComplex
     { 
-      if constexpr (std::same_as<F, float>)
-      {
-        if constexpr (D == Dir::Forward)
-          { return SwapEvenOdd(AddSub(_mm_setzero_ps(), a)); } // !!! This could be more efficient since there's no native AddSub
-        else
-          { return AddSub(_mm_setzero_ps(), SwapEvenOdd(a)); } // !!! This could be more efficient since there's no native AddSub
-      }
+      if constexpr (D == Dir::Forward)
+        { return NegateOddElements(SwapEvenOdd(a)); }
       else
-      { 
-        if constexpr (D == Dir::Forward)
-          { return SwapEvenOdd(AddSub(_mm_setzero_pd(), a)); } // !!! This could be more efficient since there's no native AddSub
-        else
-          { return AddSub(_mm_setzero_pd(), SwapEvenOdd(a)); } // !!! This could be more efficient since there's no native AddSub
-      }
+        { return SwapEvenOdd(NegateOddElements(a)); }
     }
 
 
@@ -132,16 +121,16 @@ namespace FFT20XX::SSE2
       if constexpr (std::same_as<F, float>)
       {
         if constexpr (D == Dir::Forward)
-          { return _mm_mul_ps(_mm_set1_ps(-InvSqrt2<float>), AddSub(a, SwapEvenOdd(a)));  }
+          { return _mm_mul_ps(_mm_set1_ps(-InvSqrt2<float>), _mm_sub_ps(a, NegateOddElements(SwapEvenOdd(a))));  }
         else
-          { return _mm_mul_ps(_mm_set1_ps(-InvSqrt2<float>), SubAdd(a, SwapEvenOdd(a)));  }
+          { return _mm_mul_ps(_mm_set1_ps(-InvSqrt2<float>), _mm_add_ps(a, NegateOddElements(SwapEvenOdd(a))));  }
       }
       else
       {
         if constexpr (D == Dir::Forward)
-          { return _mm_mul_pd(_mm_set1_pd(-InvSqrt2<double>), AddSub(a, SwapEvenOdd(a)));  }
+          { return _mm_mul_pd(_mm_set1_pd(-InvSqrt2<double>), _mm_sub_pd(a, NegateOddElements(SwapEvenOdd(a))));  }
         else
-          { return _mm_mul_pd(_mm_set1_pd(-InvSqrt2<double>), SubAdd(a, SwapEvenOdd(a)));  }
+          { return _mm_mul_pd(_mm_set1_pd(-InvSqrt2<double>), _mm_add_pd(a, NegateOddElements(SwapEvenOdd(a))));  }
       }
     }
 
@@ -149,52 +138,22 @@ namespace FFT20XX::SSE2
     template <Dir D>
     friend FORCE_INLINE auto Rot(SIMDComplex a, SIMDComplex w) -> SIMDComplex
     { 
-      if constexpr (std::same_as<F, float>)
-      {
-        if (D == Dir::Forward)
-          { return a * w; }
-        else
-          { return MultiplyWithConjugate(a, w); }
-      }
+      if (D == Dir::Forward)
+        { return a * w; }
       else
-      {
-        if (D == Dir::Forward)
-          { return a * w; }
-        else
-          { return MultiplyWithConjugate(a, w); }
-      }
+        { return MultiplyWithConjugate(a, w); }
     }
 
   private:
     N nat;
-
-    static FORCE_INLINE auto AddSub(N a, N b) // Using intel's backwards naming here for consistency w/FMA
+    static FORCE_INLINE auto NegateOddElements(N v) -> SIMDComplex
     {
       if constexpr (std::same_as<F, float>)
-      {
-        auto signBits = _mm_castpd_ps(_mm_set1_pd(-0.0));
-        return _mm_sub_ps(a, _mm_xor_ps(b, signBits));
-      }
+        { return _mm_xor_ps(v, _mm_castpd_ps(_mm_set1_pd(-0.0))); }
       else
-      {
-        auto signBits = _mm_set_pd(-0.0, 0.0);
-        return _mm_sub_pd(a, _mm_xor_pd(b, signBits));
-      }
+        { return _mm_xor_pd(v, _mm_set_pd(-0.0, 0.0)); }
     }
 
-    static FORCE_INLINE auto SubAdd(N a, N b) // Using intel's backwards naming here for consistency w/FMA
-    {
-      if constexpr (std::same_as<F, float>)
-      {
-        auto signBits = _mm_castpd_ps(_mm_set1_pd(-0.0));
-        return _mm_add_ps(a, _mm_xor_ps(b, signBits));
-      }
-      else
-      {
-        auto signBits = _mm_set_pd(-0.0, 0.0);
-        return _mm_add_pd(a, _mm_xor_pd(b, signBits));
-      }
-    }
 
     static FORCE_INLINE auto SwapEvenOdd(N v)
     { 
@@ -306,8 +265,8 @@ namespace FFT20XX::SSE2
   }
 
 
-  template <std::floating_point F> requires (SIMDComplexCount<F> == 2 || SIMDComplexCount<F> == 4)
-  FORCE_INLINE void LoadFirstContiguousAngles(const Complex<F> *table, SIMDComplex<F> &w1, SIMDComplex<F> &w2, SIMDComplex<F> &w3)
+  template <std::floating_point F>
+  FORCE_INLINE void LoadFirstContiguousAngles(const Complex<F> *, SIMDComplex<F> &w1, SIMDComplex<F> &w2, SIMDComplex<F> &w3)
   {
       alignas(SIMDNativeType<F>) Complex<F> w1Array[SIMDComplexCount<F>];
       alignas(SIMDNativeType<F>) Complex<F> w2Array[SIMDComplexCount<F>];
@@ -316,19 +275,11 @@ namespace FFT20XX::SSE2
       w2Array[0] = { 1.0f, 0.0f };
       w3Array[0] = { 1.0f, 0.0f };
 
+    if constexpr (SIMDComplexCount<F> > 1)
+    {
       w1Array[1] = { InvSqrt2<F>, -InvSqrt2<F> };
       w2Array[1] = { 0.0f, -1.0f };
       w3Array[1] = { -InvSqrt2<F>, -InvSqrt2<F> };
-
-    if constexpr (SIMDComplexCount<F> > 2)
-    {
-      // The first 2 contiguous butterflies use these angles from the table
-      w1Array[2] = table[4];
-      w2Array[2] = table[2];
-      w3Array[2] = table[5];
-      w1Array[3] = table[6];
-      w2Array[3] = w2Array[2] * -II;
-      w3Array[3] = table[7];
     }
 
     w1 = LoadComplex(w1Array);
@@ -337,7 +288,7 @@ namespace FFT20XX::SSE2
   }
 
 
-  template <std::floating_point F> requires (SIMDComplexCount<F> == 2 || SIMDComplexCount<F> == 4)
+  template <std::floating_point F>
   FORCE_INLINE void LoadContiguousAngles(const Complex<F> *table, std::size_t groupIndex, SIMDComplex<F> &w1, SIMDComplex<F> &w2, SIMDComplex<F> &w3)
   {
     alignas(SIMDNativeType<F>) Complex<F> w1Array[SIMDComplexCount<F>];
@@ -347,18 +298,11 @@ namespace FFT20XX::SSE2
     w2Array[0] = table[groupIndex];
     w3Array[0] = table[(groupIndex << 1) + 1];
 
-    w1Array[1] = table[(groupIndex  << 1) + 2];
-    w2Array[1] = w2Array[0] * -II;
-    w3Array[1] = table[(groupIndex << 1) + 3];
-
-    if constexpr (SIMDComplexCount<F> > 2)
+    if constexpr (SIMDComplexCount<F> > 1)
     {
-      w1Array[2] = table[(groupIndex << 1) + 4];
-      w2Array[2] = table[groupIndex + 2];
-      w3Array[2] = table[(groupIndex << 1) + 5];
-      w1Array[3] = table[(groupIndex  << 1) + 6];
-      w2Array[3] = w2Array[1] * -II;
-      w3Array[3] = table[(groupIndex << 1) + 7];
+      w1Array[1] = table[(groupIndex  << 1) + 2];
+      w2Array[1] = w2Array[0] * -II;
+      w3Array[1] = table[(groupIndex << 1) + 3];
     }
 
     w1 = LoadComplex<F>(w1Array);

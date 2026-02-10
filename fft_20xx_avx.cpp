@@ -120,16 +120,16 @@ namespace FFT20XX::AVX
       if constexpr (std::same_as<F, float>)
       {
         if constexpr (D == Dir::Forward)
-          { return _mm256_mul_ps(_mm256_set1_ps(-InvSqrt2<float>), _mm256_add_ps(a, NegateOddElements(SwapEvenOdd(a)))); }
+          { return _mm256_mul_ps(_mm256_set1_ps(-InvSqrt2<float>), _mm256_sub_ps(a, NegateOddElements(SwapEvenOdd(a)))); }
         else
-          { return _mm256_mul_ps(_mm256_set1_ps(-InvSqrt2<float>), _mm256_sub_ps(a, NegateOddElements(SwapEvenOdd(a))));  }
+          { return _mm256_mul_ps(_mm256_set1_ps(-InvSqrt2<float>), _mm256_add_ps(a, NegateOddElements(SwapEvenOdd(a))));  }
       }
       else
       {
         if constexpr (D == Dir::Forward)
-          { return _mm256_mul_pd(_mm256_set1_pd(-InvSqrt2<double>), _mm256_add_pd(a, NegateOddElements(SwapEvenOdd(a)))); }
-        else
           { return _mm256_mul_pd(_mm256_set1_pd(-InvSqrt2<double>), _mm256_sub_pd(a, NegateOddElements(SwapEvenOdd(a)))); }
+        else
+          { return _mm256_mul_pd(_mm256_set1_pd(-InvSqrt2<double>), _mm256_add_pd(a, NegateOddElements(SwapEvenOdd(a)))); }
       }
     }
 

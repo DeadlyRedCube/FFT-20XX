@@ -15,7 +15,6 @@ namespace FFT20XX::Scalar
 
 }
 
-// !!! 32-bit float output is wrong :|
 namespace FFT20XX::NEON
 {
   #if COMPILER_GCC
