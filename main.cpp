@@ -145,7 +145,7 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
   [[maybe_unused]] auto table32 = AllocateFFTTable32(MaxFFTLength);
   [[maybe_unused]] auto table64 = AllocateFFTTable64(MaxFFTLength);
 
-  auto *table = 
+  auto *table =
     [&]
     {
       if constexpr (std::same_as<F, float>)
@@ -219,19 +219,23 @@ int main()
   
   #if 0
     using F = double;
-    constexpr auto size = 128u;
+    constexpr auto size = 1024u;
     std::vector<std::complex<F>> input(size);
     std::vector<std::complex<F>> output(size);
     std::vector<std::complex<F>> output2(size);
+    std::vector<F> inputReal(size);
+    std::vector<F> outputReal(size);
+    std::vector<F> outputReal2(size);
 
     for (auto i = 0u; i < input.size(); i++)
     {
-      input[i] = {F(i), -F(2 * i) };
+      input[i] = {F(i), 0 };
+      inputReal[i] = F(i);
     }
 
-    IFFTComplex64_Scalar(table64, input.data(), output.data(), size);
-    IFFTComplex64_AVX(table64, input.data(), output2.data(), size);
-   
+    FFTComplex64_Scalar(table64, input.data(), output.data(), size);
+    FFTComplex64_AVX(table64, input.data(), output2.data(), size);
+
     printf("\n\n");
     for (auto v : output)
     {
@@ -240,6 +244,9 @@ int main()
       else
         { printf("%f + i*%f,\n", v.real(), v.imag()); }
     }
+
+    FFTReal64(table64, inputReal.data(), outputReal.data(), size);
+    IFFTReal64(table64, outputReal.data(), outputReal2.data(), size);
   #endif
 
   Benchmark<float>("Auto     (f32)", [&](auto &&...args) { FFTComplex32(table32, args...); }, MaxFFTLength);

@@ -53,12 +53,16 @@
 
     void IFFTComplex32Interleaved(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
     void IFFTComplex64Interleaved(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
-    
+
     // TODO: IFFT Complex In-Place
 
     // TODO: Real-valued FFT
+    void FFTReal32(const FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void FFTReal64(const FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
     // TODO: Inverse real
+    void IFFTReal32(const FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void IFFTReal64(const FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
 
     // TODO: Explicit Scalar, AVX, FMA, SSE, NEON, AARCH64 variants
