@@ -7,7 +7,7 @@
 #include "fft_20xx_math.h"
 
 
-#define USE_ARM_RBIT (CPU_ARM_ANY && 0)
+#define USE_ARM_RBIT CPU_ARM_ANY
 
 namespace FFT20XX
 {
