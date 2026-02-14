@@ -22,6 +22,27 @@ namespace FFT20XX::NEON
     #pragma GCC diagnostic ignored "-Wignored-attributes"
   #endif
 
+  #if !SIMD_NEON64
+    // An extremely half-assed way to get 32-bit NEON to build
+    struct float64x2_t { };
+    struct float64x2x2_t { float64x2_t val[2];};
+    struct float64x2x4_t { float64x2_t val[4];};
+    #define vld2q_f64(...) [&] { (void)(__VA_ARGS__); return float64x2x2_t{}; }()
+    #define vst2q_f64(...) [&] { (void)(__VA_ARGS__); }()
+    #define vld4q_f64(...) [&] { (void)(__VA_ARGS__); return float64x2x4_t{}; }()
+    #define vuzp1q_f64(...) [&] { (void)(__VA_ARGS__); return float64x2_t{}; }()
+    #define vuzp2q_f64(...) [&] { (void)(__VA_ARGS__); return float64x2_t{}; }()
+
+    #define vzip1q_f32(...) vzipq_f32(__VA_ARGS__).val[0]
+    #define vzip2q_f32(...) vzipq_f32(__VA_ARGS__).val[1]
+    #define vuzp1q_f32(...) vuzpq_f32(__VA_ARGS__).val[0]
+    #define vuzp2q_f32(...) vuzpq_f32(__VA_ARGS__).val[1]
+
+    // I'm not sure why these functions are missing - I feel like they should exist?
+    #define vfmsq_f32(...) vmlsq_f32(__VA_ARGS__)
+    #define vfmaq_f32(...) vmlaq_f32(__VA_ARGS__)
+  #endif
+
   template <std::floating_point F>
   using SIMDNativeType = std::conditional_t<std::same_as<std::remove_cvref_t<F>, float>, float32x4_t, float64x2_t>;
 
@@ -52,7 +73,7 @@ namespace FFT20XX::NEON
     }
 
     friend FORCE_INLINE auto operator+(SIMDComplex a, SIMDComplex b) -> SIMDComplex
-    { 
+    {
       if constexpr (std::same_as<F, float>)
         { return { vaddq_f32(a.r, b.r), vaddq_f32(a.i, b.i) }; }
       else
@@ -60,7 +81,7 @@ namespace FFT20XX::NEON
     }
 
     friend FORCE_INLINE auto operator-(SIMDComplex a, SIMDComplex b) -> SIMDComplex
-    { 
+    {
       if constexpr (std::same_as<F, float>)
         { return { vsubq_f32(a.r, b.r), vsubq_f32(a.i, b.i) }; }
       else
@@ -96,7 +117,7 @@ namespace FFT20XX::NEON
 
     template <Dir D>
     friend FORCE_INLINE auto Rot45(SIMDComplex a) -> SIMDComplex
-    {  
+    {
       if constexpr (D == Dir::Forward)
       {
         if constexpr (std::same_as<F, float>)
@@ -181,29 +202,29 @@ namespace FFT20XX::NEON
 
   template <std::floating_point F>
   FORCE_INLINE auto LoadComplex(const Complex<F> *in) -> SIMDComplex<F>
-  { 
+  {
     if constexpr (std::same_as<F, float>)
-    { 
-      auto d = vld2q_f32(reinterpret_cast<const float *>(in)); 
+    {
+      auto d = vld2q_f32(reinterpret_cast<const float *>(in));
       return { d.val[0], d.val[1] };
     }
     else
-    { 
-      auto d = vld2q_f64(reinterpret_cast<const double *>(in)); 
+    {
+      auto d = vld2q_f64(reinterpret_cast<const double *>(in));
       return { d.val[0], d.val[1] };
     }
   }
 
   template <std::floating_point F>
   FORCE_INLINE auto StoreComplex(Complex<F> *out, SIMDComplex<F> v)
-  { 
+  {
     if constexpr (std::same_as<F, float>)
-    { 
+    {
       auto d = float32x4x2_t { v.r, v.i };
-      vst2q_f32(reinterpret_cast<float *>(out), d); 
+      vst2q_f32(reinterpret_cast<float *>(out), d);
     }
     else
-    { 
+    {
       auto d = float64x2x2_t { v.r, v.i };
       vst2q_f64(reinterpret_cast<double *>(out), d);
     }
@@ -257,7 +278,7 @@ namespace FFT20XX::NEON
     {
       // r00 r20 r01 r21 | i00 i20 i02 i21 | r10 r30 r11 r31 | i10 i30 i11 i31
       auto a = float32x4x4_t { vzip1q_f32(x0.r, x2.r), vzip1q_f32(x0.i, x2.i), vzip1q_f32(x1.r, x3.r), vzip1q_f32(x1.i, x3.i) };
-        
+
       // r02 r22 r03 r23 | i02 i22 i03 i23 | r12 r32 r13 r33 | i12 i32 i13 i33
       auto b = float32x4x4_t { vzip2q_f32(x0.r, x2.r), vzip2q_f32(x0.i, x2.i), vzip2q_f32(x1.r, x3.r), vzip2q_f32(x1.i, x3.i) };
 
@@ -282,7 +303,12 @@ namespace FFT20XX::NEON
     {
       auto w1w3 = vld4q_f32(reinterpret_cast<const F *>(&table[0 * 2]));
       auto w2r = vcombine_f32(vld1_f32(reinterpret_cast<const F *>(&table[0 + 0])), vld1_f32(reinterpret_cast<const F *>(&table[0 + 2])));
-      auto w2i = vreinterpretq_f32_u32(veorq_u32(vreinterpretq_u32_f64(vdupq_n_u64(0x80000000'00000000ull)), vreinterpretq_u32_f32(vrev64q_f32(w2r))));
+      #if SIMD_NEON64
+        auto w2i = vreinterpretq_f32_u32(veorq_u32(vreinterpretq_u32_f64(vdupq_n_u64(0x80000000'00000000ull)), vreinterpretq_u32_f32(vrev64q_f32(w2r))));
+      #else
+        F w2is[] = { 0.0f, -0.0f, 0.0f, -0.0f };
+        auto w2i = vreinterpretq_f32_u32(veorq_u32(vld1q_f32(w2is), vreinterpretq_u32_f32(vrev64q_f32(w2r))));
+      #endif
 
       w1 = { w1w3.val[0], w1w3.val[1] };
       w2 = { w2r, w2i };
@@ -308,7 +334,13 @@ namespace FFT20XX::NEON
     {
       auto w1w3 = vld4q_f32(reinterpret_cast<const F *>(&table[groupIndex << 1]));
       auto w2r = vcombine_f32(vld1_f32(reinterpret_cast<const F *>(&table[groupIndex])), vld1_f32(reinterpret_cast<const F *>(&table[groupIndex + 2])));
-      auto w2i = vreinterpretq_f32_u32(veorq_u32(vreinterpretq_u32_f64(vdupq_n_u64(0x80000000'00000000ull)), vreinterpretq_u32_f32(vrev64q_f32(w2r))));
+
+      #if SIMD_NEON64
+        auto w2i = vreinterpretq_f32_u32(veorq_u32(vreinterpretq_u32_f64(vdupq_n_u64(0x80000000'00000000ull)), vreinterpretq_u32_f32(vrev64q_f32(w2r))));
+      #else
+        F w2is[] = { 0.0f, -0.0f, 0.0f, -0.0f };
+        auto w2i = vreinterpretq_f32_u32(veorq_u32(vld1q_f32(w2is), vreinterpretq_u32_f32(vrev64q_f32(w2r))));
+      #endif
 
       w1 = { w1w3.val[0], w1w3.val[1] };
       w2 = { w2r, w2i };
@@ -380,6 +412,10 @@ namespace FFT20XX::NEON
   FORCE_INLINE void SmallFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength)
     { Scalar::RunFFT<D, F>(table, input, output, fftLength); }
 
+  #if !SIMD_NEON64
+    #define NO_64BIT
+  #endif
+
   #include "fft_20xx_run.h"
 }
 
@@ -401,21 +437,26 @@ extern "C"
     COMMON_ASSERTS();
 
     NEON::RunFFT<Dir::Forward, float>(
-      t->Data(), 
-      reinterpret_cast<const Complex<float> *>(input), 
-      reinterpret_cast<Complex<float> *>(output), 
+      t->Data(),
+      reinterpret_cast<const Complex<float> *>(input),
+      reinterpret_cast<Complex<float> *>(output),
       fftLength);
   }
 
   void FFTComplex64Interleaved_NEON(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
-    COMMON_ASSERTS();
-    NEON::RunFFT<Dir::Forward, double>(
-      t->Data(), 
-      reinterpret_cast<const Complex<double> *>(input), 
-      reinterpret_cast<Complex<double> *>(output), 
-      fftLength);
+    #if SIMD_NEON64
+      auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+      COMMON_ASSERTS();
+
+      NEON::RunFFT<Dir::Forward, double>(
+        t->Data(),
+        reinterpret_cast<const Complex<double> *>(input),
+        reinterpret_cast<Complex<double> *>(output),
+        fftLength);
+    #else
+      FFTComplex64Interleaved_Scalar(table, input, output, fftLength);
+    #endif
   }
 
 
@@ -425,20 +466,24 @@ extern "C"
     COMMON_ASSERTS();
 
     NEON::RunFFT<Dir::Inverse, float>(
-      t->Data(), 
-      reinterpret_cast<const Complex<float> *>(input), 
-      reinterpret_cast<Complex<float> *>(output), 
+      t->Data(),
+      reinterpret_cast<const Complex<float> *>(input),
+      reinterpret_cast<Complex<float> *>(output),
       fftLength);
   }
 
   void IFFTComplex64Interleaved_NEON(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
-    COMMON_ASSERTS();
-    NEON::RunFFT<Dir::Inverse, double>(
-      t->Data(), 
-      reinterpret_cast<const Complex<double> *>(input), 
-      reinterpret_cast<Complex<double> *>(output), 
-      fftLength);
+    #if SIMD_NEON64
+      auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+      COMMON_ASSERTS();
+      NEON::RunFFT<Dir::Inverse, double>(
+        t->Data(),
+        reinterpret_cast<const Complex<double> *>(input),
+        reinterpret_cast<Complex<double> *>(output),
+        fftLength);
+    #else
+      IFFTComplex64Interleaved_Scalar(table, input, output, fftLength);
+    #endif
   }
 }

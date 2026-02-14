@@ -56,11 +56,9 @@
 
     // TODO: IFFT Complex In-Place
 
-    // TODO: Real-valued FFT
     void FFTReal32(const FFTTable32 *table, const float *input, float *output, size_t fftLength);
     void FFTReal64(const FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
-    // TODO: Inverse real
     void IFFTReal32(const FFTTable32 *table, const float *input, float *output, size_t fftLength);
     void IFFTReal64(const FFTTable64 *table, const double *input, double *output, size_t fftLength);
 
@@ -102,9 +100,15 @@
       void IFFTComplex64_FMA(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
       void IFFTComplex32Interleaved_FMA(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);
       void IFFTComplex64Interleaved_FMA(const struct FFTTable64 *table, const double *input, double *output, size_t fftLength);
+
+    void FFTReal32_FMA(const FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void FFTReal64_FMA(const FFTTable64 *table, const double *input, double *output, size_t fftLength);
+
+    void IFFTReal32_FMA(const FFTTable32 *table, const float *input, float *output, size_t fftLength);
+    void IFFTReal64_FMA(const FFTTable64 *table, const double *input, double *output, size_t fftLength);
     #endif
 
-    #if defined(__ARM_NEON) && (defined(_M_ARM64) || defined(__aarch64__))
+    #if defined(__ARM_NEON)
       void FFTComplex32_NEON(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);
       void FFTComplex64_NEON(const struct FFTTable64 *table, const FFT_20XX_F64_COMPLEX *input, FFT_20XX_F64_COMPLEX *output, size_t fftLength);
       void FFTComplex32Interleaved_NEON(const struct FFTTable32 *table, const float *input, float *output, size_t fftLength);

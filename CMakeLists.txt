@@ -12,7 +12,7 @@ add_executable(fft-20xx-test)
 
 target_sources(
   fft-20xx
-    
+
   PUBLIC FILE_SET HEADERS FILES
     "include/fft_20xx.h"
 
@@ -25,20 +25,20 @@ target_sources(
     "fft_20xx_run.h"
     "fft_20xx_table.h"
 
-    "fft_20xx_scalar.cpp" 
+    "fft_20xx_scalar.cpp"
     "fft_20xx_table.cpp"
     "fft_20xx_select.cpp"
 )
 
 target_sources(
   fft-20xx-test
-    
+
   PRIVATE
-    "main.cpp" 
+    "main.cpp"
 )
 
 if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
-    OR (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64") 
+    OR (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
     OR (CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64")
     OR (CMAKE_SYSTEM_PROCESSOR MATCHES "x64")
   )
@@ -62,15 +62,17 @@ if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
   endif()
 elseif((CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
     OR (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-    OR (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
     OR (CMAKE_SYSTEM_PROCESSOR MATCHES "armv7a")
   )
+
   target_sources(
       fft-20xx
 
       PRIVATE
         "fft_20xx_neon.cpp"
   )
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+  # nothing to do here
 else()
   if (CMAKE_SYSTEM_PROCESSOR STREQUAL "")
     message(FATAL_ERROR "CMAKE_SYSTEM_PROCESSOR must be set.")

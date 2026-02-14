@@ -33,7 +33,7 @@
   #define CPU_ARM64 0
   #define CPU_ARM32 1
 #else
-  #define CPU_ARM 0
+  #define CPU_ARM_ANY 0
   #define CPU_ARM64 0
   #define CPU_ARM32 0
 #endif
@@ -50,7 +50,7 @@
   #define CPU_X86_ANY 0
   #define CPU_X64 0
   #define CPU_X86 0
-#endif  
+#endif
 
 #if COMPILER_MSVC
   #define FORCE_INLINE __forceinline

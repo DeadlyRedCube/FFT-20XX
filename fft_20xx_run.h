@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 template <Dir D>
 FORCE_INLINE void Radix4ButterflyNoRotation(auto &x0, auto &x1, auto &x2, auto &x3)
@@ -184,7 +184,7 @@ FORCE_INLINE void RescaleForIFFT(Complex<F> *data, std::size_t fftLength, std::s
 {
 F scale = F(1.0) / F(fftLength);
 for (auto i = dataOffset; i < dataOffset + spanLength; i += SIMDComplexCount<F>)
-{ 
+{
   auto d = LoadComplex(data + i);
   StoreComplex(data + i, d * scale);
 }
@@ -339,5 +339,8 @@ void RunFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output
 
 template void RunFFT<Dir::Forward>(const Complex<float> *, const Complex<float> *, Complex<float> *, std::size_t);
 template void RunFFT<Dir::Inverse>(const Complex<float> *, const Complex<float> *, Complex<float> *, std::size_t);
-template void RunFFT<Dir::Forward>(const Complex<double> *, const Complex<double> *, Complex<double> *, std::size_t);
-template void RunFFT<Dir::Inverse>(const Complex<double> *, const Complex<double> *, Complex<double> *, std::size_t);
+
+#if !defined(NO_64BIT)
+  template void RunFFT<Dir::Forward>(const Complex<double> *, const Complex<double> *, Complex<double> *, std::size_t);
+  template void RunFFT<Dir::Inverse>(const Complex<double> *, const Complex<double> *, Complex<double> *, std::size_t);
+#endif

@@ -7,6 +7,7 @@
 #include "fft_20xx_math.h"
 
 
+#define USE_ARM_RBIT (CPU_ARM_ANY && 0)
 
 namespace FFT20XX
 {
@@ -36,12 +37,23 @@ namespace FFT20XX
       else if (fftLength >= LowCutoffFFTLength)
       {
         // Otherwise, above this threshold it's faster to do an element-by-element copy from input to output.
-        auto revUnshifted = BitReverse(startIndex);
-        auto revShift = BitReverseShiftFromBitCount<std::size_t>(bitCount);
+
+        #if !USE_ARM_RBIT
+          auto revUnshifted = BitReverse(startIndex);
+        #endif
+        const auto revShift = BitReverseShiftFromBitCount<std::size_t>(bitCount);
         for (auto i = startIndex; i < endIndex; i++)
         {
-          output[i] = input[revUnshifted >> revShift];
-          revUnshifted = BitReverseIncrement(revUnshifted);
+          #if USE_ARM_RBIT
+            std::size_t rev;
+            asm("rbit %0,%1" : "=r"(rev) : "r"(i));
+            rev >>= revShift;
+          #else
+            auto rev = revUnshifted >> revShift;
+            revUnshifted = BitReverseIncrement(revUnshifted);
+          #endif
+
+          output[i] = input[rev];
         }
         return;
       }
@@ -60,30 +72,47 @@ namespace FFT20XX
       // This is a power-of-four FFT so there's no center bit.
 
       // Iterate through half the bits
-      auto reversedBaseValueUnshifted = BitReverse(startIndex);
+      #if !USE_ARM_RBIT
+        auto reversedBaseValueUnshifted = BitReverse(startIndex);
+      #endif
       for (auto baseValue = startIndex; baseValue < endIndex; baseValue++)
       {
         // Iterate through the bitValues until we reach ones where the reversed value is the same as the non-reversed
         //  (a binary palindrome), at which point we stop.
 
-        auto iUnshifted = baseValue << bitReverseShift;
-        auto ri = reversedBaseValueUnshifted >> bitReverseShift;
+        #if USE_ARM_RBIT
+          std:: size_t ri;
+          asm("rbit %0,%1" : "=r"(ri) : "r"(baseValue));
+          ri >>= bitReverseShift;
+        #else
+          auto iUnshifted = baseValue << bitReverseShift;
+          auto ri = reversedBaseValueUnshifted >> bitReverseShift;
+        #endif
         auto target = ri | baseValue;
         while (ri < target)
         {
-          auto i = iUnshifted >> bitReverseShift;
+          #if USE_ARM_RBIT
+            std::size_t i;
+            asm("rbit %0,%1" : "=r"(i) : "r"(ri));
+            i >>= bitReverseShift;
+          #else
+            auto i = iUnshifted >> bitReverseShift;
+            iUnshifted = BitReverseIncrement(iUnshifted);
+          #endif
+
           auto t = input[i]; // Store input[i] as a temp in case this is an in-place swap
           output[i] = input[ri];
           output[ri] = t;
 
           ri++;
-          iUnshifted = BitReverseIncrement(iUnshifted);
         }
 
         // This value doesn't move but copy it just in case this isn't an in-place
         output[ri] = input[ri];
 
-        reversedBaseValueUnshifted = BitReverseIncrement(reversedBaseValueUnshifted);
+        #if !USE_ARM_RBIT
+          reversedBaseValueUnshifted = BitReverseIncrement(reversedBaseValueUnshifted);
+        #endif
       }
     }
     else

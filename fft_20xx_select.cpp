@@ -161,8 +161,8 @@ extern "C"
   SIMDSupport &operator^=(SIMDSupport &a, SIMDSupport b) { a = a ^ b; return a; }
   SIMDSupport operator~(SIMDSupport a) { return SIMDSupport(~int(a)); }
 
-  
-  [[maybe_unused]] static const SIMDSupport s_simdSupport = 
+
+  [[maybe_unused]] static const SIMDSupport s_simdSupport =
     []
     {
       SIMDSupport s = SIMDSupport::None;
@@ -213,7 +213,7 @@ extern "C"
           s |= SIMDSupport::AVX;
           if (ecx & (1u << 12))
             { s |= SIMDSupport::FMA; }
-          
+
           #if COMPILER_MSVC
             std::ranges::fill(data, 0);
             __cpuidex(data, 7, 0);
@@ -277,7 +277,7 @@ extern "C"
         else \
           { name##_Scalar(__VA_ARGS__); } \
       } while (false)
-  #elif SIMD_NEON64
+  #elif SIMD_NEON
     #define SELECT(name, ...) name##_NEON(__VA_ARGS__)
   #else
     #define SELECT(name, ...) name##_Scalar(__VA_ARGS__)
