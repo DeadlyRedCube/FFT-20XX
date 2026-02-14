@@ -65,7 +65,72 @@ void Benchmark(const char *name, auto fftFunction, std::uint32_t maxFFTLength)
       auto vals = AlignedAlloc<std::complex<F>>(length, 8);
       auto outs = AlignedAlloc<std::complex<F>>(length, 8);
       for (auto  i = 0u; i < length; i++)
-        { vals[i] = { F(i), 0 }; }
+        { vals[i] = { F(i), -F(2*i) }; }
+
+      auto primeCount = 10u;
+      auto count = 32u * 1024u * 1024u / length;
+
+      for (auto i = 0u; i < primeCount; i++)
+      {
+        fftFunction(vals, outs, length);
+        std::swap(vals, outs);
+      }
+
+      auto start = std::chrono::steady_clock::now();
+
+      for (auto i = 0u; i < count; i++)
+      {
+        fftFunction(vals, outs, length);
+        std::swap(vals, outs);
+      }
+
+      auto elapsed = std::chrono::steady_clock::now() - start;
+      auto c = uint32_t(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
+
+      #if MULTIBENCH
+        printf(", %8u", c);
+      #else
+        printf("%8u\n", c);
+      #endif
+
+      AlignedFree(vals);
+      AlignedFree(outs);
+    }
+
+    #if MULTIBENCH
+      printf("\n");
+      fprintf(stderr, "\n");
+    #endif
+  }
+  printf("\n");
+}
+
+
+template<std::floating_point F>
+void BenchmarkReal(const char *name, auto fftFunction, std::uint32_t maxFFTLength)
+{
+  printf("%s\n", name);
+  for (auto length = 64u; length <= maxFFTLength; length *= 2)
+  {
+    #if MULTIBENCH
+      printf("  Length %7u", length);
+      fprintf(stderr, "length %u\n", length);
+    #else
+      printf("  Length %7u: ", length);
+    #endif
+
+    #if MULTIBENCH
+      for (auto iterationCount = 0u; iterationCount < 100; iterationCount++)
+    #endif
+    {
+      #if MULTIBENCH
+        if (iterationCount % 5 == 0)
+          { fprintf(stderr, "."); }
+      #endif
+      auto vals = AlignedAlloc<F>(length, 8);
+      auto outs = AlignedAlloc<F>(length, 8);
+      for (auto  i = 0u; i < length; i++)
+        { vals[i] = F(i); }
 
       auto primeCount = 10u;
       auto count = 32u * 1024u * 1024u / length;
@@ -216,10 +281,10 @@ int main()
   [[maybe_unused]] auto table32 = AllocateFFTTable32(MaxFFTLength);
   [[maybe_unused]] auto table64 = AllocateFFTTable64(MaxFFTLength);
 
-  
-  #if 0
-    using F = double;
-    constexpr auto size = 1024u;
+
+  #if 1
+    using F = float;
+    constexpr auto size = 32u;
     std::vector<std::complex<F>> input(size);
     std::vector<std::complex<F>> output(size);
     std::vector<std::complex<F>> output2(size);
@@ -233,8 +298,8 @@ int main()
       inputReal[i] = F(i);
     }
 
-    FFTComplex64_Scalar(table64, input.data(), output.data(), size);
-    FFTComplex64_AVX(table64, input.data(), output2.data(), size);
+    FFTComplex32_Scalar(table32, input.data(), output.data(), size);
+    FFTComplex32_NEON(table32, input.data(), output2.data(), size);
 
     printf("\n\n");
     for (auto v : output)
@@ -245,9 +310,24 @@ int main()
         { printf("%f + i*%f,\n", v.real(), v.imag()); }
     }
 
-    FFTReal64(table64, inputReal.data(), outputReal.data(), size);
-    IFFTReal64(table64, outputReal.data(), outputReal2.data(), size);
+    /*FFTReal32_FMA(table32, inputReal.data(), outputReal.data(), size);
+    IFFTReal32(table32, outputReal.data(), outputReal2.data(), size);
+
+    printf("\n\n");
+    printf("%f\n", outputReal[0]);
+    for (auto i = 2u; i < outputReal.size(); i+=2)
+    {
+      if (outputReal[i + 1] < 0)
+        { printf("%f - i*%f\n", outputReal[i + 0], -outputReal[i + 1]); }
+      else
+        { printf("%f + i*%f,\n", outputReal[i + 0], outputReal[i + 1]); }
+    }
+    printf("%f\n", outputReal[1]);*/
+
   #endif
+
+  BenchmarkReal<float>("Scalar   (f32, Real)", [&](auto &&...args) { FFTReal32(table32, args...); }, MaxFFTLength);
+  //BenchmarkReal<float>("AVX/FMA  (f32, Real)", [&](auto &&...args) { FFTReal32_FMA(table32, args...); }, MaxFFTLength);
 
   Benchmark<float>("Auto     (f32)", [&](auto &&...args) { FFTComplex32(table32, args...); }, MaxFFTLength);
   Benchmark<float>("Scalar   (f32)", [&](auto &&...args) { FFTComplex32_Scalar(table32, args...); }, MaxFFTLength);
@@ -265,7 +345,7 @@ int main()
   #endif
 
   Benchmark<double>("Scalar   (f64)", [&](auto &&...args) { FFTComplex64_Scalar(table64, args...); }, MaxFFTLength);
-  
+
   #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
     SmokeTest<double>("SSE2 f64", [&](auto &&...args) { FFTComplex64_SSE2(args...); }, [&](auto &&...args) { IFFTComplex64_SSE2(args...); });
     Benchmark<double>("SSE2     (f64)", [&](auto &&...args) { FFTComplex64_SSE2(table64, args...); }, MaxFFTLength);
