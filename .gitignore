@@ -1,3 +1,5 @@
 .vs/
 FFT-20XX/
 out/
+*.csv
+bench_results/

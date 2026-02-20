@@ -25,6 +25,7 @@ target_sources(
     "fft_20xx_run.h"
     "fft_20xx_table.h"
 
+    "fft_20xx_bit_reverse_copy.cpp"
     "fft_20xx_scalar.cpp"
     "fft_20xx_table.cpp"
     "fft_20xx_select.cpp"
