@@ -238,11 +238,9 @@ FORCE_INLINE void RunMultipleMainButterflies(const Complex<F> *table, Complex<F>
 
 
 template <Dir D, std::floating_point F>
-FORCE_INLINE void RunFirstPartialFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength, std::size_t spanLength)
+FORCE_INLINE void RunFirstPartialFFT(const Complex<F> *table, Complex<F> *output, std::size_t fftLength, std::size_t spanLength)
 {
   constexpr auto ComplexCountPerSet = std::max(2u, SIMDComplexCount<F>);
-
-  PartialBitReverseCopy(input, output, fftLength, 0u, spanLength);
 
   if (D == Dir::Inverse)
     { RescaleForIFFT(output, fftLength, 0u, spanLength); }
@@ -270,11 +268,9 @@ FORCE_INLINE void RunFirstPartialFFT(const Complex<F> *table, const Complex<F> *
 }
 
 template <Dir D, std::floating_point F>
-FORCE_INLINE void RunPartialFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength, std::size_t dataOffset, std::size_t spanLength)
+FORCE_INLINE void RunPartialFFT(const Complex<F> *table, Complex<F> *output, std::size_t fftLength, std::size_t dataOffset, std::size_t spanLength)
 {
   constexpr auto ComplexCountPerSet = std::max(2u, SIMDComplexCount<F>);
-
-  PartialBitReverseCopy(input, output, fftLength, dataOffset, dataOffset + spanLength);
 
   if (D == Dir::Inverse)
     { RescaleForIFFT(output, fftLength, dataOffset, spanLength); }
@@ -301,13 +297,15 @@ void RunFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output
     return;
   }
 
+  BitReverseCopy(input, output, fftLength);
+
   constexpr auto MaxSpanLength = std::size_t(4096);
   if (fftLength > MaxSpanLength)
   {
-    RunFirstPartialFFT<D, F>(table, input, output, fftLength, MaxSpanLength);
+    RunFirstPartialFFT<D, F>(table, output, fftLength, MaxSpanLength);
 
     for (auto offset = MaxSpanLength; offset < fftLength; offset += MaxSpanLength)
-      { RunPartialFFT<D, F>(table, input, output, fftLength, offset, MaxSpanLength); }
+      { RunPartialFFT<D, F>(table, output, fftLength, offset, MaxSpanLength); }
 
     // Now the partials are done, the last steps span farther so just let them roll
     for (auto butterflySpan = MaxSpanLength; butterflySpan < fftLength; butterflySpan *= 4)
@@ -319,11 +317,11 @@ void RunFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output
   else
   {
     // We just need to run one that is the full size of the
-    RunFirstPartialFFT<D, F>(table, input, output, fftLength, fftLength);
+    RunFirstPartialFFT<D, F>(table, output, fftLength, fftLength);
   }
 
 
-  if (const bool isPowerOfFour = ((fftLength & 0x55555555) != 0); isPowerOfFour)
+  if (FFT20XX::IsPowerOfFourAssumingIsPowerOfTwo(fftLength))
   {
     // Last power of 4
     for (auto butterflyIndex = 0u; butterflyIndex < fftLength / 4; butterflyIndex += SIMDComplexCount<F>)
