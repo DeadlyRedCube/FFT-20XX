@@ -12,6 +12,12 @@
   #define COMPILER_MSVC 0
 #endif
 
+#if defined (_MSC_VER) && defined(__clang__)
+  #define COMPILER_CLANG_PRETENDING_TO_BE_MSVC 1
+#else
+  #define COMPILER_CLANG_PRETENDING_TO_BE_MSVC 0
+#endif
+
 #if defined(_WIN32)
   #define OS_WINDOWS 1
 #else
@@ -54,6 +60,8 @@
 
 #if COMPILER_MSVC
   #define FORCE_INLINE __forceinline
+//#elif COMPILER_CLANG
+//  #define FORCE_INLINE __attribute__((always_inline)) inline
 #else
   #define FORCE_INLINE inline
 #endif
@@ -114,6 +122,7 @@
 
 
 #if COMPILER_MSVC
+  #pragma warning (disable: 4514) // unreferenced inline function has been removed
   #pragma warning (disable: 4710) // function not inlined
   #pragma warning (disable: 4711) // function selected for automatic inline expansion
   #pragma warning (disable: 5045) // Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
@@ -123,4 +132,12 @@
 #include <bit>
 #include <cinttypes>
 #include <cmath>
+
+#if SIMD_NEON || SIMD_NEON64
+  #include <arm_neon.h>
+#endif
+
+#if SIMD_SSE2
+  #include <immintrin.h>
+#endif
 

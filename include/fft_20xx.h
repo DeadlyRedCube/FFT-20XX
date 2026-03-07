@@ -56,12 +56,7 @@
 
     // TODO: IFFT Complex In-Place
 
-    void FFTReal32(const FFTTable32 *table, const float *input, float *output, size_t fftLength);
-    void FFTReal64(const FFTTable64 *table, const double *input, double *output, size_t fftLength);
-
-    void IFFTReal32(const FFTTable32 *table, const float *input, float *output, size_t fftLength);
-    void IFFTReal64(const FFTTable64 *table, const double *input, double *output, size_t fftLength);
-
+    // TODO: Real
 
     // TODO: Explicit Scalar, AVX, FMA, SSE, NEON, AARCH64 variants
     void FFTComplex32_Scalar(const struct FFTTable32 *table, const FFT_20XX_F32_COMPLEX *input, FFT_20XX_F32_COMPLEX *output, size_t fftLength);

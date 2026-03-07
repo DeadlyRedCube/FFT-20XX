@@ -324,7 +324,11 @@ namespace FFT20XX
         const auto fftBitCount = Log2Floor(fftLength);
         const auto fullDim = size_t(1) << (fftBitCount / 2);
         const auto fullShift = BitReverseShiftFromBitCount<size_t>(fftBitCount);
-        constexpr auto LowShift = SubFFTBitCount / 2;
+        #if CPU_ARM_ANY
+          constexpr auto LowShift = 0u;
+        #else
+          constexpr auto LowShift = SubFFTBitCount / 2;
+        #endif
         const auto highShift = fullShift + LowShift;
 
         while (true)

@@ -14,6 +14,27 @@
 
 namespace FFT20XX
 {
+template <typename T>
+T *AlignedAlloc(std::size_t count, std::size_t elementAlignment)
+{
+  #if defined (_MSC_VER)
+    return static_cast<T *>(_aligned_malloc(count * sizeof(T),  elementAlignment * sizeof(T)));
+  #else
+    return static_cast<T *>(std::aligned_alloc(elementAlignment * sizeof(T), count * sizeof(T)));
+  #endif
+}
+
+template <typename T>
+void AlignedFree(T *mem)
+{
+  #if defined (_MSC_VER)
+    _aligned_free(mem);
+  #else
+    std::free(mem);
+  #endif
+}
+
+
   #if COMPILER_MSVC
     #pragma warning (push)
     #pragma warning (disable: 4820) // 'N' bytes padding added after data member 'Foo'
@@ -23,45 +44,68 @@ namespace FFT20XX
   {
   public:
     FFTTableImpl(std::size_t maxFFTLength)
-    : _data{new Complex<F>[maxFFTLength / 2]}
+    : _maxFFTLength(std::max(size_t(32), maxFFTLength))
+    , _data{AlignedAlloc<F>(_maxFFTLength * 3 / 2, 8)}
     , _ownsData(true)
-    , _maxFFTLength(maxFFTLength)
     {
       assert(IsPowerOfTwo(maxFFTLength));
       BuildTable();
     }
 
+    ~FFTTableImpl()
+    {
+      if (_ownsData)
+      {
+        AlignedFree(_data);
+      }
+    }
 
     size_t MaxFFTLength() const noexcept
       { return _maxFFTLength; }
 
-    const Complex<F> *Data() const noexcept
+    const F *Data() const noexcept
       { return _data; }
-
-  private:
+private:
     void BuildTable() noexcept
     {
-      const auto bitCount = Log2Floor(_maxFFTLength) - 1;
-      auto revUnshifted = std::size_t(0);
-      const auto revShift = BitReverseShiftFromBitCount<std::size_t>(bitCount);
-      for (auto i = std::size_t(0); i < _maxFFTLength / 2; i += 2)
+      if (_maxFFTLength >= 16u)
       {
-        auto rev = BitReverse(i) >> revShift;
+        for (auto i = size_t(0); i < _maxFFTLength * 3 / 4; i++)
+        {
+          constexpr auto NegTwoPi = -6.283185307179586;
+          auto angle = NegTwoPi * double(i) / double(_maxFFTLength);
+          const auto offset = _maxFFTLength * 3 / 4;
+          _data[i + offset] = F(std::cos(angle));
+        }
 
-        constexpr auto NegTwoPi = -6.283185307179586;
-        auto angle = NegTwoPi * double(rev) / double(_maxFFTLength);
-        _data[i] = { .r = F(std::cos(angle)), .i = F(std::sin(angle)) };
+        // Now spread back from max until we reach 16 (8 and 4 are handled specially)
+        for (auto realCount = _maxFFTLength / 4; realCount >= 16; realCount /= 2)
+        {
+          for (auto i = 0u; i < realCount * 3 / 2; i++)
+          {
+            const auto offset = realCount * 3 / 2;
+            _data[i + offset] = _data[(i + offset) * 2];
+          }
+        }
 
-        angle *= 3.0;
-        _data[i + 1] = { .r = F(std::cos(angle)), .i = F(std::sin(angle)) };
+        // Finally, handle the 4- and 8- angle cases (Which use a full 2x angle count for nice, aligned  SIMD loading)
+        for (auto i = 0u; i < 8u; i++)
+        {
+          _data[8 + i] = _data[24 + 2*i];
+          _data[8 + 8 + i] = _data[24 + 8 + 2*i];
+        }
 
-        revUnshifted = BitReverseIncrement(revUnshifted);
+        for (auto i = 0u; i < 4u; i++)
+        {
+          _data[i] = _data[8 + 2*i];
+          _data[4 + i] = _data[8 + 8 + 2*i];
+        }
       }
     }
 
-    Complex<F> *_data = nullptr;
-    bool _ownsData = false;
     size_t _maxFFTLength = 0;
+    F *_data = nullptr;
+    bool _ownsData = false;
   };
 
   #if COMPILER_MSVC

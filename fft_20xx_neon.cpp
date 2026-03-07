@@ -8,414 +8,177 @@ static_assert(SIMD_NEON);
 
 #include <arm_neon.h>
 
-namespace FFT20XX::Scalar
-{
-  template <Dir D, std::floating_point F>
-  void RunFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength);
-
-}
-
 namespace FFT20XX::NEON
 {
-  #if COMPILER_GCC
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wignored-attributes"
-  #endif
+  template <typename T> concept f32 = std::same_as<float, T> || std::same_as<float32x4_t, T>;
+  template <typename T> concept simd_vec = std::same_as<std::remove_cvref_t<T>, float32x4_t> || std::same_as<std::remove_cvref_t<T>, float64x2_t>;
+  template <typename T> using Vec = std::conditional_t<f32<T>, float32x4_t, float64x2_t>;
 
-  #if !SIMD_NEON64
-    // An extremely half-assed way to get 32-bit NEON to build
-    struct float64x2_t { };
-    struct float64x2x2_t { float64x2_t val[2];};
-    struct float64x2x4_t { float64x2_t val[4];};
-    #define vld2q_f64(...) [&] { (void)(__VA_ARGS__); return float64x2x2_t{}; }()
-    #define vst2q_f64(...) [&] { (void)(__VA_ARGS__); }()
-    #define vld4q_f64(...) [&] { (void)(__VA_ARGS__); return float64x2x4_t{}; }()
-    #define vuzp1q_f64(...) [&] { (void)(__VA_ARGS__); return float64x2_t{}; }()
-    #define vuzp2q_f64(...) [&] { (void)(__VA_ARGS__); return float64x2_t{}; }()
+  template <typename> constexpr uint32_t VecSize = 0;
 
-    #define vzip1q_f32(...) vzipq_f32(__VA_ARGS__).val[0]
-    #define vzip2q_f32(...) vzipq_f32(__VA_ARGS__).val[1]
-    #define vuzp1q_f32(...) vuzpq_f32(__VA_ARGS__).val[0]
-    #define vuzp2q_f32(...) vuzpq_f32(__VA_ARGS__).val[1]
-
-    // I'm not sure why these functions are missing - I feel like they should exist?
-    #define vfmsq_f32(...) vmlsq_f32(__VA_ARGS__)
-    #define vfmaq_f32(...) vmlaq_f32(__VA_ARGS__)
-  #endif
+  template <> constexpr uint32_t VecSize<Vec<float>> = 4u;
+  template <> constexpr uint32_t VecSize<Vec<double>> = 2u;
+  
+  constexpr bool UseFMAOptimization = false;
 
   template <std::floating_point F>
-  using SIMDNativeType = std::conditional_t<std::same_as<std::remove_cvref_t<F>, float>, float32x4_t, float64x2_t>;
-
-  template <std::floating_point F>
-  class SIMDComplex
+  static auto LoadA(const F *ptr) -> Vec<F>
   {
-  public:
-    using N = SIMDNativeType<F>;
-
-    SIMDComplex() = default;
-    SIMDComplex(N rr, N ii) :r(rr), i(ii) {}
-
-
-    explicit FORCE_INLINE SIMDComplex(Complex<F> c)
-    {
-      if constexpr (std::same_as<F, float>)
-      {
-        auto d = vld2q_dup_f32(reinterpret_cast<F *>(&c));
-        r = d.val[0];
-        i = d.val[1];
-      }
-      else
-      {
-        auto d = vld2q_dup_f64(reinterpret_cast<F *>(&c));
-        r = d.val[0];
-        i = d.val[1];
-      }
-    }
-
-    friend FORCE_INLINE auto operator+(SIMDComplex a, SIMDComplex b) -> SIMDComplex
-    {
-      if constexpr (std::same_as<F, float>)
-        { return { vaddq_f32(a.r, b.r), vaddq_f32(a.i, b.i) }; }
-      else
-        { return { vaddq_f64(a.r, b.r), vaddq_f64(a.i, b.i) }; }
-    }
-
-    friend FORCE_INLINE auto operator-(SIMDComplex a, SIMDComplex b) -> SIMDComplex
-    {
-      if constexpr (std::same_as<F, float>)
-        { return { vsubq_f32(a.r, b.r), vsubq_f32(a.i, b.i) }; }
-      else
-        { return { vsubq_f64(a.r, b.r), vsubq_f64(a.i, b.i) }; }
-    }
-
-    friend FORCE_INLINE auto operator*(SIMDComplex a, F b) -> SIMDComplex
-    {
-      if constexpr (std::same_as<F, float>)
-        {  return { vmulq_n_f32(a.r, b), vmulq_n_f32(a.i, b) };  }
-      else
-        {  return { vmulq_n_f64(a.r, b), vmulq_n_f64(a.i, b) };  }
-    }
-
-    friend FORCE_INLINE auto operator*(SIMDComplex a, SIMDComplex b) -> SIMDComplex
-    {
-      // ar * br - ai * bi, ar*bi + br*ai
-      if constexpr (std::same_as<F, float>)
-        { return { vfmsq_f32(vmulq_f32(a.r, b.r), a.i, b.i), vfmaq_f32(vmulq_f32(b.r, a.i), a.r, b.i) }; }
-      else
-        { return { vfmsq_f64(vmulq_f64(a.r, b.r), a.i, b.i), vfmaq_f64(vmulq_f64(b.r, a.i), a.r, b.i) }; }
-    }
-
-    friend FORCE_INLINE auto MultiplyWithConjugate(SIMDComplex a, SIMDComplex b) -> SIMDComplex
-    {
-      // ar * br - ai * (-bi), ar*(-bi) + br*ai
-      // ar * br + ai * bi, br*ai - ar*bi
-      if constexpr (std::same_as<F, float>)
-        { return { vfmaq_f32(vmulq_f32(a.i, b.i), a.r, b.r), vfmsq_f32(vmulq_f32(b.r, a.i), a.r, b.i) }; }
-      else
-        { return { vfmaq_f64(vmulq_f64(a.i, b.i), a.r, b.r), vfmsq_f64(vmulq_f64(b.r, a.i), a.r, b.i) }; }
-    }
-
-    template <Dir D>
-    friend FORCE_INLINE auto Rot45(SIMDComplex a) -> SIMDComplex
-    {
-      if constexpr (D == Dir::Forward)
-      {
-        if constexpr (std::same_as<F, float>)
-          { return { vmulq_n_f32(vaddq_f32(a.r, a.i), InvSqrt2<F>), vmulq_n_f32(vsubq_f32(a.i, a.r), InvSqrt2<F>) }; }
-        else
-          { return { vmulq_n_f64(vaddq_f64(a.r, a.i), InvSqrt2<F>), vmulq_n_f64(vsubq_f64(a.i, a.r), InvSqrt2<F>) }; }
-      }
-      else
-      {
-        if constexpr (std::same_as<F, float>)
-          { return { vmulq_n_f32(vsubq_f32(a.r, a.i), InvSqrt2<F>), vmulq_n_f32(vaddq_f32(a.i, a.r), InvSqrt2<F>) }; }
-        else
-          { return { vmulq_n_f64(vsubq_f64(a.r, a.i), InvSqrt2<F>), vmulq_n_f64(vaddq_f64(a.i, a.r), InvSqrt2<F>) }; }
-      }
-    }
-
-    template <Dir D>
-    friend FORCE_INLINE auto Rot90(SIMDComplex a) -> SIMDComplex
-    {
-      if constexpr (D == Dir::Forward)
-      {
-        if constexpr (std::same_as<F, float>)
-          { return { a.i, vnegq_f32(a.r) }; }
-        else
-          { return { a.i, vnegq_f64(a.r) }; }
-      }
-      else
-      {
-        if constexpr (std::same_as<F, float>)
-          { return { vnegq_f32(a.i), a.r }; }
-        else
-          { return { vnegq_f64(a.i), a.r }; }
-      }
-    }
-
-
-    template <Dir D>
-    friend FORCE_INLINE auto Rot135(SIMDComplex a) -> SIMDComplex
-    {
-      const auto nisqrt = -InvSqrt2<F>;
-      if constexpr (D == Dir::Forward)
-      {
-        if constexpr (std::same_as<F, float>)
-          { return { vmulq_n_f32(vsubq_f32(a.r, a.i), nisqrt), vmulq_n_f32(vaddq_f32(a.i, a.r), nisqrt) }; }
-        else
-          { return { vmulq_n_f64(vsubq_f64(a.r, a.i), nisqrt), vmulq_n_f64(vaddq_f64(a.i, a.r), nisqrt) }; }
-      }
-      else
-      {
-        if constexpr (std::same_as<F, float>)
-          { return { vmulq_n_f32(vaddq_f32(a.r, a.i), nisqrt), vmulq_n_f32(vsubq_f32(a.i, a.r), nisqrt) }; }
-        else
-          { return { vmulq_n_f64(vaddq_f64(a.r, a.i), nisqrt), vmulq_n_f64(vsubq_f64(a.i, a.r), nisqrt) }; }
-      }
-    }
-
-
-    template <Dir D>
-    friend FORCE_INLINE auto Rot(SIMDComplex a, SIMDComplex w) -> SIMDComplex
-    {
-      if constexpr (D == Dir::Forward)
-        { return a * w; }
-      else
-        { return MultiplyWithConjugate(a, w); }
-    }
-
-    N r;
-    N i;
-  };
-
-
-  #if COMPILER_GCC
-    #pragma GCC diagnostic pop
-  #endif
+    if constexpr (f32<F>)
+      { return vld1q_f32(ptr); }
+    else
+      { return vld1q_f64(ptr); }
+  }
+  template <std::floating_point F>
+  static auto Load(const F *ptr) -> Vec<F>
+    { return LoadA(ptr); }
 
   template <std::floating_point F>
-  constexpr auto SIMDScalarCount = std::same_as<std::remove_cvref_t<F>, float> ? 8u : 4u;
+  static auto Load4(const F *ptr) -> Vec<F>
+    { return LoadA(ptr); }
 
   template <std::floating_point F>
-  constexpr auto SIMDComplexCount = SIMDScalarCount<F> / 2;
-
-
-  template <std::floating_point F>
-  FORCE_INLINE auto LoadComplex(const Complex<F> *in) -> SIMDComplex<F>
+  static auto LoadDeinterleaved(const F *ptr) -> std::pair<Vec<F>, Vec<F>>
   {
-    if constexpr (std::same_as<F, float>)
+    if constexpr (f32<F>)
     {
-      auto d = vld2q_f32(reinterpret_cast<const float *>(in));
+      auto d = vld2q_f32(ptr);
       return { d.val[0], d.val[1] };
     }
     else
     {
-      auto d = vld2q_f64(reinterpret_cast<const double *>(in));
+      auto d = vld2q_f64(ptr);
       return { d.val[0], d.val[1] };
     }
   }
 
   template <std::floating_point F>
-  FORCE_INLINE auto StoreComplex(Complex<F> *out, SIMDComplex<F> v)
+  static void Store2x2Transposed(F *ptrA, F *ptrB, Vec<F> a, Vec<F> b)
   {
-    if constexpr (std::same_as<F, float>)
-    {
-      auto d = float32x4x2_t { v.r, v.i };
-      vst2q_f32(reinterpret_cast<float *>(out), d);
-    }
-    else
-    {
-      auto d = float64x2x2_t { v.r, v.i };
-      vst2q_f64(reinterpret_cast<double *>(out), d);
-    }
+    auto ta = vtrn1q_f64(a, b);
+    auto tb = vtrn2q_f64(a, b);
+    vst1q_f64(ptrA, ta);
+    vst1q_f64(ptrB, tb);
   }
 
   template <std::floating_point F>
-  FORCE_INLINE void LoadContiguousRadix4Set(
-    const Complex<F> *input,
-    SIMDComplex<F> &x0,
-    SIMDComplex<F> &x1,
-    SIMDComplex<F> &x2,
-    SIMDComplex<F> &x3)
+  static void Store4x4Transposed(F *ptrA, F *ptrB, F *ptrC, F *ptrD, Vec<F> a, Vec<F> b, Vec<F> c, Vec<F> d)
   {
-    if constexpr (std::same_as<F, float>)
-    {
-      // r00 r20 r01 r21 | i00 i20 i02 i21 | r10 r30 r11 r31 | i10 i30 i11 i31
-      auto a = vld4q_f32(reinterpret_cast<const F *>(input));
+    static_assert(f32<F>);
+    auto ta = vtrn1q_f32(a, b);
+    auto tb = vtrn2q_f32(a, b);
+    auto tc = vtrn1q_f32(c, d);
+    auto td = vtrn2q_f32(c, d);
 
-      // r02 r22 r03 r23 | i02 i22 i03 i23 | r12 r32 r13 r33 | i12 i32 i13 i33
-      auto b = vld4q_f32(reinterpret_cast<const F *>(input) + 16);
+    a = vreinterpretq_f32_f64(vtrn1q_f64(vreinterpretq_f64_f32(ta), vreinterpretq_f64_f32(tc)));
+    b = vreinterpretq_f32_f64(vtrn1q_f64(vreinterpretq_f64_f32(tb), vreinterpretq_f64_f32(td)));
+    c = vreinterpretq_f32_f64(vtrn2q_f64(vreinterpretq_f64_f32(ta), vreinterpretq_f64_f32(tc)));
+    d = vreinterpretq_f32_f64(vtrn2q_f64(vreinterpretq_f64_f32(tb), vreinterpretq_f64_f32(td)));
+    vst1q_f32(ptrA, a);
+    vst1q_f32(ptrB, b);
+    vst1q_f32(ptrC, c);
+    vst1q_f32(ptrD, d);
 
-      x0 = { vuzp1q_f32(a.val[0], b.val[0]), vuzp1q_f32(a.val[1], b.val[1]) };
-      x2 = { vuzp1q_f32(a.val[2], b.val[2]), vuzp1q_f32(a.val[3], b.val[3]) };
-      x1 = { vuzp2q_f32(a.val[0], b.val[0]), vuzp2q_f32(a.val[1], b.val[1]) };
-      x3 = { vuzp2q_f32(a.val[2], b.val[2]), vuzp2q_f32(a.val[3], b.val[3]) };
-    }
-    else
-    {
-      // r00 r20 | i00 i20 | r10 r30 | i10 i30
-      auto a = vld4q_f64(reinterpret_cast<const double *>(input));
-
-      // r01 r21 | i01 i21 | r11 r31 | i11 i31
-      auto b = vld4q_f64(reinterpret_cast<const double *>(input) + 8);
-      x0 = { vuzp1q_f64(a.val[0], b.val[0]), vuzp1q_f64(a.val[1], b.val[1]) };
-      x2 = { vuzp1q_f64(a.val[2], b.val[2]), vuzp1q_f64(a.val[3], b.val[3]) };
-      x1 = { vuzp2q_f64(a.val[0], b.val[0]), vuzp2q_f64(a.val[1], b.val[1]) };
-      x3 = { vuzp2q_f64(a.val[2], b.val[2]), vuzp2q_f64(a.val[3], b.val[3]) };
-    }
-  }
-
-
-  template <std::floating_point F>
-  FORCE_INLINE void StoreContiguousRadix4Set(
-    Complex<F> *output,
-    SIMDComplex<F> x0,
-    SIMDComplex<F> x1,
-    SIMDComplex<F> x2,
-    SIMDComplex<F> x3)
-  {
-    if constexpr (std::same_as<F, float>)
-    {
-      // r00 r20 r01 r21 | i00 i20 i02 i21 | r10 r30 r11 r31 | i10 i30 i11 i31
-      auto a = float32x4x4_t { vzip1q_f32(x0.r, x2.r), vzip1q_f32(x0.i, x2.i), vzip1q_f32(x1.r, x3.r), vzip1q_f32(x1.i, x3.i) };
-
-      // r02 r22 r03 r23 | i02 i22 i03 i23 | r12 r32 r13 r33 | i12 i32 i13 i33
-      auto b = float32x4x4_t { vzip2q_f32(x0.r, x2.r), vzip2q_f32(x0.i, x2.i), vzip2q_f32(x1.r, x3.r), vzip2q_f32(x1.i, x3.i) };
-
-      vst4q_f32(reinterpret_cast<F *>(output), a);
-      vst4q_f32(reinterpret_cast<F *>(output) + 16, b);
-    }
-    else
-    {
-      auto a = float64x2x4_t { vzip1q_f64(x0.r, x2.r), vzip1q_f64(x0.i, x2.i), vzip1q_f64(x1.r, x3.r), vzip1q_f64(x1.i, x3.i) };
-      auto b = float64x2x4_t { vzip2q_f64(x0.r, x2.r), vzip2q_f64(x0.i, x2.i), vzip2q_f64(x1.r, x3.r), vzip2q_f64(x1.i, x3.i) };
-
-      vst4q_f64(reinterpret_cast<F *>(output), a);
-      vst4q_f64(reinterpret_cast<F *>(output) + 8, b);
-    }
-  }
-
-
-  template <std::floating_point F>
-  FORCE_INLINE void LoadFirstContiguousAngles(const Complex<F> *table, SIMDComplex<F> &w1, SIMDComplex<F> &w2, SIMDComplex<F> &w3)
-  {
-    if constexpr (std::same_as<F, float>)
-    {
-      auto w1w3 = vld4q_f32(reinterpret_cast<const F *>(&table[0 * 2]));
-      auto w2r = vcombine_f32(vld1_f32(reinterpret_cast<const F *>(&table[0 + 0])), vld1_f32(reinterpret_cast<const F *>(&table[0 + 2])));
-      #if SIMD_NEON64
-        auto w2i = vreinterpretq_f32_u32(veorq_u32(vreinterpretq_u32_f64(vdupq_n_u64(0x80000000'00000000ull)), vreinterpretq_u32_f32(vrev64q_f32(w2r))));
-      #else
-        F w2is[] = { 0.0f, -0.0f, 0.0f, -0.0f };
-        auto w2i = vreinterpretq_f32_u32(veorq_u32(vld1q_f32(w2is), vreinterpretq_u32_f32(vrev64q_f32(w2r))));
-      #endif
-
-      w1 = { w1w3.val[0], w1w3.val[1] };
-      w2 = { w2r, w2i };
-      w3 = { w1w3.val[2], w1w3.val[3] };
-    }
-    else
-    {
-      auto w1w3 = vld4q_f64(reinterpret_cast<const F *>(&table[0 * 2]));
-      auto w2r = vld1q_f64(reinterpret_cast<const F *>(&table[0]));
-      auto w2i = vextq_f64(w2r, vnegq_f64(w2r), 1);
-
-      w1 = { w1w3.val[0], w1w3.val[1] };
-      w2 = { w2r, w2i };
-      w3 = { w1w3.val[2], w1w3.val[3] };
-    }
-  }
-
-
-  template <std::floating_point F>
-  FORCE_INLINE void LoadContiguousAngles(const Complex<F> *table, std::size_t groupIndex, SIMDComplex<F> &w1, SIMDComplex<F> &w2, SIMDComplex<F> &w3)
-  {
-    if constexpr (std::same_as<F, float>)
-    {
-      auto w1w3 = vld4q_f32(reinterpret_cast<const F *>(&table[groupIndex << 1]));
-      auto w2r = vcombine_f32(vld1_f32(reinterpret_cast<const F *>(&table[groupIndex])), vld1_f32(reinterpret_cast<const F *>(&table[groupIndex + 2])));
-
-      #if SIMD_NEON64
-        auto w2i = vreinterpretq_f32_u32(veorq_u32(vreinterpretq_u32_f64(vdupq_n_u64(0x80000000'00000000ull)), vreinterpretq_u32_f32(vrev64q_f32(w2r))));
-      #else
-        F w2is[] = { 0.0f, -0.0f, 0.0f, -0.0f };
-        auto w2i = vreinterpretq_f32_u32(veorq_u32(vld1q_f32(w2is), vreinterpretq_u32_f32(vrev64q_f32(w2r))));
-      #endif
-
-      w1 = { w1w3.val[0], w1w3.val[1] };
-      w2 = { w2r, w2i };
-      w3 = { w1w3.val[2], w1w3.val[3] };
-    }
-    else
-    {
-      auto w1w3 = vld4q_f64(reinterpret_cast<const F *>(&table[groupIndex << 1]));
-      auto w2r = vld1q_f64(reinterpret_cast<const F *>(&table[groupIndex]));
-      auto w2i = vextq_f64(w2r, vnegq_f64(w2r), 1);
-
-      w1 = { w1w3.val[0], w1w3.val[1] };
-      w2 = { w2r, w2i };
-      w3 = { w1w3.val[2], w1w3.val[3] };
-    }
-  }
-
-  #define CUSTOM_BUTTERFLY_LOAD 1
-
-  template <std::floating_point F>
-  FORCE_INLINE void LoadPrimaryMainButterflyAngles(const Complex<F> *table, std::size_t groupIndex, SIMDComplex<F> &w1, SIMDComplex<F> &w2, SIMDComplex<F> &w3)
-  {
-    if constexpr (std::same_as<F, float>)
-    {
-      auto w1w3s = vld4q_dup_f32(reinterpret_cast<const F *>(&table[groupIndex << 1]));
-      auto w2s = vld2q_dup_f32(reinterpret_cast<const F *>(&table[groupIndex]));
-
-      w1 = { w1w3s.val[0], w1w3s.val[1] };
-      w2 = { w2s.val[0], w2s.val[1] };
-      w3 = { w1w3s.val[2], w1w3s.val[3] };
-    }
-    else
-    {
-      auto w1w3s = vld4q_dup_f64(reinterpret_cast<const F *>(&table[groupIndex << 1]));
-      auto w2s = vld2q_dup_f64(reinterpret_cast<const F *>(&table[groupIndex]));
-
-      w1 = { w1w3s.val[0], w1w3s.val[1] };
-      w2 = { w2s.val[0], w2s.val[1] };
-      w3 = { w1w3s.val[2], w1w3s.val[3] };
-    }
   }
 
   template <std::floating_point F>
-  FORCE_INLINE void MakeSecondaryMainButterflyAngles(const Complex<F> *table, std::size_t groupIndex, SIMDComplex<F> &w1, SIMDComplex<F> &w2, SIMDComplex<F> &w3)
+  static void Store(F *ptr, Vec<F> a)
   {
-    if constexpr (std::same_as<F, float>)
-    {
-      auto w1w3s = vld4q_dup_f32(reinterpret_cast<const F *>(&table[(groupIndex << 1) + 2]));
-      auto t = w2.r;
-      w2.r = w2.i;
-      w2.i = vnegq_f32(t);
-
-      w1 = { w1w3s.val[0], w1w3s.val[1] };
-      w3 = { w1w3s.val[2], w1w3s.val[3] };
-    }
-    else
-    {
-      auto w1w3s = vld4q_dup_f64(reinterpret_cast<const F *>(&table[(groupIndex << 1) + 2]));
-      auto t = w2.r;
-      w2.r = w2.i;
-      w2.i = vnegq_f64(t);
-
-      w1 = { w1w3s.val[0], w1w3s.val[1] };
-      w3 = { w1w3s.val[2], w1w3s.val[3] };
-    }
+    if constexpr (f32<F>)
+      { vst1q_f32(ptr, a); }
+    else 
+      { vst1q_f64(ptr, a); }
   }
 
-  template <Dir D, std::floating_point F>
-  FORCE_INLINE void SmallFFT(const Complex<F> *table, const Complex<F> *input, Complex<F> *output, std::size_t fftLength)
-    { Scalar::RunFFT<D, F>(table, input, output, fftLength); }
+  template <std::floating_point F>
+  static void StoreInterleaved(F *ptr, Vec<F> a, Vec<F> b)
+  {
+    if constexpr (f32<F>)
+      { vst2q_f32(ptr, (float32x4x2_t{a, b})); }
+    else
+      { vst2q_f64(ptr, (float64x2x2_t{a, b})); }
+  }
 
-  #if !SIMD_NEON64
-    #define NO_64BIT
-  #endif
+  template <std::floating_point F, std::same_as<Vec<F>> ... Vs>
+  static void Scale(F scale, Vs &...vs)
+  {
+    if constexpr (f32<F>)
+      { ((vs = vmulq_n_f32(vs, scale)), ...); }
+    else
+      { ((vs = vmulq_n_f64(vs, scale)), ...); }
+  }
+  
+  template <simd_vec V>
+  static V Add(V a, V b)
+  {
+    if constexpr (f32<V>)
+      { return vaddq_f32(a, b); }
+    else
+      { return vaddq_f64(a, b); }
+  }
 
+  template <simd_vec V>
+  static V Sub(V a, V b)
+  {
+    if constexpr (f32<V>)
+      { return vsubq_f32(a, b); }
+    else
+      { return vsubq_f64(a, b); }
+  }
+
+  template <simd_vec V>
+  static V Mul(V a, V b)
+  {
+    if constexpr (f32<V>)
+      { return vmulq_f32(a, b); }
+    else
+      { return vmulq_f64(a, b); }
+  }
+
+  template <simd_vec V>
+  static auto Set1(std::conditional_t<f32<V>, float, double> f) -> V
+  {
+    if constexpr (f32<V>)
+      { return vdupq_n_f32(f); }
+    else
+      { return vdupq_n_f64(f); }
+  }
+  
+  template <simd_vec V>
+  static V FMAdd(V a, V b, V c)
+  {
+    if constexpr (f32<V>)
+      { return vmlaq_f32(c, b, a); }
+    else
+      { return vfmaq_f64(c, b, a); }
+  }
+
+  template <simd_vec V>
+  static V FNMAdd(V a, V b, V c)
+  {
+    if constexpr (f32<V>)
+      { return vmlsq_f32(c, b, a); }
+    else
+      { return vfmsq_f64(c, b, a); }
+  }
+
+  template <simd_vec V>
+  static V FMSub(V a, V b, V c)
+  {
+    if constexpr (f32<V>)
+      { return vnegq_f32(vmlsq_f32(c, b, a)); }
+    else
+      { return vnegq_f64(vfmsq_f64(c, b, a)); }
+  }
+
+  template <simd_vec V>
+  static V MAdd(V a, V b, V c)
+    { return FMAdd(a, b, c); }
+
+  template <simd_vec V>
+  static V NMAdd(V a, V b, V c)
+    { return FNMAdd(a, b, c); }
+  
   #include "fft_20xx_run.h"
 }
 
@@ -436,7 +199,7 @@ extern "C"
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
 
-    NEON::RunFFT<Dir::Forward, float>(
+    NEON::DITRadix4FFT<Dir::Forward>(
       t->Data(),
       reinterpret_cast<const Complex<float> *>(input),
       reinterpret_cast<Complex<float> *>(output),
@@ -449,7 +212,7 @@ extern "C"
       auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
       COMMON_ASSERTS();
 
-      NEON::RunFFT<Dir::Forward, double>(
+      NEON::DITRadix4FFT<Dir::Forward>(
         t->Data(),
         reinterpret_cast<const Complex<double> *>(input),
         reinterpret_cast<Complex<double> *>(output),
@@ -465,7 +228,7 @@ extern "C"
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
 
-    NEON::RunFFT<Dir::Inverse, float>(
+    NEON::DITRadix4FFT<Dir::Inverse>(
       t->Data(),
       reinterpret_cast<const Complex<float> *>(input),
       reinterpret_cast<Complex<float> *>(output),
@@ -477,7 +240,7 @@ extern "C"
     #if SIMD_NEON64
       auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
       COMMON_ASSERTS();
-      NEON::RunFFT<Dir::Inverse, double>(
+      NEON::DITRadix4FFT<Dir::Inverse>(
         t->Data(),
         reinterpret_cast<const Complex<double> *>(input),
         reinterpret_cast<Complex<double> *>(output),

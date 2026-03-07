@@ -167,7 +167,7 @@ extern "C"
     {
       SIMDSupport s = SIMDSupport::None;
 
-      #if COMPILER_MSVC
+      #if COMPILER_MSVC || COMPILER_CLANG_PRETENDING_TO_BE_MSVC
         int data[4] {}; // corresponds to EAX, EBX, ECX, and EDX outputs
         __cpuidex(data, 0, 0);
         auto maxParam = std::uint32_t(data[0]);
@@ -202,7 +202,7 @@ extern "C"
       {
         // Need to check the xgetbv instruction to see if the OS itself supports the YMM registerss.
         //  There's likely an additional bit to check here if we want to validate AVX512 support (ZMM registers)
-        #if COMPILER_MSVC
+        #if COMPILER_MSVC || COMPILER_CLANG_PRETENDING_TO_BE_MSVC
           auto xcr0 = _xgetbv(0);
         #else
           std::uint32_t xcr0;
@@ -214,7 +214,7 @@ extern "C"
           if (ecx & (1u << 12))
             { s |= SIMDSupport::FMA; }
 
-          #if COMPILER_MSVC
+          #if COMPILER_MSVC || COMPILER_CLANG_PRETENDING_TO_BE_MSVC
             std::ranges::fill(data, 0);
             __cpuidex(data, 7, 0);
             auto ebx = std::uint32_t(data[1]);

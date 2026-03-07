@@ -16,6 +16,11 @@ namespace FFT20XX
     Inverse,
   };
 
+  constexpr size_t operator""_z(unsigned long long l)
+  {
+    return size_t(l);
+  }
+
   template <typename F>
   static constexpr auto InvSqrt2 = F(0.7071067811865476);
 

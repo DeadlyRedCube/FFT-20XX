@@ -4,3 +4,4 @@ set(CMAKE_CXX_FLAGS_INIT "-fno-fast-math -ffp-contract=off -Werror -Wall -pedant
 set(CMAKE_CXX_FLAGS_DEBUG "-O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_COLOR_DIAGNOSTICS ON)
