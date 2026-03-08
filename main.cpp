@@ -48,12 +48,12 @@ void AlignedFree(T *mem)
 
 
 #if defined(__clang__)
-  __attribute__((always_inline)) void AvoidOptimizing(auto &&v)
+  __attribute__((always_inline)) inline void AvoidOptimizing(auto &&v)
   {
     asm volatile("" : "+r,m"(v) : : "memory");
   }
 #elif defined (__GNUC__)
-  __attribute__((always_inline)) void AvoidOptimizing(auto &&v)
+  __attribute__((always_inline)) inline void AvoidOptimizing(auto &&v)
   {
     asm volatile("" : "+m,r"(v) : : "memory");
   }
@@ -509,8 +509,8 @@ int main()
   [[maybe_unused]] auto table32 = AllocateFFTTable32(MaxFFTLength);
   [[maybe_unused]] auto table64 = AllocateFFTTable64(MaxFFTLength);
 
-  #if 0
-    auto size = 16u;
+  #if 1
+    auto size = 8u;
     using F = float;
     std::vector<std::complex<F>> input(size);
     std::vector<std::complex<F>> output(size);
@@ -522,7 +522,7 @@ int main()
 
     for (auto i = 0u; i < input.size(); i++)
     {
-      input[i] = {F(i), -F(2*i) };
+      input[i] = {F(i), F(0) };
       inputReal[i] = F(i);
     }
 

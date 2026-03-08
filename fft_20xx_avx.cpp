@@ -11,6 +11,10 @@ static_assert(SIMD_AVX);
 #include <cinttypes>
 #include <immintrin.h>
 
+#if COMPILER_GCC
+  #pragma GCC diagnostic ignored "-Wignored-attributes"
+#endif
+
 
 namespace FFT20XX::AVX
 {

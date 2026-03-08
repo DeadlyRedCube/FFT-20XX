@@ -9,6 +9,10 @@ static_assert(SIMD_SSE2);
 #include <cinttypes>
 #include <immintrin.h>
 
+#if COMPILER_GCC
+  #pragma GCC diagnostic ignored "-Wignored-attributes"
+#endif
+
 namespace FFT20XX::SSE2
 {
   template <typename T> concept f32 = std::same_as<float, T> || std::same_as<__m128, T>;

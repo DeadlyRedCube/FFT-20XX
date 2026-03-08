@@ -10,6 +10,10 @@ static_assert(SIMD_FMA);
 #include <cinttypes>
 #include <immintrin.h>
 
+#if COMPILER_GCC
+  #pragma GCC diagnostic ignored "-Wignored-attributes"
+#endif
+
 namespace FFT20XX::FMA
 {
   template <typename T> concept f32 = std::same_as<float, T> || std::same_as<__m128, T> || std::same_as<__m256, T>;
