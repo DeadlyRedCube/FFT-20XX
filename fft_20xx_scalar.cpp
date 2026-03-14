@@ -42,7 +42,7 @@ namespace FFT20XX::Scalar
 
   template <typename> constexpr uint32_t VecSize = StandardSize;
 
-
+  constexpr bool IsScalar = true;
   constexpr bool UseFMAOptimization = false;
 
   template <std::floating_point F>
@@ -69,7 +69,7 @@ namespace FFT20XX::Scalar
   template <typename F>
   static auto SplitHalves(Vec<F> v)
   { 
-    std::pair<ScalarVec<F, StandardSize / 2>, ScalarVec<F, StandardSize / 2>> r;
+    Pair<ScalarVec<F, StandardSize / 2>, ScalarVec<F, StandardSize / 2>> r;
     for (auto i = 0u; i < StandardSize / 2; i++)
     {
       r.first[i] = v[i];
@@ -101,9 +101,9 @@ namespace FFT20XX::Scalar
   }
 
   template <std::floating_point F>
-  static auto LoadDeinterleaved(const F *ptr) -> std::pair<Vec<F>, Vec<F>>
+  static auto LoadDeinterleaved(const F *ptr) -> Pair<Vec<F>, Vec<F>>
   {
-    std::pair<Vec<F>, Vec<F>> r;
+    Pair<Vec<F>, Vec<F>> r;
     for (auto i = 0u; i < StandardSize; i++)
     {
       r.first[i] = ptr[2 * i + 0];
@@ -115,7 +115,7 @@ namespace FFT20XX::Scalar
   template <std::floating_point F>
   static auto LoadDeinterleavedHalf(const F *ptr)
   {
-    std::pair<ScalarVec<F, StandardSize / 2>, ScalarVec<F, StandardSize / 2>> r;
+    Pair<ScalarVec<F, StandardSize / 2>, ScalarVec<F, StandardSize / 2>> r;
     for (auto i = 0u; i < StandardSize / 2; i++)
     {
       r.first[i] = ptr[2 * i + 0];
@@ -219,6 +219,7 @@ namespace FFT20XX::Scalar
     { return Sub(c, Mul(a, b)); }
 
   #include "fft_20xx_run.h"
+
 }
 
 using namespace FFT20XX;
@@ -229,12 +230,7 @@ extern "C"
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-
-    Scalar::DITRadix4FFT<Dir::Forward>(
-      t->Data(),
-      reinterpret_cast<const Complex<float> *>(input),
-      reinterpret_cast<Complex<float> *>(output),
-      fftLength);
+    Scalar::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
   }
 
 
@@ -242,11 +238,7 @@ extern "C"
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
-    Scalar::DITRadix4FFT<Dir::Forward>(
-      t->Data(),
-      reinterpret_cast<const Complex<double> *>(input),
-      reinterpret_cast<Complex<double> *>(output),
-      fftLength);
+    Scalar::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
 
   }
 
@@ -255,12 +247,7 @@ extern "C"
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-
-    Scalar::DITRadix4FFT<Dir::Inverse>(
-      t->Data(),
-      reinterpret_cast<const Complex<float> *>(input),
-      reinterpret_cast<Complex<float> *>(output),
-      fftLength);  
+    Scalar::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);  
   }
 
 
@@ -268,10 +255,34 @@ extern "C"
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
-    Scalar::DITRadix4FFT<Dir::Inverse>(
-      t->Data(),
-      reinterpret_cast<const Complex<double> *>(input),
-      reinterpret_cast<Complex<double> *>(output),
-      fftLength);
+    Scalar::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
+  }
+
+  void FFTReal32_Scalar(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  {
+    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    COMMON_ASSERTS();
+    Scalar::RunRealFwdFFT(t->Data(), input, output, fftLength);
+  }
+
+  void FFTReal64_Scalar(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  {
+    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    COMMON_ASSERTS();
+    Scalar::RunRealFwdFFT(t->Data(), input, output, fftLength);
+  }
+
+  void IFFTReal32_Scalar(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  {
+    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    COMMON_ASSERTS();
+    Scalar::RunRealInvFFT(t->Data(), input, output, fftLength);
+  }
+
+  void IFFTReal64_Scalar(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  {
+    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    COMMON_ASSERTS();
+    Scalar::RunRealInvFFT(t->Data(), input, output, fftLength);
   }
 }

@@ -17,6 +17,7 @@ target_sources(
     "include/fft_20xx.h"
 
   PRIVATE
+    "fft_20xx_avx_common.h"
     "fft_20xx_bit_reverse_copy.h"
     "fft_20xx_common.h"
     "fft_20xx_complex.h"

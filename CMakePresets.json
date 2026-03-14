@@ -164,6 +164,23 @@
             "inherits": "linux-arm64-base",
             "toolchainFile": "${sourceDir}/cmake/toolchain-clang-linux-arm64.cmake",
             "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+        },
+
+
+
+        {
+            "name": "gnu-linux-arm64-debug",
+            "displayName": "ARM64 Debug (GNU Linux)",
+            "inherits": "linux-arm64-base",
+            "toolchainFile": "${sourceDir}/cmake/toolchain-gcc-linux-arm64.cmake",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+        },
+        {
+            "name": "gnu-linux-arm64-release",
+            "displayName": "ARM64 Release (GNU Linux)",
+            "inherits": "linux-arm64-base",
+            "toolchainFile": "${sourceDir}/cmake/toolchain-gcc-linux-arm64.cmake",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
         }
     ]
 }

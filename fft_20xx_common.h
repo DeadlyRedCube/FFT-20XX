@@ -59,5 +59,14 @@ namespace FFT20XX
     else
       { return { .r = -InvSqrt2<F> * (v.r + v.i), .i = InvSqrt2<F> * (v.r - v.i) }; }
   }
+
+  // Using a custom Pair struct instead of std::pair simply to avoid some ABI warnings on GCC (on ARM), which could be
+  //  disabled with -Wno-psabi but in practice that's not a great solution.
+  template <typename A, typename B>
+  struct Pair
+  {
+    A first;
+    B second;
+  };
 }
 
