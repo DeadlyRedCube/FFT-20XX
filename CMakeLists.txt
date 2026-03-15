@@ -14,11 +14,10 @@ target_sources(
   fft-20xx
 
   PUBLIC FILE_SET HEADERS FILES
-    "include/fft_20xx.h"
+    "include/fft_20xx/fft_20xx.h"
 
   PRIVATE
     "fft_20xx_avx_common.h"
-    "fft_20xx_bit_reverse_copy.h"
     "fft_20xx_common.h"
     "fft_20xx_complex.h"
     "fft_20xx_math.h"
@@ -37,6 +36,12 @@ target_sources(
 
   PRIVATE
     "main.cpp"
+)
+
+target_include_directories(
+    fft-20xx
+    PUBLIC
+    "include/"
 )
 
 if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")

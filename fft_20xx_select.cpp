@@ -1,4 +1,4 @@
-#include "include/fft_20xx.h"
+#include "fft_20xx/fft_20xx.h"
 
 #include "fft_20xx_common.h"
 
@@ -8,133 +8,46 @@ using namespace FFT20XX;
   #include <cpuid.h>
 #endif
 
-
+#if 1
 extern "C"
 {
-  void FFTComplex32(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-  {
-    FFTComplex32Interleaved(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-  }
+  using namespace fft_20xx::c;
 
-  void FFTComplex64(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-  {
-    FFTComplex64Interleaved(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-  }
+#define MAKE_C_OVERLOADS(suffix) \
+  void fft_cplx_interleaved_f32##suffix(const fft_table_f32 *table, const float *input, float *output, size_t fftLength); \
+  void fft_cplx_interleaved_f64##suffix(const fft_table_f64 *table, const double *input, double *output, size_t fftLength); \
+  \
+  void fft_cplx_f32##suffix(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength) \
+    { fft_cplx_interleaved_f32##suffix(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength); } \
+  \
+  void fft_cplx_f64##suffix(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength) \
+    { fft_cplx_interleaved_f64##suffix(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength); } \
+  \
+  void ifft_cplx_interleaved_f32##suffix(const fft_table_f32 *table, const float *input, float *output, size_t fftLength); \
+  void ifft_cplx_interleaved_f64##suffix(const fft_table_f64 *table, const double *input, double *output, size_t fftLength); \
+  \
+  void ifft_cplx_f32##suffix(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength) \
+    { ifft_cplx_interleaved_f32##suffix(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength); } \
+  \
+  void ifft_cplx_f64##suffix(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength) \
+    { ifft_cplx_interleaved_f64##suffix(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength); } \
+  \
+  void fft_real_f32##suffix(const fft_table_f32 *table, const float *input, float *output, size_t fftLength); \
+  void fft_real_f64##suffix(const fft_table_f64 *table, const double *input, double *output, size_t fftLength); \
+  \
+  void ifft_real_f32##suffix(const fft_table_f32 *table, const float *input, float *output, size_t fftLength); \
+  void ifft_real_f64##suffix(const fft_table_f64 *table, const double *input, double *output, size_t fftLength); \
+  \
 
-  void IFFTComplex32(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-  {
-    IFFTComplex32Interleaved(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-  }
-
-  void IFFTComplex64(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-  {
-    IFFTComplex64Interleaved(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-  }
-
-
-
-  void FFTComplex32_Scalar(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-  {
-    FFTComplex32Interleaved_Scalar(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-  }
-
-  void FFTComplex64_Scalar(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-  {
-    FFTComplex64Interleaved_Scalar(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-  }
-
-  void IFFTComplex32_Scalar(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-  {
-    IFFTComplex32Interleaved_Scalar(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-  }
-
-  void IFFTComplex64_Scalar(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-  {
-    IFFTComplex64Interleaved_Scalar(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-  }
-
+  MAKE_C_OVERLOADS()
+  MAKE_C_OVERLOADS(_scalar)
 
   #if CPU_X86 || CPU_X64
-    void FFTComplex32_SSE2(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-    {
-      FFTComplex32Interleaved_SSE2(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-    }
-
-    void FFTComplex64_SSE2(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-    {
-      FFTComplex64Interleaved_SSE2(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-    }
-
-    void IFFTComplex32_SSE2(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-    {
-      IFFTComplex32Interleaved_SSE2(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-    }
-
-    void IFFTComplex64_SSE2(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-    {
-      IFFTComplex64Interleaved_SSE2(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-    }
-
-    void FFTComplex32_AVX(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-    {
-      FFTComplex32Interleaved_AVX(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-    }
-
-    void FFTComplex64_AVX(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-    {
-      FFTComplex64Interleaved_AVX(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-    }
-
-    void IFFTComplex32_AVX(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-    {
-      IFFTComplex32Interleaved_AVX(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-    }
-
-    void IFFTComplex64_AVX(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-    {
-      IFFTComplex64Interleaved_AVX(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-    }
-
-    void FFTComplex32_FMA(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-    {
-      FFTComplex32Interleaved_FMA(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-    }
-
-    void FFTComplex64_FMA(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-    {
-      FFTComplex64Interleaved_FMA(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-    }
-
-    void IFFTComplex32_FMA(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-    {
-      IFFTComplex32Interleaved_FMA(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-    }
-
-    void IFFTComplex64_FMA(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-    {
-      IFFTComplex64Interleaved_FMA(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-    }
-  #elif SIMD_NEON64
-    void FFTComplex32_NEON(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-    {
-      FFTComplex32Interleaved_NEON(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-    }
-
-    void FFTComplex64_NEON(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-    {
-      FFTComplex64Interleaved_NEON(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-    }
-
-    void IFFTComplex32_NEON(const FFTTable32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength)
-    {
-      IFFTComplex32Interleaved_NEON(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength);
-    }
-
-    void IFFTComplex64_NEON(const FFTTable64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength)
-    {
-      IFFTComplex64Interleaved_NEON(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength);
-    }
-
+    MAKE_C_OVERLOADS(_sse2);
+    MAKE_C_OVERLOADS(_avx);
+    MAKE_C_OVERLOADS(_fma);
+  #elif SIMD_NEON
+    MAKE_C_OVERLOADS(_neon);
   #endif
 }
 
@@ -153,13 +66,13 @@ extern "C"
     AVX2    = 0x80,
   };
 
-  SIMDSupport operator&(SIMDSupport a, SIMDSupport b) { return SIMDSupport(int(a) & int(b)); }
-  SIMDSupport &operator&=(SIMDSupport &a, SIMDSupport b) { a = a & b; return a; }
-  SIMDSupport operator|(SIMDSupport a, SIMDSupport b) { return SIMDSupport(int(a) | int(b)); }
-  SIMDSupport &operator|=(SIMDSupport &a, SIMDSupport b) { a = a | b; return a; }
-  SIMDSupport operator^(SIMDSupport a, SIMDSupport b) { return SIMDSupport(int(a) ^ int(b)); }
-  SIMDSupport &operator^=(SIMDSupport &a, SIMDSupport b) { a = a ^ b; return a; }
-  SIMDSupport operator~(SIMDSupport a) { return SIMDSupport(~int(a)); }
+  inline SIMDSupport operator&(SIMDSupport a, SIMDSupport b) { return SIMDSupport(int(a) & int(b)); }
+  inline SIMDSupport &operator&=(SIMDSupport &a, SIMDSupport b) { a = a & b; return a; }
+  inline SIMDSupport operator|(SIMDSupport a, SIMDSupport b) { return SIMDSupport(int(a) | int(b)); }
+  inline SIMDSupport &operator|=(SIMDSupport &a, SIMDSupport b) { a = a | b; return a; }
+  inline SIMDSupport operator^(SIMDSupport a, SIMDSupport b) { return SIMDSupport(int(a) ^ int(b)); }
+  inline SIMDSupport &operator^=(SIMDSupport &a, SIMDSupport b) { a = a ^ b; return a; }
+  inline SIMDSupport operator~(SIMDSupport a) { return SIMDSupport(~int(a)); }
 
 
   [[maybe_unused]] static const SIMDSupport s_simdSupport =
@@ -238,19 +151,18 @@ extern "C"
     }();
 #endif
 
-
 extern "C"
 {
   #if SIMD_AVX
     #if SIMD_FMA
-      #define SELECT(name, ...) name##_FMA(__VA_ARGS__)
+      #define SELECT(name, ...) name##_fma(__VA_ARGS__)
     #else
       do \
       { \
         if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX)) \
-          { name##_FMA(__VA_ARGS__); } \
+          { name##_fma(__VA_ARGS__); } \
         else \
-          { name##_AVX(__VA_ARGS__); } \
+          { name##_avx(__VA_ARGS__); } \
       } while (false)
     #endif
   #elif SIMD_SSE2
@@ -258,40 +170,53 @@ extern "C"
       do \
       { \
         if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX)) \
-          { name##_FMA(__VA_ARGS__); } \
+          { name##_fma(__VA_ARGS__); } \
         else if ((s_simdSupport & SIMDSupport::AVX) == SIMDSupport::AVX) \
-          { name##_AVX(__VA_ARGS__); } \
+          { name##_avx(__VA_ARGS__); } \
         else \
-          { name##_SSE2(__VA_ARGS__); } \
+          { name##_sse2(__VA_ARGS__); } \
       } while (false)
   #elif CPU_X86 || CPU_X64
     #define SELECT(name, ...) \
       do \
       { \
         if ((s_simdSupport & (SIMDSupport::FMA | SIMDSupport::AVX)) == (SIMDSupport::FMA | SIMDSupport::AVX)) \
-          { name##_FMA(__VA_ARGS__); } \
+          { name##_fma(__VA_ARGS__); } \
         else if ((s_simdSupport & SIMDSupport::AVX) == SIMDSupport::AVX) \
-          { name##_AVX(__VA_ARGS__); } \
+          { name##_avx(__VA_ARGS__); } \
         else if ((s_simdSupport & SIMDSupport::SSE2) == SIMDSupport::SSE2) \
-          { name##_SSE2(__VA_ARGS__); } \
+          { name##_sse2(__VA_ARGS__); } \
         else \
-          { name##_Scalar(__VA_ARGS__); } \
+          { name##_scalar(__VA_ARGS__); } \
       } while (false)
   #elif SIMD_NEON
-    #define SELECT(name, ...) name##_NEON(__VA_ARGS__)
+    #define SELECT(name, ...) name##_neon(__VA_ARGS__)
   #else
-    #define SELECT(name, ...) name##_Scalar(__VA_ARGS__)
+    #define SELECT(name, ...) name##_scalar(__VA_ARGS__)
   #endif
 
-  void FFTComplex32Interleaved(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
-    { SELECT(FFTComplex32Interleaved, table, input, output, fftLength); }
+  void fft_cplx_interleaved_f32(const fft_table_f32 *table, const float *input, float *output, size_t length)
+    { SELECT(fft_cplx_interleaved_f32, table, input, output, length); }
 
-  void IFFTComplex32Interleaved(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
-    { SELECT(IFFTComplex32Interleaved, table, input, output, fftLength); }
+  void fft_cplx_interleaved_f64(const fft_table_f64 *table, const double *input, double *output, size_t length)
+    { SELECT(fft_cplx_interleaved_f64, table, input, output, length); }
 
-  void FFTComplex64Interleaved(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-    { SELECT(FFTComplex64Interleaved, table, input, output, fftLength); }
+  void ifft_cplx_interleaved_f32(const fft_table_f32 *table, const float *input, float *output, size_t length)
+    { SELECT(ifft_cplx_interleaved_f32, table, input, output, length); }
 
-  void IFFTComplex64Interleaved(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-    { SELECT(IFFTComplex64Interleaved, table, input, output, fftLength); }
+  void ifft_cplx_interleaved_f64(const fft_table_f64 *table, const double *input, double *output, size_t length)
+    { SELECT(ifft_cplx_interleaved_f64, table, input, output, length); }
+
+  void fft_real_f32(const fft_table_f32 *table, const float *input, float *output, size_t length)
+    { SELECT(fft_real_f32, table, input, output, length); }
+
+  void ifft_real_f32(const fft_table_f32 *table, const float *input, float *output, size_t length)
+    { SELECT(ifft_real_f32, table, input, output, length); }
+
+  void fft_real_f64(const fft_table_f64 *table, const double *input, double *output, size_t length)
+    { SELECT(fft_real_f64, table, input, output, length); }
+
+  void ifft_real_f64(const fft_table_f64 *table, const double *input, double *output, size_t length)
+    { SELECT(ifft_real_f64, table, input, output, length); }
 }
+#endif

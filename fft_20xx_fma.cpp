@@ -20,68 +20,63 @@ namespace FFT20XX::FMA
 }
 
 
+using namespace FFT20XX;
+using namespace fft_20xx::c;
 extern "C"
 {
-  using namespace FFT20XX;
-
-  #define COMMON_ASSERTS() \
-    assert(table != nullptr); \
-    assert(input != nullptr); \
-    assert(output != nullptr); \
-    assert(IsPowerOfTwo(fftLength)); \
-    assert(t->MaxFFTLength() >= fftLength)
-
-  void FFTComplex32Interleaved_FMA(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_interleaved_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
-    COMMON_ASSERTS();
-    FMA::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
-  }
-
-  void FFTComplex64Interleaved_FMA(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     FMA::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
   }
 
 
-  void IFFTComplex32Interleaved_FMA(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_interleaved_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    COMMON_ASSERTS();
+    FMA::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
+  }
+
+
+  void ifft_cplx_interleaved_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  {
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    COMMON_ASSERTS();
+    FMA::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);  
+  }
+
+
+  void ifft_cplx_interleaved_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  {
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     FMA::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
   }
 
-  void IFFTComplex64Interleaved_FMA(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
-    COMMON_ASSERTS();
-    FMA::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
-  }
-
-  void FFTReal32_FMA(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     FMA::RunRealFwdFFT(t->Data(), input, output, fftLength);
   }
 
-  void FFTReal64_FMA(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void fft_real_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     FMA::RunRealFwdFFT(t->Data(), input, output, fftLength);
   }
 
-  void IFFTReal32_FMA(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_real_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     FMA::RunRealInvFFT(t->Data(), input, output, fftLength);
   }
 
-  void IFFTReal64_FMA(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void ifft_real_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();

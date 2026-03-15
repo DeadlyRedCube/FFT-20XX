@@ -7,14 +7,6 @@
 
 #include <vector>
 
-#define COMMON_ASSERTS() \
-  assert(t != nullptr); \
-  assert(input != nullptr); \
-  assert(output != nullptr); \
-  assert(IsPowerOfTwo(fftLength)); \
-  assert(t->MaxFFTLength() >= fftLength)
-
-
 namespace FFT20XX::Scalar
 {
   template <typename T, uint32_t N>
@@ -224,9 +216,10 @@ namespace FFT20XX::Scalar
 
 using namespace FFT20XX;
 
+using namespace fft_20xx::c;
 extern "C"
 {
-  void FFTComplex32Interleaved_Scalar(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_interleaved_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
@@ -234,16 +227,15 @@ extern "C"
   }
 
 
-  void FFTComplex64Interleaved_Scalar(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void fft_cplx_interleaved_f64_scalar(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     Scalar::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
-
   }
 
 
-  void IFFTComplex32Interleaved_Scalar(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_cplx_interleaved_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
@@ -251,35 +243,35 @@ extern "C"
   }
 
 
-  void IFFTComplex64Interleaved_Scalar(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void ifft_cplx_interleaved_f64_scalar(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     Scalar::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
   }
 
-  void FFTReal32_Scalar(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     Scalar::RunRealFwdFFT(t->Data(), input, output, fftLength);
   }
 
-  void FFTReal64_Scalar(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void fft_real_f64_scalar(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     Scalar::RunRealFwdFFT(t->Data(), input, output, fftLength);
   }
 
-  void IFFTReal32_Scalar(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_real_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     Scalar::RunRealInvFFT(t->Data(), input, output, fftLength);
   }
 
-  void IFFTReal64_Scalar(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void ifft_real_f64_scalar(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();

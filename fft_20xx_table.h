@@ -5,7 +5,6 @@
 #include <cinttypes>
 #include <cmath>
 
-#include "fft_20xx_bit_reverse_copy.h"
 #include "fft_20xx_complex.h"
 #include "fft_20xx_common.h"
 #include "fft_20xx_math.h"
@@ -14,25 +13,25 @@
 
 namespace FFT20XX
 {
-template <typename T>
-T *AlignedAlloc(std::size_t count, std::size_t elementAlignment)
-{
-  #if defined (_MSC_VER)
-    return static_cast<T *>(_aligned_malloc(count * sizeof(T),  elementAlignment * sizeof(T)));
-  #else
-    return static_cast<T *>(std::aligned_alloc(elementAlignment * sizeof(T), count * sizeof(T)));
-  #endif
-}
+  template <typename T>
+  T *AlignedAlloc(std::size_t count, std::size_t elementAlignment)
+  {
+    #if defined (_MSC_VER)
+      return static_cast<T *>(_aligned_malloc(count * sizeof(T),  elementAlignment * sizeof(T)));
+    #else
+      return static_cast<T *>(std::aligned_alloc(elementAlignment * sizeof(T), count * sizeof(T)));
+    #endif
+  }
 
-template <typename T>
-void AlignedFree(T *mem)
-{
-  #if defined (_MSC_VER)
-    _aligned_free(mem);
-  #else
-    std::free(mem);
-  #endif
-}
+  template <typename T>
+  void AlignedFree(T *mem)
+  {
+    #if defined (_MSC_VER)
+      _aligned_free(mem);
+    #else
+      std::free(mem);
+    #endif
+  }
 
 
   #if COMPILER_MSVC

@@ -13,74 +13,74 @@ static_assert(SIMD_AVX);
   #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
+// Ensure that this file only compiles with AVX support even if FMA is supported by the global settings
+#if SIMD_FMA
+  #undef SIMD_FMA
+  #define SIMD_FMA 0
+#endif
+
 namespace FFT20XX::AVX
 {
   #include "fft_20xx_avx_common.h"
 }
 
-
+using namespace FFT20XX;
+using namespace fft_20xx::c;
 extern "C"
 {
-  using namespace FFT20XX;
-
-  #define COMMON_ASSERTS() \
-    assert(table != nullptr); \
-    assert(input != nullptr); \
-    assert(output != nullptr); \
-    assert(IsPowerOfTwo(fftLength)); \
-    assert(t->MaxFFTLength() >= fftLength)
-
-  void FFTComplex32Interleaved_AVX(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_interleaved_f32_avx(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
-    COMMON_ASSERTS();
-    AVX::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
-  }
-
-  void FFTComplex64Interleaved_AVX(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     AVX::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
   }
 
 
-  void IFFTComplex32Interleaved_AVX(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_interleaved_f64_avx(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    COMMON_ASSERTS();
+    AVX::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
+  }
+
+
+  void ifft_cplx_interleaved_f32_avx(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  {
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    COMMON_ASSERTS();
+    AVX::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);  
+  }
+
+
+  void ifft_cplx_interleaved_f64_avx(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  {
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     AVX::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
   }
 
-  void IFFTComplex64Interleaved_AVX(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
-    COMMON_ASSERTS();
-    AVX::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
-  }
-
-  void FFTReal32_AVX(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f32_avx(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     AVX::RunRealFwdFFT(t->Data(), input, output, fftLength);
   }
 
-  void FFTReal64_AVX(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void fft_real_f64_avx(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     AVX::RunRealFwdFFT(t->Data(), input, output, fftLength);
   }
 
-  void IFFTReal32_AVX(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_real_f32_avx(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     AVX::RunRealInvFFT(t->Data(), input, output, fftLength);
   }
 
-  void IFFTReal64_AVX(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void ifft_real_f64_avx(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();

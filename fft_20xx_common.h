@@ -2,11 +2,18 @@
 
 #include "fft_20xx_platform.h"
 
-#include "include/fft_20xx.h"
+#include "fft_20xx/fft_20xx.h"
 
 #include "fft_20xx_complex.h"
 #include "fft_20xx_table.h"
 #include "fft_20xx_complex.h"
+
+#define COMMON_ASSERTS() \
+  assert(t != nullptr); \
+  assert(input != nullptr); \
+  assert(output != nullptr); \
+  assert(IsPowerOfTwo(fftLength)); \
+  assert(t->MaxFFTLength() >= fftLength)
 
 namespace FFT20XX
 {

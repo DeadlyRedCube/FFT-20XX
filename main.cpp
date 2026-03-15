@@ -4,21 +4,17 @@
   #pragma warning (disable: 5045) // Compiler will insert Spectre mitigation for memory load
 #endif
 
-#include "fft_20xx_platform.h"
+#include "fft_20xx/fft_20xx.h"
 
-#include "include/fft_20xx.h"
-
+#include <cassert>
 #include <chrono>
 #include <cmath>
+#include <complex.h>
 #include <complex>
 #include <cstdlib>
 #include <random>
 #include <utility>
 #include <vector>
-
-#include "fft_20xx_bit_reverse_copy.h"
-#include "fft_20xx_math.h"
-#include "fft_20xx_table.h"
 
 #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
   #include <immintrin.h>
@@ -170,11 +166,13 @@ void Benchmark(const char *name, auto &&fftFunction, std::uint32_t maxFFTLength)
   { Benchmark<B, F>(name, fftFunction, maxFFTLength, [](size_t){}, []{}); }
 
 template<BufferType B, std::floating_point F>
-void BenchmarkReal(const char *name, auto fftFunction, std::uint32_t maxFFTLength)
+void BenchmarkReal(const char *name, auto fftFunction, std::uint32_t maxFFTLength, auto &&initSize, auto &&deinitSize)
 {
-  printf("%s\n", name);
+  printf("%s, %s, %s\n", name, (B == BufferType::InPlace ? "In-Place" : "Separate"), std::same_as<F, float> ? "f32" : "f64");
   for (auto length = 64u; length <= maxFFTLength; length *= 2)
   {
+    initSize(length);
+
     #if MULTIBENCH
       printf("  Length %7u", length);
       fprintf(stderr, "length %u\n", length);
@@ -183,7 +181,7 @@ void BenchmarkReal(const char *name, auto fftFunction, std::uint32_t maxFFTLengt
     #endif
 
     #if MULTIBENCH
-      for (auto iterationCount = 0u; iterationCount < 100; iterationCount++)
+      for (auto iterationCount = 0u; iterationCount < 128; iterationCount++)
     #endif
     {
       #if MULTIBENCH
@@ -236,15 +234,23 @@ void BenchmarkReal(const char *name, auto fftFunction, std::uint32_t maxFFTLengt
 
       AlignedFree(vals);
       AlignedFree(outs);
+
     }
 
     #if MULTIBENCH
       printf("\n");
       fprintf(stderr, "\n");
     #endif
+
+    deinitSize();
   }
   printf("\n");
 }
+
+
+template<BufferType B, std::floating_point F>
+void BenchmarkReal(const char *name, auto &&fftFunction, std::uint32_t maxFFTLength)
+  { BenchmarkReal<B, F>(name, fftFunction, maxFFTLength, [](size_t){}, []{}); }
 
 
 #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
@@ -280,10 +286,10 @@ void BenchmarkReal(const char *name, auto fftFunction, std::uint32_t maxFFTLengt
 #endif
 
 template <std::floating_point F>
-  void BasicDITRadix2FFT(const std::complex<F> *input, std::complex<F> *output, std::uint32_t fftLength);
+  void BasicDITRadix2FFT(const std::complex<F> *input, std::complex<F> *output, std::size_t fftLength);
 
 template <std::floating_point F>
-  void BasicDITRadix2IFFT(const std::complex<F> *input, std::complex<F> *output, std::uint32_t fftLength);
+  void BasicDITRadix2IFFT(const std::complex<F> *input, std::complex<F> *output, std::size_t fftLength);
 
 template <BufferType B, typename F>
 void SmokeTest(const char *name, auto testFwd, auto testInv)
@@ -292,17 +298,7 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
 
   for (auto size = 1u; size <= MaxFFTLength; size *= 2)
   {
-    [[maybe_unused]] auto table32 = AllocateFFTTable32(size);
-    [[maybe_unused]] auto table64 = AllocateFFTTable64(size);
-
-    auto *table =
-      [&]
-      {
-        if constexpr (std::same_as<F, float>)
-          { return table32; }
-        else
-          { return table64; }
-      }();
+    auto table = fft_20xx::fft_table<F>{size};
 
     std::vector<std::complex<F>> input(size);
     std::vector<std::complex<double>> inputD(size);
@@ -370,7 +366,7 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
           outputGood[i].real(), 
           outputTest[i].real(),
           Error(outputGood[i].real(), outputTest[i].real())); 
-        goto continueOuter; 
+        break;
       }
       if (Error(outputGood[i].imag(), outputTest[i].imag()) > Threshold)
       { 
@@ -385,7 +381,7 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
           outputGood[i].imag(), 
           outputTest[i].imag(),
           Error(outputGood[i].imag(), outputTest[i].imag()));
-        goto continueOuter; 
+        break;
       }
     }
 
@@ -403,7 +399,7 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
           i, 
           ioutputGood[i].real(), 
           ioutputTest[i].real()); 
-        goto continueOuter; 
+        break;
       }
       
       if (Error(ioutputGood[i].imag(), ioutputTest[i].imag()) > Threshold)
@@ -418,13 +414,9 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
           i,
           ioutputGood[i].imag(), 
           ioutputTest[i].imag()); 
-        goto continueOuter; 
+        break;
       }
     }
-
-  continueOuter:;
-    FreeFFTTable32(table32);
-    FreeFFTTable64(table64);
   }
 }
 
@@ -440,10 +432,41 @@ constexpr auto Rotation(std::size_t n, std::size_t N) -> std::complex<F>
   return Rotation(angle);
 }
 
-template <std::floating_point F>
-void BasicDITRadix2FFT(const std::complex<F> *input, std::complex<F> *output, std::uint32_t fftLength)
+auto BitRev(std::integral auto v)
 {
-  FFT20XX::BitReverseCopy(reinterpret_cast<const FFT20XX::Complex<F> *>(input), reinterpret_cast<FFT20XX::Complex<F> *>(output), fftLength);
+  if constexpr (sizeof(v) == sizeof(uint64_t))
+  {
+    v = ((v >>  1) & 0x55555555'55555555) | ((v & 0x55555555'55555555) << 1);
+    v = ((v >>  2) & 0x33333333'33333333) | ((v & 0x33333333'33333333) << 2);
+    v = ((v >>  4) & 0x0f0f0f0f'0f0f0f0f) | ((v & 0x0f0f0f0f'0f0f0f0f) << 4);
+    v = ((v >>  8) & 0x00ff00ff'00ff00ff) | ((v & 0x00ff00ff'00ff00ff) << 8);
+    v = ((v >> 16) & 0x0000ffff'0000ffff) | ((v & 0x0000ffff'0000ffff) << 16);
+    v = (v >> 32) | (v << 32);
+  }
+  else
+  {
+    static_assert(sizeof(v) == sizeof(uint32_t));
+    v = ((v >>  1) & 0x55555555) | ((v & 0x55555555) << 1);
+    v = ((v >>  2) & 0x33333333) | ((v & 0x33333333) << 2);
+    v = ((v >>  4) & 0x0f0f0f0f) | ((v & 0x0f0f0f0f) << 4);
+    v = ((v >>  8) & 0x00ff00ff) | ((v & 0x00ff00ff) << 8);
+    v = (v >> 16) | (v << 16);
+  }
+
+  return v;
+}
+
+template <std::floating_point F>
+void BasicDITRadix2FFT(const std::complex<F> *input, std::complex<F> *output, std::size_t fftLength)
+{
+  assert(input != output);
+  for (auto i = size_t(0); i < fftLength; i++)
+  {
+    const auto fftLengthBitCount = std::uint32_t(std::numeric_limits<decltype(fftLength)>::digits - 1 - std::countl_zero(fftLength));
+    const auto shift = std::uint32_t(std::numeric_limits<size_t>::digits - fftLengthBitCount);
+
+    output[i] = input[BitRev(i) >> shift];
+  }
 
   // Start with a bunch of 2-element FFTs
   for (auto innerLen = 2u; innerLen <= fftLength; innerLen *= 2)
@@ -466,9 +489,16 @@ void BasicDITRadix2FFT(const std::complex<F> *input, std::complex<F> *output, st
 }
 
 template <std::floating_point F>
-void BasicDITRadix2IFFT(const std::complex<F> *input, std::complex<F> *output, std::uint32_t fftLength)
+void BasicDITRadix2IFFT(const std::complex<F> *input, std::complex<F> *output, std::size_t fftLength)
 {
-  FFT20XX::BitReverseCopy(reinterpret_cast<const FFT20XX::Complex<F> *>(input), reinterpret_cast<FFT20XX::Complex<F> *>(output), fftLength);
+  assert(input != output);
+  for (auto i = size_t(0); i < fftLength; i++)
+  {
+    const auto fftLengthBitCount = std::uint32_t(std::numeric_limits<decltype(fftLength)>::digits - 1 - std::countl_zero(fftLength));
+    const auto shift = std::uint32_t(std::numeric_limits<size_t>::digits - fftLengthBitCount);
+
+    output[i] = input[BitRev(i) >> shift];
+  }
 
   F scale = F(1) / F(fftLength);
 
@@ -498,109 +528,28 @@ void BasicDITRadix2IFFT(const std::complex<F> *input, std::complex<F> *output, s
 }
 
 
-  template <typename F>
-  using FFTTable = std::conditional_t<std::same_as<F, float>, FFTTable32, FFTTable64>;
-
 int main()
 {
   FlushSubnormals();
 
   constexpr auto MaxFFTLength = 512 * 1024u;
-  [[maybe_unused]] auto table32 = AllocateFFTTable32(MaxFFTLength);
-  [[maybe_unused]] auto table64 = AllocateFFTTable64(MaxFFTLength);
-
-  #if 1
-    auto size = 8u;
-    using F = float;
-    std::vector<std::complex<F>> input(size);
-    std::vector<std::complex<F>> output(size);
-    std::vector<std::complex<F>> output2(size);
-    std::vector<F> inputReal(size);
-    std::vector<F> outputReal(size);
-    std::vector<F> outputReal2(size);
-
-
-    for (auto i = 0u; i < input.size(); i++)
-    {
-      input[i] = {F(i), F(0) };
-      inputReal[i] = F(i);
-    }
-
-    auto table = 
-      [&]<typename FF>
-      {
-        if constexpr(std::same_as<F, float>)
-          { return table32; }
-        else
-          { return table64; }
-      }.template operator()<F>();
-
-    BasicDITRadix2FFT(input.data(), output.data(), size);
-    BasicDITRadix2IFFT(output.data(), output2.data(), size);
-    #if CPU_X86_ANY
-      FFTComplex32_SSE2(table, input.data(), output2.data(), size);
-    #else
-      FFTComplex32_NEON(table, input.data(), output2.data(), size);
-    #endif
-    //FFTComplex64_FMA(table, input.data(), output2.data(), size);
-    //IFFTComplex64_FMA(table, output2.data(), output.data(), size);
-
-    /*for (auto &c : output)
-    {
-      c = { std::round(c.real()), std::round(c.imag()) };
-    }
-
-    for (auto i = 0u; i < size; i++)
-    {
-      //assert(output[i] == output2[i]);
-    }*/
-
-    /*printf("\n\n");
-    for (auto v : output)
-    {
-      if (v.imag() < 0)
-        { printf("%f - i*%f\n", v.real(), -v.imag()); }
-      else
-        { printf("%f + i*%f,\n", v.real(), v.imag()); }
-    }*/
-
-    //FFTReal32_FMA(table32, inputReal.data(), outputReal.data(), size);
-    //IFFTReal32(table32, outputReal.data(), outputReal2.data(), size);
-
-    /*printf("\n\n");
-    printf("%f\n", outputReal[0]);
-    for (auto i = 2u; i < outputReal.size(); i+=2)
-    {
-      if (outputReal[i + 1] < 0)
-        { printf("%f - i*%f\n", outputReal[i + 0], -outputReal[i + 1]); }
-      else
-        { printf("%f + i*%f,\n", outputReal[i + 0], outputReal[i + 1]); }
-    }
-    printf("%f\n", outputReal[1]);*/
-
-  #endif
-
+  
   using enum BufferType;
+  SmokeTest<InPlace, float>("Scalar", [&](auto &&...args) { fft_20xx::fft_cplx(args...); }, [&](auto &&...args) { fft_20xx::ifft_cplx(args...); });
+  SmokeTest<InPlace, double>("Scalar", [&](auto &&...args) { fft_20xx::fft_cplx(args...); }, [&](auto &&...args) { fft_20xx::ifft_cplx(args...); });
 
-  SmokeTest<InPlace, float>("Scalar", [&](auto &&...args) { FFTComplex32_Scalar(args...); }, [&](auto &&...args) { IFFTComplex32_Scalar(args...); });
-  SmokeTest<InPlace, double>("Scalar", [&](auto &&...args) { FFTComplex64_Scalar(args...); }, [&](auto &&...args) { IFFTComplex64_Scalar(args...); });
+  fft_20xx::fft_table<float> table32{MaxFFTLength};
+  fft_20xx::fft_table<double> table64{MaxFFTLength};
 
-  Benchmark<InPlace, float>("Scalar", [&](auto &&...args) { FFTComplex32_Scalar(table32, args...); }, MaxFFTLength);
-  #if CPU_X86_ANY
-    SmokeTest<InPlace, float>("SSE2", [&](auto &&...args) { FFTComplex32_SSE2(args...); }, [&](auto &&...args) { IFFTComplex32_SSE2(args...); });
-    SmokeTest<InPlace, double>("SSE2", [&](auto &&...args) { FFTComplex64_SSE2(args...); }, [&](auto &&...args) { IFFTComplex64_SSE2(args...); });
-    SmokeTest<InPlace, float>("AVX", [&](auto &&...args) { FFTComplex32_AVX(args...); }, [&](auto &&...args) { IFFTComplex32_AVX(args...); });
-    SmokeTest<InPlace, double>("AVX", [&](auto &&...args) { FFTComplex64_AVX(args...); }, [&](auto &&...args) { IFFTComplex64_AVX(args...); });
-    SmokeTest<InPlace, float>("FMA", [&](auto &&...args) { FFTComplex32_FMA(args...); }, [&](auto &&...args) { IFFTComplex32_FMA(args...); });
-    SmokeTest<InPlace, double>("FMA", [&](auto &&...args) { FFTComplex64_FMA(args...); }, [&](auto &&...args) { IFFTComplex64_FMA(args...); });
+  Benchmark<InPlace, float>("Auto Fwd", [&](auto &&...args) { fft_20xx::fft_cplx(table32, args...); }, MaxFFTLength);
+  Benchmark<InPlace, double>("Auto Fwd", [&](auto &&...args) { fft_20xx::fft_cplx(table64, args...); }, MaxFFTLength);
+  Benchmark<Separate, float>("Auto Fwd", [&](auto &&...args) { fft_20xx::fft_cplx(table32, args...); }, MaxFFTLength);
+  Benchmark<Separate, double>("Auto Fwd", [&](auto &&...args) { fft_20xx::fft_cplx(table64, args...); }, MaxFFTLength);
 
-    Benchmark<InPlace, float>("SSE2", [&](auto &&...args) { FFTComplex32_SSE2(table32, args...); }, MaxFFTLength);
-    Benchmark<InPlace, float>("AVX", [&](auto &&...args) { FFTComplex32_AVX(table32, args...); }, MaxFFTLength);
-    Benchmark<InPlace, float>("FMA", [&](auto &&...args) { FFTComplex32_FMA(table32, args...); }, MaxFFTLength);
-  #else
-    SmokeTest<InPlace, float>("NEON", [&](auto &&...args) { FFTComplex32_NEON(args...); }, [&](auto &&...args) { IFFTComplex32_NEON(args...); });
-    SmokeTest<InPlace, double>("NEON", [&](auto &&...args) { FFTComplex64_NEON(args...); }, [&](auto &&...args) { IFFTComplex64_NEON(args...); });
-    Benchmark<InPlace, float>("NEON", [&](auto &&...args) { FFTComplex32_NEON(table32, args...); }, MaxFFTLength);
-  #endif
+  Benchmark<InPlace, float>("Auto Inv", [&](auto &&...args) { fft_20xx::ifft_cplx(table32, args...); }, MaxFFTLength);
+  Benchmark<InPlace, double>("Auto Inv", [&](auto &&...args) { fft_20xx::ifft_cplx(table64, args...); }, MaxFFTLength);
+  Benchmark<Separate, float>("Auto Inv", [&](auto &&...args) { fft_20xx::ifft_cplx(table32, args...); }, MaxFFTLength);
+  Benchmark<Separate, double>("Auto Inv", [&](auto &&...args) { fft_20xx::ifft_cplx(table64, args...); }, MaxFFTLength);
+
   return 0;
 }

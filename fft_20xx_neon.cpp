@@ -429,75 +429,62 @@ namespace FFT20XX::NEON
 
 
 using namespace FFT20XX;
-
+using namespace fft_20xx::c;
 extern "C"
 {
-  #define COMMON_ASSERTS() \
-    assert(table != nullptr); \
-    assert(input != nullptr); \
-    assert(output != nullptr); \
-    assert(IsPowerOfTwo(fftLength)); \
-    assert(t->MaxFFTLength() >= fftLength)
-
-  void FFTComplex32Interleaved_NEON(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_interleaved_f32_neon(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     NEON::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
   }
 
-  void FFTComplex64Interleaved_NEON(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+
+  void fft_cplx_interleaved_f64_neon(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    #if SIMD_NEON64
-      auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
-      COMMON_ASSERTS();
-      NEON::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
-    #else
-      FFTComplex64Interleaved_Scalar(table, input, output, fftLength);
-    #endif
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    COMMON_ASSERTS();
+    NEON::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
   }
 
 
-  void IFFTComplex32Interleaved_NEON(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_cplx_interleaved_f32_neon(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    COMMON_ASSERTS();
+    NEON::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);  
+  }
+
+
+  void ifft_cplx_interleaved_f64_neon(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  {
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     NEON::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
   }
 
-  void IFFTComplex64Interleaved_NEON(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-  {
-    #if SIMD_NEON64
-      auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
-      COMMON_ASSERTS();
-      NEON::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
-    #else
-      IFFTComplex64Interleaved_Scalar(table, input, output, fftLength);
-    #endif
-  }
-
-  void FFTReal32_NEON(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f32_neon(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     NEON::RunRealFwdFFT(t->Data(), input, output, fftLength);
   }
 
-  void FFTReal64_NEON(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void fft_real_f64_neon(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     NEON::RunRealFwdFFT(t->Data(), input, output, fftLength);
   }
 
-  void IFFTReal32_NEON(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_real_f32_neon(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     NEON::RunRealInvFFT(t->Data(), input, output, fftLength);
   }
 
-  void IFFTReal64_NEON(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void ifft_real_f64_neon(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();

@@ -438,67 +438,62 @@ namespace FFT20XX::SSE2
 
 
 using namespace FFT20XX;
-
+using namespace fft_20xx::c;
 extern "C"
 {
-  #define COMMON_ASSERTS() \
-    assert(table != nullptr); \
-    assert(input != nullptr); \
-    assert(output != nullptr); \
-    assert(IsPowerOfTwo(fftLength)); \
-    assert(t->MaxFFTLength() >= fftLength)
-
-  void FFTComplex32Interleaved_SSE2(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_interleaved_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
-    COMMON_ASSERTS();
-    SSE2::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
-  }
-
-  void FFTComplex64Interleaved_SSE2(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     SSE2::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
   }
 
 
-  void IFFTComplex32Interleaved_SSE2(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_interleaved_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
+    COMMON_ASSERTS();
+    SSE2::RunComplexFFT<Dir::Forward>(t->Data(), input, output, fftLength);
+  }
+
+
+  void ifft_cplx_interleaved_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  {
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    COMMON_ASSERTS();
+    SSE2::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);  
+  }
+
+
+  void ifft_cplx_interleaved_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  {
+    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     SSE2::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
   }
 
-  void IFFTComplex64Interleaved_SSE2(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
-    COMMON_ASSERTS();
-    SSE2::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
-  }
-
-  void FFTReal32_SSE2(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     SSE2::RunRealFwdFFT(t->Data(), input, output, fftLength);
   }
 
-  void FFTReal64_SSE2(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void fft_real_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     SSE2::RunRealFwdFFT(t->Data(), input, output, fftLength);
   }
 
-  void IFFTReal32_SSE2(const FFTTable32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_real_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     SSE2::RunRealInvFFT(t->Data(), input, output, fftLength);
   }
 
-  void IFFTReal64_SSE2(const FFTTable64 *table, const double *input, double *output, size_t fftLength)
+  void ifft_real_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
