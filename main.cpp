@@ -125,7 +125,7 @@ void Benchmark(const char *name, auto &&fftFunction, std::uint32_t maxFFTLength,
         if constexpr(B == BufferType::InPlace)
         {
           AvoidOptimizing(outs);
-          fftFunction(outs, outs, length); 
+          fftFunction(outs, outs, length);
           AvoidOptimizing(outs);
         }
         else
@@ -312,8 +312,8 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
     auto gen = [&] { return std::uniform_real_distribution<F>{F(-0.5), F(0.5)}(rnd); };
 
     for (auto i = 0u; i < input.size(); i++)
-    { 
-      input[i] = { gen(), gen() }; 
+    {
+      input[i] = { gen(), gen() };
       inputD[i] = input[i];
     }
 
@@ -350,35 +350,35 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
         return err;
 
       };
-    
+
     for (auto i = 0u; i < size; i++)
     {
       if (Error(outputGood[i].real(), outputTest[i].real()) > Threshold)
-      { 
+      {
         fprintf(
-          stderr, 
-          "Fwd FFT %s, %s, %s %u, at %u r: %.20f != %.20f (err: %e)\n", 
-          name, 
+          stderr,
+          "Fwd FFT %s, %s, %s %u, at %u r: %.20f != %.20f (err: %e)\n",
+          name,
           B == BufferType::InPlace ? "In-Place" : "Separate",
           std::same_as<F, float> ? "f32" : "f64",
-          size, 
-          i, 
-          outputGood[i].real(), 
+          size,
+          i,
+          outputGood[i].real(),
           outputTest[i].real(),
-          Error(outputGood[i].real(), outputTest[i].real())); 
+          Error(outputGood[i].real(), outputTest[i].real()));
         break;
       }
       if (Error(outputGood[i].imag(), outputTest[i].imag()) > Threshold)
-      { 
+      {
         fprintf(
-          stderr, 
-          "Fwd FFT %s, %s, %s %u, at %u i: %.20f != %.20f (err: %e)\n", 
-          name, 
+          stderr,
+          "Fwd FFT %s, %s, %s %u, at %u i: %.20f != %.20f (err: %e)\n",
+          name,
           B == BufferType::InPlace ? "In-Place" : "Separate",
           std::same_as<F, float> ? "f32" : "f64",
-          size, 
-          i, 
-          outputGood[i].imag(), 
+          size,
+          i,
+          outputGood[i].imag(),
           outputTest[i].imag(),
           Error(outputGood[i].imag(), outputTest[i].imag()));
         break;
@@ -388,32 +388,32 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
     for (auto i = 0u; i < size; i++)
     {
       if (Error(ioutputGood[i].real(), ioutputTest[i].real()) > Threshold)
-      { 
+      {
         fprintf(
-          stderr, 
-          "Inv FFT %s, %s, %s %u, at %u r: %.20f != %.20f\n", 
-          name, 
+          stderr,
+          "Inv FFT %s, %s, %s %u, at %u r: %.20f != %.20f\n",
+          name,
           B == BufferType::InPlace ? "In-Place" : "Separate",
           std::same_as<F, float> ? "f32" : "f64",
-          size, 
-          i, 
-          ioutputGood[i].real(), 
-          ioutputTest[i].real()); 
+          size,
+          i,
+          ioutputGood[i].real(),
+          ioutputTest[i].real());
         break;
       }
-      
+
       if (Error(ioutputGood[i].imag(), ioutputTest[i].imag()) > Threshold)
-      { 
+      {
         fprintf(
-          stderr, 
+          stderr,
           "Inv FFT %s, %s, %s %u, at %u i: %.20f != %.20f\n",
           name,
           B == BufferType::InPlace ? "In-Place" : "Separate",
           std::same_as<F, float> ? "f32" : "f64",
           size,
           i,
-          ioutputGood[i].imag(), 
-          ioutputTest[i].imag()); 
+          ioutputGood[i].imag(),
+          ioutputTest[i].imag());
         break;
       }
     }
@@ -533,7 +533,7 @@ int main()
   FlushSubnormals();
 
   constexpr auto MaxFFTLength = 512 * 1024u;
-  
+
   using enum BufferType;
   SmokeTest<InPlace, float>("Scalar", [&](auto &&...args) { fft_20xx::fft_cplx(args...); }, [&](auto &&...args) { fft_20xx::ifft_cplx(args...); });
   SmokeTest<InPlace, double>("Scalar", [&](auto &&...args) { fft_20xx::fft_cplx(args...); }, [&](auto &&...args) { fft_20xx::ifft_cplx(args...); });

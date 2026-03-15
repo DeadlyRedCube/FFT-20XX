@@ -1,13 +1,7 @@
 #pragma once
 
 
-#include <cassert>
-#include <cinttypes>
-#include <cmath>
-
-#include "fft_20xx_complex.h"
 #include "fft_20xx_common.h"
-#include "fft_20xx_math.h"
 
 
 

@@ -1,8 +1,8 @@
 // Load a set of w1/w2 radix-4 angles
 template <std::floating_point F>
-static auto LoadAnglesRadix4(const F *tableData, size_t angleIndex, size_t angleCount) 
+static auto LoadAnglesRadix4(const F *tableData, size_t angleIndex, size_t angleCount)
   -> auto
-{ 
+{
   auto i0 = angleCount * 2;
   auto r0 = i0 - angleCount / 2;
   auto i1 = angleCount * 4;
@@ -49,7 +49,7 @@ static auto LoadAnglesRadix4FromCount4(const F *ptr, size_t angleIndex)
   auto wi1 = Load4(ptr + 4 + angleIndex);
   auto wr2 = Load4(ptr + 8 + angleIndex);
   auto wi2 = Load4(ptr + 16 + angleIndex);
-  
+
   if constexpr (UseFMAOptimization)
     { return std::tuple{ wr1, wi1, wr2, wi2 }; }
   else
@@ -59,7 +59,7 @@ static auto LoadAnglesRadix4FromCount4(const F *ptr, size_t angleIndex)
 // We may need to load half-vector (i.e. 4-element instead of 8) angles from the four-angle area of the table.
 template <typename F>
 static auto LoadAnglesRadix4FromCount4Half(const F *ptr, size_t angleIndex)
-{ 
+{
   static_assert(VecSize<Vec<F>> == 8);
 
   auto wr1 = LoadHalf(ptr + angleIndex);
@@ -105,7 +105,7 @@ void Radix2Butterfly(V &r0, V &i0, V &r1, V &i1, V wr, V wi)
     if constexpr (D == Dir::Forward)
     {
       // Rather than premultiply r1/i1, we can do the full calculation of r0/i0 in a pair of FMA instructions each.
-      tr0 = FMAdd(r1, wr, FNMAdd(i1, wi, r0)); 
+      tr0 = FMAdd(r1, wr, FNMAdd(i1, wi, r0));
       ti0 = FMAdd(r1, wi, FMAdd(i1, wr, i0));
     }
     else
@@ -195,7 +195,7 @@ void Radix4Butterfly(V &r0, V &i0, V &r1, V &i1, V &r2, V &i2, V &r3, V &i3, std
     i3 = NMAdd(r3, wi3, Mul(i3, wr3));
     r3 = t;
   }
-    
+
   auto tr0 = Add(r0, r1);
   auto ti0 = Add(i0, i1);
   auto tr1 = Sub(r0, r1);
@@ -248,7 +248,7 @@ void Radix4Butterfly(V &r0, V &i0, V &r1, V &i1, V &r2, V &i2, V &r3, V &i3, std
     tr0 = FMAdd(i1, wi1, FMAdd(r1, wr1, r0));
     ti0 = FMAdd(i1, wr1, FNMAdd(r1, wi1, i0));
   }
-    
+
   auto tr1 = FMSub(two, r0, tr0);
   auto ti1 = FMSub(two, i0, ti0);
 
@@ -343,7 +343,7 @@ FORCE_INLINE void DoFirstRadix4s(const F *input, F *output, size_t radix4Count)
     if constexpr (N >= 4)
     {
       // Load the 4 sets of values (either as halves or as full values depending on whether we've forced the size)
-      auto [r0, i0, r1, i1, r2, i2, r3, i3] = 
+      auto [r0, i0, r1, i1, r2, i2, r3, i3] =
         [&]
         {
           if constexpr (Force == ForceSize::Four)
@@ -425,7 +425,7 @@ FORCE_INLINE void DoFirstRadix4s(const F *input, F *output, size_t radix4Count)
       // Store the upper-left of the 4x4 transpose
       Store2x2Transposed(op0a, op1a, r0a, r1a);
       Store2x2Transposed(op0a + N, op1a + N, i0a, i1a);
-      
+
       auto [r0b, i0b] = LoadDeinterleaved(ip0 + 2 * N);
       auto [r1b, i1b] = LoadDeinterleaved(ip1 + 2 * N);
 
@@ -446,7 +446,7 @@ FORCE_INLINE void DoFirstRadix4s(const F *input, F *output, size_t radix4Count)
       // upper-right to lower-left
       Store2x2Transposed(op2a, op3a, r0b, r1b);
       Store2x2Transposed(op2a + N, op3a + N, i0b, i1b);
-      
+
       // lower-right transposed in position
       Store2x2Transposed(op2b, op3b, r2b, r3b);
       Store2x2Transposed(op2b + N, op3b + N, i2b, i3b);
@@ -482,7 +482,7 @@ FORCE_INLINE void DoFirstRadix4sNoDeinterleave(const F *input, F *output, size_t
     if constexpr (N >= 4)
     {
       // Load the 4 sets of values (either as halves or as full values depending on whether we've forced the size)
-      auto [r0, i0, r1, i1, r2, i2, r3, i3] = 
+      auto [r0, i0, r1, i1, r2, i2, r3, i3] =
         [&]
         {
           if constexpr (Force == ForceSize::Four)
@@ -576,7 +576,7 @@ FORCE_INLINE void DoFirstRadix4sNoDeinterleave(const F *input, F *output, size_t
       // Store the upper-left of the 4x4 transpose
       Store2x2Transposed(op0a, op1a, r0a, r1a);
       Store2x2Transposed(op0a + N, op1a + N, i0a, i1a);
-      
+
       auto r0b = Load(ip0 + 2 * N);
       auto i0b = Load(ip0 + 3 * N);
       auto r1b = Load(ip1 + 2 * N);
@@ -601,7 +601,7 @@ FORCE_INLINE void DoFirstRadix4sNoDeinterleave(const F *input, F *output, size_t
       // upper-right to lower-left
       Store2x2Transposed(op2a, op3a, r0b, r1b);
       Store2x2Transposed(op2a + N, op3a + N, i0b, i1b);
-      
+
       // lower-right transposed in position
       Store2x2Transposed(op2b, op3b, r2b, r3b);
       Store2x2Transposed(op2b + N, op3b + N, i2b, i3b);
@@ -611,7 +611,7 @@ FORCE_INLINE void DoFirstRadix4sNoDeinterleave(const F *input, F *output, size_t
 
 
 // This is the standard transposed radix 4 set. Excepting the first radix 4s, any double-bit flip sets need to involve
-//  4 separate sets of 4-vector butterflies to swap around. Effectively it's doing a 4x4 transpose of SIMD sets 
+//  4 separate sets of 4-vector butterflies to swap around. Effectively it's doing a 4x4 transpose of SIMD sets
 //  (instead of transposing *within* a SIMD set like the first radix 4 step does)
 template <Dir D, std::floating_point F, typename Ws>
 void DoTransposedRadix4Set(F *data,  size_t i, size_t groupMask, size_t groupSize, size_t angleCount, Ws ws)
@@ -724,7 +724,7 @@ void DoTransposedRadix4Set(F *data,  size_t i, size_t groupMask, size_t groupSiz
 }
 
 
-// The tranposed set needed a special case for when there are four angles, specifically for AVX where there are 
+// The tranposed set needed a special case for when there are four angles, specifically for AVX where there are
 //  8-element vectors.
 template <Dir D, std::floating_point F, typename Ws>
 void DoTransposedRadix4SetForFourAngles(F *data,  size_t i, size_t groupMask, size_t groupSize, Ws ws)
@@ -758,7 +758,7 @@ void DoTransposedRadix4SetForFourAngles(F *data,  size_t i, size_t groupMask, si
     auto i3ab = Load(data + ix3ab * 2 + N);
 
     Radix4Butterfly<D>(r0ab, i0ab, r1ab, i1ab, r2ab, i2ab, r3ab, i3ab, ws);
-    
+
     auto [r0a, r0b] = SplitHalves(r0ab);
     auto [i0a, i0b] = SplitHalves(i0ab);
     auto [r1a, r1b] = SplitHalves(r1ab);
@@ -830,7 +830,7 @@ void DoTransposedRadix4SetForFourAngles(F *data,  size_t i, size_t groupMask, si
   }
 }
 
-// If there is no native FMA instruction we need to generate the third radix 4 angle. 
+// If there is no native FMA instruction we need to generate the third radix 4 angle.
 //  Conveniently, cos(3w) + i*sin(3w) == (cos(w) + i*sin(w)) * (cos(2w) + i*sin(2w))
 constexpr bool RequiresThirdW = !UseFMAOptimization;
 template<typename V>
@@ -918,7 +918,7 @@ auto DoRemainingTransposeRadix4Iterations(
   {
     const auto groupMask = groupSize - 1;
 
-    // As with most of the loops here we break things into blocks - the reason is that it is in our interest to only 
+    // As with most of the loops here we break things into blocks - the reason is that it is in our interest to only
     //  load the angles once (and, if needed, compute w3 once), but at larger sizes it becomes *more* important to try
     //  to stick within data that can fit snugly within the CPU cache - so better, in those cases, to re-load/compute
     //  angles a few times and stick to smaller blocks.
@@ -1033,9 +1033,9 @@ void DoSingleFlipRadix4ButterflyFor64Element(F *data, size_t ix0, Ws ws)
 template <Dir D, std::floating_point F>
 void DoSingleFlipRadix4ForPow4FFT(
   const F *tableData,
-  F *data, 
-  size_t groupSize, 
-  size_t angleCount, 
+  F *data,
+  size_t groupSize,
+  size_t angleCount,
   size_t radix4Count,
   size_t blockSize)
 {
@@ -1088,7 +1088,7 @@ void DoSingleFlipRadix4ButterflyForNonPow4FFT(F *data, size_t ix0a, size_t group
   //   A B C D  ->  A E C G
   //   E F G H      B F D H
   // (effectively this is two side-by-side 2x2 transposes)
-        
+
   auto ix2a = ix0a + groupSize; // i2/i1 intentionally out of order here
   auto ix1a = ix2a + groupSize;
   auto ix3a = ix1a + groupSize;
@@ -1147,9 +1147,9 @@ void DoSingleFlipRadix4ButterflyForNonPow4FFT(F *data, size_t ix0a, size_t group
 template <Dir D, std::floating_point F>
 void DoSingleFlipRadix4ForNonPow4FFT(
   const F *tableData,
-  F *data, 
-  size_t groupSize, 
-  size_t angleCount, 
+  F *data,
+  size_t groupSize,
+  size_t angleCount,
   size_t radix4Count,
   size_t blockSize)
 {
@@ -1214,7 +1214,7 @@ void DoSingleFlipRadix4ForNonPow4FFT(
         auto d2 = d0 + GroupSize * 2;
         auto d1 = d2 + GroupSize * 2;
         auto d3 = d1 + GroupSize * 2;
-      
+
         // The two butterflies we need to do the swaps within live side-by-side in memory, so we can do them as a single
         //  SIMD radix 4 butterfly and then split the halves and transpose them.
         auto r0ab = Load(d0);
@@ -1288,8 +1288,8 @@ void DoNoFlipRadix2Butterfly(F *data, size_t ix0, size_t ix1, Vec<F> wr, Vec<F> 
 template <Dir D, std::floating_point F>
 void DoNoFlipRadix2(
   const F *tableData,
-  F *data, 
-  size_t groupSize, 
+  F *data,
+  size_t groupSize,
   size_t radix4Count,
   size_t blockCount)
 {
@@ -1318,7 +1318,7 @@ void DoNoFlipRadix2(
   }
   else
   {
-    assert(radix4Count == 8u); 
+    assert(radix4Count == 8u);
     constexpr auto FFTLength = 32u;
     constexpr auto GroupSize = 4u;
     if constexpr (N == 8)
@@ -1369,8 +1369,8 @@ void DoNoFlipRadix2(
 template <Dir D, std::floating_point F>
 void DoNoFlipRadix4(
   const F *tableData,
-  F *data, 
-  size_t groupSize, 
+  F *data,
+  size_t groupSize,
   size_t radix4Count,
   size_t blockCount)
 {
@@ -1459,7 +1459,7 @@ void DoFinalReinterleaveRadix4(
     // For a 16-element FFT, the final Reinterleave is *also* the four-angle case.
     constexpr auto N = std::min(4u, VecSize<V>);
 
-    constexpr auto DoLoad = 
+    constexpr auto DoLoad =
       [](auto *ptr)
       {
         if constexpr (VecSize<V> == 8u)
@@ -1467,11 +1467,11 @@ void DoFinalReinterleaveRadix4(
         else
           { return Load(ptr); }
       };
-      
+
 
     for (auto angleIndex = 0u; angleIndex < 4u; angleIndex += N)
     {
-      const auto ws = 
+      const auto ws =
         [&]
         {
           if constexpr (VecSize<V> == 8u)
@@ -1583,14 +1583,14 @@ void TinyFFT(const Complex<F> *input, Complex<F> *output, std::size_t fftLength)
 
       if constexpr (D == Dir::Forward)
       {
-        output[5] = 
+        output[5] =
           {
             // (r * s) - (i * -s), (r * -s) + (i * s) -> (r + i)s, (i - r)*s
             (output[5].r + output[5].i) * InvSqrt2<F>,
             (output[5].i - output[5].r) * InvSqrt2<F>,
           };
         output[6] = { output[6].i, -output[6].r };
-        output[7] = 
+        output[7] =
           {
             // (r * -s) - (i * -s), (r * -s) + (i * -s) -> (i - r)s, -(r + i)s
             (output[7].i - output[7].r) * InvSqrt2<F>,
@@ -1599,14 +1599,14 @@ void TinyFFT(const Complex<F> *input, Complex<F> *output, std::size_t fftLength)
       }
       else
       {
-        output[5] = 
+        output[5] =
           {
             // (r * s) - (i * s), (r * s) + (i * s) -> (r - i)*s, (r + i)*s
             (output[5].r - output[5].i) * InvSqrt2<F>,
             (output[5].i + output[5].r) * InvSqrt2<F>,
           };
         output[6] = { -output[6].i, output[6].r };
-        output[7] = 
+        output[7] =
           {
             // (r * -s) - (i * s), (r * s) + (i * -s) -> -(r + i)s, (r - i)s
             -(output[7].r + output[7].i) * InvSqrt2<F>,
@@ -1639,7 +1639,7 @@ template <Dir D, std::floating_point F>
 void RunComplexFFTMiddleStages(const F *tableData, F *output, std::size_t fftLength)
 {
   assert(fftLength >= SmallestPiecewiseComplexFFT);
-  
+
   const auto radix4Count = fftLength / 4u;
   const auto totalReverseBitCount = Log2Floor(fftLength) / 2u;
 
@@ -1658,13 +1658,13 @@ void RunComplexFFTMiddleStages(const F *tableData, F *output, std::size_t fftLen
     constexpr auto InitialUnreversedBitCount = 4u; // first 2 passes reversed 2 bits each
     constexpr auto InitialAngleCount = 16u; // first pass 1 angle, second pass 4, so...
     groupSize = DoRemainingTransposeRadix4Iterations<D>(
-      tableData, 
-      output, 
-      blockSize, 
-      radix4Count, 
-      InitialAngleCount, 
-      groupSize, 
-      InitialUnreversedBitCount, 
+      tableData,
+      output,
+      blockSize,
+      radix4Count,
+      InitialAngleCount,
+      groupSize,
+      InitialUnreversedBitCount,
       totalReverseBitCount);
   }
 
@@ -1685,7 +1685,7 @@ void RunComplexFFTMiddleStages(const F *tableData, F *output, std::size_t fftLen
     const auto blockCount = std::max(radix2GroupSize, blockSize);
     DoNoFlipRadix2<D>(tableData, output, radix2GroupSize, radix4Count, blockCount);
   }
-  
+
   // The group size counts down during the bit-reversing process and now counts back up.
   groupSize *= 4;
 
@@ -1772,7 +1772,7 @@ void RunRealFwdFFT(const F *tableData, const F *input, F *output, size_t fftLeng
 {
   if (fftLength < 2 * SmallestPiecewiseComplexFFT)
   {
-    // Small complex FFTs are simple enough that they're hardcoded and we don't have a "real transform" variant of 
+    // Small complex FFTs are simple enough that they're hardcoded and we don't have a "real transform" variant of
     //  them. Instead, just run it as a full-sized complex transform and pull out the half (plus 1) of the results we
     //  care about.
 
@@ -1784,7 +1784,7 @@ void RunRealFwdFFT(const F *tableData, const F *input, F *output, size_t fftLeng
     assert(fftLength <= SmallestPiecewiseComplexFFT);
 
     for (auto i = 0_z; i < fftLength; i++)
-    { 
+    {
       data[2 * i] = input[i];
       data[2 * i + 1] = 0;
     }
@@ -1851,8 +1851,8 @@ void RunRealFwdFFT(const F *tableData, const F *input, F *output, size_t fftLeng
       auto even = (x0 + x1Conjugate) * F(0.5);
       auto odd = Rot90<Dir::Forward>((x0 - x1Conjugate) * F(0.5));
 
-      auto angle = 
-        Complex<F> 
+      auto angle =
+        Complex<F>
         {
           tableData[angleCount * 3 / 2 + k],
           tableData[angleCount * 3 / 2 + k + angleCount / 2],
@@ -1869,7 +1869,7 @@ void RunRealFwdFFT(const F *tableData, const F *input, F *output, size_t fftLeng
 
     Vec<F> prevR1Out;
     Vec<F> prevI1Out;
-    
+
     // Prime the pump by doing the first transpose
     {
       auto r0 = Load(output);
@@ -1892,7 +1892,7 @@ void RunRealFwdFFT(const F *tableData, const F *input, F *output, size_t fftLeng
       StoreRightSideForForwardRealTransform(output + fftLength - 2 * k, r1, i1, prevR1Out, prevI1Out);
     }
 
-    StoreFinalRightSideForForwardRealTransform(output + fftLength / 2, prevR1Out, prevI1Out); 
+    StoreFinalRightSideForForwardRealTransform(output + fftLength / 2, prevR1Out, prevI1Out);
   }
 
   cplxOut[0] = { dc, nyquist };
@@ -1933,7 +1933,7 @@ void RunRealInvFFT(const F *tableData, const F *input, F *output, size_t fftLeng
       #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     #endif
 
-    // Small complex FFTs are simple enough that they're hardcoded and we don't have a "real transform" variant of 
+    // Small complex FFTs are simple enough that they're hardcoded and we don't have a "real transform" variant of
     //  them. Instead, just run it as a full-sized complex transform and pull out the half (plus 1) of the results we
     //  care about.
     F data[SmallestPiecewiseComplexFFT];
@@ -1987,8 +1987,8 @@ void RunRealInvFFT(const F *tableData, const F *input, F *output, size_t fftLeng
       auto x1Conjugate = Conjugate(cplxIn[complexFFTLength - k]);
       auto even = (x0 + x1Conjugate) * F(0.5);
 
-      auto angle = 
-        Complex<F> 
+      auto angle =
+        Complex<F>
         {
           tableData[angleCount * 3 / 2 + k],
           tableData[angleCount * 3 / 2 + k + angleCount / 2],
@@ -2030,7 +2030,7 @@ void RunRealInvFFT(const F *tableData, const F *input, F *output, size_t fftLeng
       StoreRightSideForInverseRealTransform(output + fftLength - 2 * k, r1, i1, prevR1Out, prevI1Out);
     }
 
-    StoreFinalRightSideForInverseRealTransform(output + fftLength / 2, prevR1Out, prevI1Out); 
+    StoreFinalRightSideForInverseRealTransform(output + fftLength / 2, prevR1Out, prevI1Out);
   }
 
   // Restore the special-case values that got clobbered by the SIMD loop

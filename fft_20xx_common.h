@@ -1,12 +1,10 @@
 #pragma once
 
+#include <cassert>
+
 #include "fft_20xx_platform.h"
 
 #include "fft_20xx/fft_20xx.h"
-
-#include "fft_20xx_complex.h"
-#include "fft_20xx_table.h"
-#include "fft_20xx_complex.h"
 
 #define COMMON_ASSERTS() \
   assert(t != nullptr); \
@@ -30,6 +28,92 @@ namespace FFT20XX
 
   template <typename F>
   static constexpr auto InvSqrt2 = F(0.7071067811865476);
+
+  template <std::unsigned_integral I>
+  constexpr auto IsPowerOfTwo(I v) -> bool
+    { return (v > 0) && (v & (v - 1)) == 0; }
+
+  template <std::unsigned_integral I>
+  constexpr auto IsPowerOfFourAssumingIsPowerOfTwo(I v) -> bool
+    { return (v & I(0x55555555'55555555)) != 0; }
+
+  template <std::unsigned_integral I>
+  constexpr auto Log2Floor(I i) noexcept  -> std::uint32_t
+    { return std::uint32_t(std::numeric_limits<I>::digits - 1 - std::countl_zero(i)); }
+
+  struct INegType;
+  struct IType
+  {
+    consteval INegType operator-() const noexcept;
+  };
+
+  struct INegType
+  {
+    consteval IType operator-() const noexcept { return {}; }
+  };
+
+  inline consteval INegType IType::operator-() const noexcept { return {}; }
+
+  template <typename F>
+  struct Complex
+  {
+    F r;
+    F i;
+
+    friend constexpr auto operator+(Complex a, Complex b) noexcept -> Complex
+      { return { .r = a.r + b.r, .i = a.i + b.i }; }
+
+    friend constexpr auto operator-(Complex a, Complex b) noexcept -> Complex
+      { return { .r = a.r - b.r, .i = a.i - b.i }; }
+
+    friend constexpr auto operator*(Complex a, Complex b) noexcept -> Complex
+      { return { .r = a.r * b.r - a.i * b.i, .i = a.r * b.i + b.r * a.i }; }
+
+    friend constexpr auto operator*(Complex a, IType) noexcept -> Complex
+      { return { .r = -a.i, .i = a.r }; }
+
+    friend constexpr auto operator*(Complex a, INegType) noexcept -> Complex
+      { return { .r = a.i, .i = -a.r }; }
+
+    friend constexpr auto operator*(IType, Complex a) noexcept -> Complex
+      { return { .r = -a.i, .i = a.r }; }
+
+    friend constexpr auto operator*(INegType, Complex a) noexcept -> Complex
+      { return { .r = a.i, .i = -a.r }; }
+
+    constexpr auto operator*(F s) noexcept -> Complex
+      { return { .r = r * s, .i = i * s }; }
+
+    constexpr auto operator+=(Complex b) noexcept -> Complex &
+      { *this = *this + b; return *this; }
+
+    constexpr auto operator-=(Complex b) noexcept -> Complex &
+      { *this = *this - b; return *this; }
+
+    constexpr auto operator*=(Complex b) noexcept -> Complex &
+      { *this = *this * b; return *this; }
+
+    constexpr auto operator*=(IType) noexcept -> Complex &
+      { *this = { .r = -i, .i = r }; return *this; }
+
+    constexpr auto operator*=(INegType) noexcept -> Complex &
+      { *this = { .r = i, .i = -r }; return *this; }
+
+    constexpr auto operator*=(F s) noexcept -> Complex &
+      { r *= s; i *= s; return *this; }
+
+    auto operator-() const noexcept -> Complex
+      { return { .r = -r, .i = -i }; }
+
+    constexpr auto operator==(const Complex &) const noexcept -> bool = default;
+    constexpr auto operator<=>(const Complex &) const noexcept = default;
+  };
+
+  template <std::floating_point F>
+  constexpr Complex<F> Conjugate(Complex<F> c) noexcept
+    { return { .r = c.r, .i = -c.i }; }
+
+  constexpr IType II { };
 
   template <Dir D, typename F>
   auto Rot(Complex<F> v, Complex<F> w) -> Complex<F>

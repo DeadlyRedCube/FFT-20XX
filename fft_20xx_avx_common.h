@@ -22,18 +22,18 @@ template <std::floating_point F>
 static auto LoadA(const F *ptr) -> Vec<F>
 {
   if constexpr (f32<F>)
-    { return _mm256_load_ps(ptr);  }
+    { return _mm256_load_ps(ptr); }
   else
-    { return _mm256_load_pd(ptr);  }
+    { return _mm256_load_pd(ptr); }
 }
 
 template <std::floating_point F>
 static auto Load(const F *ptr) -> Vec<F>
 {
   if constexpr (f32<F>)
-    { return _mm256_loadu_ps(ptr);  }
+    { return _mm256_loadu_ps(ptr); }
   else
-    { return _mm256_loadu_pd(ptr);  }
+    { return _mm256_loadu_pd(ptr); }
 }
 
 static auto LoadHalf(const float *ptr) -> __m128
@@ -44,7 +44,7 @@ static auto SplitHalves(__m256 v) -> Pair<__m128, __m128>
 
 static auto LoadHalves(const float *ptrA, size_t offset)
   { return _mm256_set_m128(_mm_loadu_ps(ptrA + offset), _mm_loadu_ps(ptrA)); }
-  
+
 template <std::floating_point F>
 static auto Load4(const F *ptr) -> Vec<F>
 {
@@ -71,8 +71,8 @@ static auto LoadDeinterleaved(const F *ptr) -> Pair<Vec<F>, Vec<F>>
     // (A a B b | C c D d) (E e F f | G g H h) -> (C c D d | G g H h)
     auto secondHalves = _mm256_permute2f128_ps(a, b, 0x31);
 
-    return 
-      { 
+    return
+      {
         // (A a B b | E e F f) (C c D d | G g H h) -> (A B C D | E F G H)
         _mm256_shuffle_ps(firstHalves, secondHalves, _MM_SHUFFLE(2, 0, 2, 0)),
 
@@ -87,7 +87,7 @@ static auto LoadDeinterleaved(const F *ptr) -> Pair<Vec<F>, Vec<F>>
 
     // (A a | B b) (C c | D d) -> (B b | D d)
     auto secondHalves = _mm256_permute2f128_pd(a, b, 0x31);
-      
+
     return
       {
         // (A a | C c) (B b | D d) -> (A B | C D)
@@ -109,7 +109,7 @@ static auto LoadDeinterleavedHalf(const float *ptr) -> Pair<__m128, __m128>
 
 static auto StoreHalves(float *ptr, size_t offset, __m256 v)
   { _mm256_storeu2_m128(ptr + offset, ptr, v); }
-  
+
 template <std::floating_point F>
 static void Store4x4Transposed(F *ptrA, F *ptrB, F *ptrC, F *ptrD, Vec<F> a, Vec<F> b, Vec<F> c, Vec<F> d)
 {
@@ -227,7 +227,7 @@ template <typename V>
 static auto Set1(std::conditional_t<f32<V>, float, double> f) -> V
 {
   if constexpr (f32<V>)
-  { 
+  {
     if constexpr (std::same_as<V, __m128>)
       { return _mm_set1_ps(f); }
     else
@@ -316,8 +316,8 @@ static V Mul(V a, V b)
     { return FNMAdd(a, b, c); }
 #else
   static __m128 Mul(__m128 a, __m128 b)
-    { return _mm_mul_ps(a, b); }    
-  
+    { return _mm_mul_ps(a, b); }
+
   template <typename V>
   static V MAdd(V a, V b, V c)
     { return Add(Mul(a, b), c); }
@@ -341,7 +341,7 @@ static void Scale(F scale, Vs &...vs)
     ((vs = _mm256_mul_pd(s, vs)), ...);
   }
 }
-  
+
 template <std::floating_point F, std::same_as<__m128> ... Vs>
 static void Scale(F scale, Vs &...vs)
 {
@@ -353,7 +353,7 @@ static void Scale(F scale, Vs &...vs)
 // Forward Real Transform /////////////////////////////////////////////////////////////////////////////////////////////
 
 template <typename F>
-inline auto LoadFirstRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) -> 
+inline auto LoadFirstRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) ->
   Pair<Vec<F>, Vec<F>>
 {
   if constexpr (f32<Vec<F>>)
@@ -362,7 +362,7 @@ inline auto LoadFirstRightSideForForwardRealTransform(const F *input, Vec<F> &pr
     //  'X' is used in variables where we don't care about what's in that position.
 
     // target: X b c d | e f g h
-      
+
     // load: i h g f | e d c b
     auto ihgf_edcb_R = _mm256_loadu_ps(input);
     auto ihgf_edcb_I = _mm256_loadu_ps(input + 8u);
@@ -381,7 +381,7 @@ inline auto LoadFirstRightSideForForwardRealTransform(const F *input, Vec<F> &pr
 
     // Finally, blend in the "e" from the loaded value
     return
-      { 
+      {
         _mm256_blend_ps(ihgf_edcb_R, Xbcd_Xfgh_R, 0b11101110),
         _mm256_blend_ps(ihgf_edcb_I, Xbcd_Xfgh_I, 0b11101110),
       };
@@ -396,8 +396,8 @@ inline auto LoadFirstRightSideForForwardRealTransform(const F *input, Vec<F> &pr
     prevI = ed_cb_I;
     auto Xb_Xd_R = _mm256_permute2f128_pd(ed_cb_R, ed_cb_R, 0b0000'0001);
     auto Xb_Xd_I = _mm256_permute2f128_pd(ed_cb_I, ed_cb_I, 0b0000'0001);
-    
-    return 
+
+    return
       {
         _mm256_blend_pd(ed_cb_R, Xb_Xd_R, 0b1010),
         _mm256_blend_pd(ed_cb_I, Xb_Xd_I, 0b1010),
@@ -406,7 +406,7 @@ inline auto LoadFirstRightSideForForwardRealTransform(const F *input, Vec<F> &pr
 }
 
 template <typename F>
-inline auto LoadRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) -> 
+inline auto LoadRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) ->
   Pair<Vec<F>, Vec<F>>
 {
   if constexpr (f32<Vec<F>>)
@@ -415,7 +415,7 @@ inline auto LoadRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, 
     //  in from prev
 
     // target: i j k l | m n o p
-      
+
     // prev = i h g f | e d c b
     // load   q p o n | m l k j
     auto qpon_mlkj_R = _mm256_loadu_ps(input);
@@ -424,7 +424,7 @@ inline auto LoadRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, 
     // Swap halves: m l k j | q p o n
     auto Xklj_Xpon_R = _mm256_permute2f128_ps(qpon_mlkj_R, qpon_mlkj_R, 0b0000'0001);
     auto Xklj_Xpon_I = _mm256_permute2f128_ps(qpon_mlkj_I, qpon_mlkj_I, 0b0000'0001);
-      
+
     // Combine the lower half of prev with the upper half of what we loaded (this gets 'i' and 'm' into position in
     //  the same vector to blend in to complete the shifted value)
     //  i h g f | m l k j
@@ -444,7 +444,7 @@ inline auto LoadRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, 
     // Finally blend in the lowest element from our combined prev into each lane:
     //  i j k l | m n o p
     return
-      { 
+      {
         _mm256_blend_ps(iXXX_mXXX_R, Xjkl_Xnop_R, 0b11101110),
         _mm256_blend_ps(iXXX_mXXX_I, Xjkl_Xnop_I, 0b11101110),
       };
@@ -482,7 +482,7 @@ inline void StoreRightSideForForwardRealTransform(F *output, Vec<F> r1, Vec<F> i
     // cur:  I J K L | M N O P || i j k l | m n o p
 
     // target: I i H h | G g F f || E e D d | C c B b
-      
+
     // blend:
     //  I B C D | E F G H || i b c d | e f g h
     auto ibcd_efgh_R = _mm256_blend_ps(r1, prevR, 0b11111110);
@@ -501,7 +501,7 @@ inline void StoreRightSideForForwardRealTransform(F *output, Vec<F> r1, Vec<F> i
 
     // Blend: C c B b | G g F f
     auto cb_gf = _mm256_blend_ps(cd_gh, ib_ef, 0b11001100);
-      
+
     // Blend: A a D d | E e H h
     auto id_eh = _mm256_blend_ps(ib_ef, cd_gh, 0b11001100);
 
@@ -509,7 +509,7 @@ inline void StoreRightSideForForwardRealTransform(F *output, Vec<F> r1, Vec<F> i
     auto eh_cb = _mm256_permute2f128_ps(cb_gf, id_eh, 0b0000'0011);
 
     auto ib_gf = _mm256_blend_ps(id_eh, cb_gf, 0b11111100);
-      
+
     // Blend: E e D d | C c B b  :D
     auto ed_cb = _mm256_blend_ps(eh_cb, cd_gh, 0b00001100);
 
@@ -524,7 +524,7 @@ inline void StoreRightSideForForwardRealTransform(F *output, Vec<F> r1, Vec<F> i
     // prev: A B | C D || a b | c d
     // cur: E F | G H || e f | g h
     // target: E e | D d || C c B b
-    
+
     auto XXCc = _mm256_unpacklo_pd(prevR, prevI);
     auto BbDd = _mm256_unpackhi_pd(prevR, prevI);
     prevR = r1;
@@ -555,7 +555,7 @@ inline void StoreFinalRightSideForForwardRealTransform(F *output, Vec<F> r, Vec<
 
     // Blend: C c B b | G g F f
     auto cb_gf = _mm256_blend_ps(cd_gh, ab_ef, 0b11001100);
-      
+
     // Blend: A a D d | E e H h
     auto ad_eh = _mm256_blend_ps(ab_ef, cd_gh, 0b11001100);
 
@@ -594,7 +594,7 @@ inline auto LoadFirstRightSideForInverseRealTransform(const F *input, Vec<F> &pr
   {
     // Load:   I i H h | G g F f || E e D d | C c B b
     // Target: X B C D | E F G H || X b c d | e f g h
-    
+
     auto IiHh_GgFf = _mm256_loadu_ps(input);
     prev = IiHh_GgFf;
     auto EeDd_CcBb = _mm256_loadu_ps(input + 8u);
@@ -745,10 +745,10 @@ inline void StoreFinalRightSideForInverseRealTransform(F *output, Vec<F> r1, Vec
 
     auto cd_ab_R = _mm256_permute2f128_pd(r1, r1, 0b0000'0001);
     auto cd_ab_I = _mm256_permute2f128_pd(i1, i1, 0b0000'0001);
-    
+
     auto Xd_cb_R = _mm256_shuffle_pd(r1, cd_ab_R, 0b1010);
     auto Xd_cb_I = _mm256_shuffle_pd(i1, cd_ab_I, 0b1010);
-    
+
     _mm256_storeu_pd(output, Xd_cb_R);
     _mm256_storeu_pd(output + 4u, Xd_cb_I);
   }

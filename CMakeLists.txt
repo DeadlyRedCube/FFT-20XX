@@ -19,8 +19,6 @@ target_sources(
   PRIVATE
     "fft_20xx_avx_common.h"
     "fft_20xx_common.h"
-    "fft_20xx_complex.h"
-    "fft_20xx_math.h"
     "fft_20xx_platform.h"
     "fft_20xx_run.h"
     "fft_20xx_table.h"

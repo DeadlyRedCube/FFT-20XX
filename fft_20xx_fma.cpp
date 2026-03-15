@@ -1,14 +1,10 @@
 #include "fft_20xx_common.h"
-
+#include "fft_20xx_table.h"
 
 static_assert(CPU_X86 || CPU_X64);
 
 static_assert(SIMD_AVX);
 static_assert(SIMD_FMA);
-
-#include <concepts>
-#include <cinttypes>
-#include <immintrin.h>
 
 #if COMPILER_GCC
   #pragma GCC diagnostic ignored "-Wignored-attributes"
@@ -44,7 +40,7 @@ extern "C"
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    FMA::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);  
+    FMA::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
   }
 
 

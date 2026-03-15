@@ -1,11 +1,9 @@
 #include "fft_20xx_common.h"
+#include "fft_20xx_table.h"
 
 static_assert(CPU_X86 || CPU_X64);
 
 static_assert(SIMD_SSE2);
-
-#include <concepts>
-#include <immintrin.h>
 
 #if COMPILER_GCC
   #pragma GCC diagnostic ignored "-Wignored-attributes"
@@ -88,7 +86,7 @@ namespace FFT20XX::SSE2
   {
     if constexpr (f32<F>)
       { _mm_storeu_ps(ptr, a); }
-    else 
+    else
       { _mm_storeu_pd(ptr, a); }
   }
 
@@ -134,7 +132,7 @@ namespace FFT20XX::SSE2
       ((vs = _mm_mul_pd(s, vs)), ...);
     }
   }
-  
+
   template <simd_vec V>
   static V Add(V a, V b)
   {
@@ -173,7 +171,7 @@ namespace FFT20XX::SSE2
   // Forward Real Transform ///////////////////////////////////////////////////////////////////////////////////////////
 
   template <typename F>
-  inline auto LoadFirstRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) 
+  inline auto LoadFirstRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI)
     -> Pair<Vec<F>, Vec<F>>
   {
     if constexpr (f32<Vec<F>>)
@@ -181,8 +179,8 @@ namespace FFT20XX::SSE2
       prevR = _mm_loadu_ps(input);
       prevI = _mm_loadu_ps(input + VecSize<Vec<F>>);
 
-      return 
-        { 
+      return
+        {
           _mm_shuffle_ps(prevR, prevR, _MM_SHUFFLE(1, 2, 3, 0)),
           _mm_shuffle_ps(prevI, prevI, _MM_SHUFFLE(1, 2, 3, 0)),
         };
@@ -269,7 +267,7 @@ namespace FFT20XX::SSE2
       auto b = _mm_unpackhi_pd(prevR, prevI);
       prevR = r1;
       prevI = i1;
-      
+
       auto c = _mm_unpacklo_pd(r1, i1);
       _mm_storeu_pd(output, c);
       _mm_storeu_pd(output + 2u, b);
@@ -382,7 +380,7 @@ namespace FFT20XX::SSE2
         // Target: E D C B | e d c b
 
         // Most efficient here is to actually interleave, shuffle to combine, then deinterleave
-        //  (other option would be to emulate the above blend instructions with `or(and, andnot)` but that's 
+        //  (other option would be to emulate the above blend instructions with `or(and, andnot)` but that's
         //  considerably more instructions and no shorter dependency chains)
         auto ab = _mm_unpacklo_ps(prevR, prevI);
         auto cd = _mm_unpackhi_ps(prevR, prevI);
@@ -396,7 +394,7 @@ namespace FFT20XX::SSE2
 
         auto tr1 = _mm_shuffle_ps(ed, cb, _MM_SHUFFLE(2, 0, 2, 0));
         auto ti1 = _mm_shuffle_ps(ed, cb, _MM_SHUFFLE(3, 1, 3, 1));
-        
+
         _mm_storeu_ps(output, tr1);
         _mm_storeu_ps(output + 4u, ti1);
       #endif
@@ -461,7 +459,7 @@ extern "C"
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    SSE2::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);  
+    SSE2::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
   }
 
 

@@ -1,10 +1,7 @@
 #include "fft_20xx_common.h"
-
+#include "fft_20xx_table.h"
 
 static_assert(SIMD_NEON);
-
-#include <concepts>
-#include <cinttypes>
 
 #include <arm_neon.h>
 
@@ -18,7 +15,7 @@ namespace FFT20XX::NEON
 
   template <> constexpr uint32_t VecSize<Vec<float>> = 4u;
   template <> constexpr uint32_t VecSize<Vec<double>> = 2u;
-  
+
   constexpr bool IsScalar = false;
   constexpr bool UseFMAOptimization = false;
 
@@ -86,7 +83,7 @@ namespace FFT20XX::NEON
   {
     if constexpr (f32<F>)
       { vst1q_f32(ptr, a); }
-    else 
+    else
       { vst1q_f64(ptr, a); }
   }
 
@@ -107,7 +104,7 @@ namespace FFT20XX::NEON
     else
       { ((vs = vmulq_n_f64(vs, scale)), ...); }
   }
-  
+
   template <simd_vec V>
   static V Add(V a, V b)
   {
@@ -143,7 +140,7 @@ namespace FFT20XX::NEON
     else
       { return vdupq_n_f64(f); }
   }
-  
+
   template <simd_vec V>
   static V MAdd(V a, V b, V c)
   {
@@ -165,7 +162,7 @@ namespace FFT20XX::NEON
   // Forward Real Transform ///////////////////////////////////////////////////////////////////////////////////////////
 
   template <typename F>
-  inline auto LoadFirstRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) -> 
+  inline auto LoadFirstRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) ->
     Pair<Vec<F>, Vec<F>>
   {
     if constexpr (f32<Vec<F>>)
@@ -190,14 +187,14 @@ namespace FFT20XX::NEON
       auto t = vld1q_f64_x2(input);
       prevR = t.val[0];
       prevI = t.val[1];
-      
+
       // Target: X b
       return { prevR, prevI };
     }
   }
 
   template <typename F>
-  inline auto LoadRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) -> 
+  inline auto LoadRightSideForForwardRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) ->
     Pair<Vec<F>, Vec<F>>
   {
     if constexpr (f32<Vec<F>>)
@@ -300,7 +297,7 @@ namespace FFT20XX::NEON
   // Inverse Real Transform ///////////////////////////////////////////////////////////////////////////////////////////
 
   template <typename F>
-  inline auto LoadFirstRightSideForInverseRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) -> 
+  inline auto LoadFirstRightSideForInverseRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) ->
     Pair<Vec<F>, Vec<F>>
   {
     if constexpr (f32<Vec<F>>)
@@ -331,7 +328,7 @@ namespace FFT20XX::NEON
   }
 
   template <typename F>
-  inline auto LoadRightSideForInverseRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) -> 
+  inline auto LoadRightSideForInverseRealTransform(const F *input, Vec<F> &prevR, Vec<F> &prevI) ->
     Pair<Vec<F>, Vec<F>>
   {
     if constexpr (f32<Vec<F>>)
@@ -452,7 +449,7 @@ extern "C"
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    NEON::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);  
+    NEON::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
   }
 
 

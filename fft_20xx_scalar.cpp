@@ -1,11 +1,6 @@
 #include "fft_20xx_common.h"
+#include "fft_20xx_table.h"
 
-#include <concepts>
-#include <cinttypes>
-
-
-
-#include <vector>
 
 namespace FFT20XX::Scalar
 {
@@ -25,11 +20,11 @@ namespace FFT20XX::Scalar
   };
 
   constexpr uint32_t StandardSize = 8u;
-  
-  template <typename T> concept f32 = std::same_as<float, T> 
-    || std::same_as<ScalarVec<float, StandardSize>, T> 
+
+  template <typename T> concept f32 = std::same_as<float, T>
+    || std::same_as<ScalarVec<float, StandardSize>, T>
     || std::same_as<ScalarVec<float, StandardSize / 2>, T>;
-  
+
   template <typename T> using Vec = ScalarVec<T, StandardSize>;
 
   template <typename> constexpr uint32_t VecSize = StandardSize;
@@ -51,7 +46,7 @@ namespace FFT20XX::Scalar
 
   template <std::floating_point F>
   static auto LoadHalf(const F *ptr)
-  { 
+  {
     ScalarVec<F, StandardSize / 2> r;
     for (auto i = 0u; i < StandardSize / 2; i++)
       { r[i] = ptr[i]; }
@@ -60,7 +55,7 @@ namespace FFT20XX::Scalar
 
   template <typename F>
   static auto SplitHalves(Vec<F> v)
-  { 
+  {
     Pair<ScalarVec<F, StandardSize / 2>, ScalarVec<F, StandardSize / 2>> r;
     for (auto i = 0u; i < StandardSize / 2; i++)
     {
@@ -72,7 +67,7 @@ namespace FFT20XX::Scalar
 
   template <typename F>
   static auto LoadHalves(const F *ptr, size_t offset)
-  { 
+  {
     Vec<F> r;
     for (auto i = 0u; i < StandardSize / 2; i++)
     {
@@ -81,11 +76,11 @@ namespace FFT20XX::Scalar
     }
     return r;
   }
-  
+
 
   template <std::floating_point F>
   static auto Load4(const F *ptr) -> Vec<F>
-  { 
+  {
     Vec<F> r;
     for (auto i = 0u; i < StandardSize; i++)
       { r[i] = ptr[i & 3]; }
@@ -119,7 +114,7 @@ namespace FFT20XX::Scalar
 
   template <std::floating_point F>
   static auto StoreHalves(F *ptr, size_t offset, Vec<F> v)
-  { 
+  {
     for (auto i = 0u; i < StandardSize / 2; i++)
     {
       ptr[i] = v[i];
@@ -201,7 +196,7 @@ namespace FFT20XX::Scalar
   template <std::floating_point F, typename ... Vs>
   static void Scale(F scale, Vs &...vs)
     { ((vs = Mul(vs, scale)), ...); }
-  
+
   template <typename V>
   static V MAdd(V a, V b, V c)
     { return Add(Mul(a, b), c); }
@@ -239,7 +234,7 @@ extern "C"
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    Scalar::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);  
+    Scalar::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
   }
 
 
