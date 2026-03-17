@@ -1,14 +1,21 @@
 ﻿cmake_minimum_required (VERSION 4.1.0)
 
+if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+  set(FFT_20XX_IS_PRIMARY ON)
+else()
+  set(FFT_20XX_IS_PRIMARY OFF)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_EXTENSIONS OFF)
 
+option(FFT_20XX_BUILD_TESTS "build fft-20xx tests?" ${FFT_20XX_IS_PRIMARY})
+
 project ("FFT-20XX")
 
 add_library(fft-20xx)
-add_executable(fft-20xx-test)
 
 target_sources(
   fft-20xx
@@ -27,13 +34,6 @@ target_sources(
     "src/fft_20xx_scalar.cpp"
     "src/fft_20xx_table.cpp"
     "src/fft_20xx_select.cpp"
-)
-
-target_sources(
-  fft-20xx-test
-
-  PRIVATE
-    "main.cpp"
 )
 
 target_include_directories(
@@ -86,4 +86,6 @@ else()
   endif()
 endif()
 
-target_link_libraries(fft-20xx-test fft-20xx)
+if (FFT_20XX_BUILD_TESTS)
+  add_subdirectory("tests/smoke_test")
+endif()

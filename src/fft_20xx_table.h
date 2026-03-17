@@ -58,7 +58,8 @@ namespace FFT20XX
 
     const F *Data() const noexcept
       { return _data; }
-private:
+
+  private:
     void BuildTable() noexcept
     {
       if (_maxFFTLength >= 16u)

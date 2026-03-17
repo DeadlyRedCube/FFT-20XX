@@ -124,10 +124,13 @@
         const c_table_t *c_table() const
           { return _table; }
 
+        operator const c_table_t *() const
+          { return _table; }
+
       private:
         const c_table_t *_table = nullptr;
       };
-      
+
       inline void fft_cplx(const fft_table<float> &table, const std::complex<float> *input, std::complex<float> *output, size_t length)
         { return c::fft_cplx_f32(table.c_table(), input, output, length); }
       inline void fft_cplx(const fft_table<double> &table, const std::complex<double> *input, std::complex<double> *output, size_t length)
