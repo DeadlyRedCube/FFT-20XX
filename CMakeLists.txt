@@ -17,16 +17,16 @@ target_sources(
     "include/fft_20xx/fft_20xx.h"
 
   PRIVATE
-    "fft_20xx_avx_common.h"
-    "fft_20xx_common.h"
-    "fft_20xx_platform.h"
-    "fft_20xx_run.h"
-    "fft_20xx_table.h"
-    "fft_20xx_run.h"
+    "src/fft_20xx_avx_common.h"
+    "src/fft_20xx_common.h"
+    "src/fft_20xx_platform.h"
+    "src/fft_20xx_run.h"
+    "src/fft_20xx_table.h"
+    "src/fft_20xx_run.h"
 
-    "fft_20xx_scalar.cpp"
-    "fft_20xx_table.cpp"
-    "fft_20xx_select.cpp"
+    "src/fft_20xx_scalar.cpp"
+    "src/fft_20xx_table.cpp"
+    "src/fft_20xx_select.cpp"
 )
 
 target_sources(
@@ -51,19 +51,19 @@ if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
       fft-20xx
 
       PRIVATE
-        "fft_20xx_sse2.cpp"
-        "fft_20xx_avx.cpp"
-        "fft_20xx_fma.cpp"
+        "src/fft_20xx_sse2.cpp"
+        "src/fft_20xx_avx.cpp"
+        "src/fft_20xx_fma.cpp"
   )
 
   if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    set_source_files_properties(fft_20xx_sse2.cpp PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
-    set_source_files_properties(fft_20xx_avx.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX")
-    set_source_files_properties(fft_20xx_fma.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+    set_source_files_properties("src/fft_20xx_sse2.cpp" PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
+    set_source_files_properties("src/fft_20xx_avx.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX")
+    set_source_files_properties("src/fft_20xx_fma.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
   else()
-    set_source_files_properties(fft_20xx_avx.cpp PROPERTIES COMPILE_OPTIONS -march=core2)
-    set_source_files_properties(fft_20xx_avx.cpp PROPERTIES COMPILE_OPTIONS -march=sandybridge)
-    set_source_files_properties(fft_20xx_fma.cpp PROPERTIES COMPILE_OPTIONS -mfma)
+    set_source_files_properties("src/fft_20xx_avx.cpp" PROPERTIES COMPILE_OPTIONS -march=core2)
+    set_source_files_properties("src/fft_20xx_avx.cpp" PROPERTIES COMPILE_OPTIONS -march=sandybridge)
+    set_source_files_properties("src/fft_20xx_fma.cpp" PROPERTIES COMPILE_OPTIONS -mfma)
   endif()
 elseif((CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
     OR (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
@@ -74,7 +74,7 @@ elseif((CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
       fft-20xx
 
       PRIVATE
-        "fft_20xx_neon.cpp"
+        "src/fft_20xx_neon.cpp"
   )
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
   # nothing to do here
