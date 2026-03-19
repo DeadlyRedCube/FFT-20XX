@@ -16,28 +16,33 @@
     #include <complex>
     #include <utility>
 
-    #define FFT_20XX_CPLX_F32 std::complex<float>
-    #define FFT_20XX_CPLX_F64 std::complex<double>
 
     extern "C"
     {
       namespace fft_20xx::c
       {
+        // Use C++ complex type as the native type (it is compatible with the C-style complex types)
+        using fft_20xx_cplx_f32 = std::complex<float>;
+        using fft_20xx_cplx_f64 = std::complex<double>;
+
   #else
     #if defined (__STDC_VERSION__)
       #if __STDC_VERSION__ >= 199901L
+        // C99 has built-in complex number support, so use that
+
         #if defined(_MSC_VER) && !defined(__clang__)
-          // MSVC has its own flavor of C complex types
-          #define FFT_20XX_CPLX_F32 _Fcomplex
-          #define FFT_20XX_CPLX_F64 _Dcomplex
+          typedef _Fcomplex fft_20xx_cplx_f32;
+          typedef _Dcomplex fft_20xx_cplx_f64;
         #else
-          #define FFT_20XX_CPLX_F32 float _Complex
-          #define FFT_20XX_CPLX_F64 double _Complex
+          typedef float _Complex fft_20xx_cplx_f32;
+          typedef double _Complex fft_20xx_cplx_f64;
         #endif
+
+        #define FFT_20XX_HAS_C99_COMPLEX // define this temporarily so we know not to make a custom type
       #endif
     #endif
 
-    #if !defined(FFT_20XX_CPLX_F32)
+    #if !defined(FFT_20XX_HAS_C99_COMPLEX)
       // No built-in complex type was detected so use a simple custom struct
       typedef struct fft_20xx_cplx_f32
       {
@@ -50,9 +55,8 @@
         double r;
         double i;
       } fft_20xx_cplx_f64;
-
-      #define FFT_20XX_CPLX_F32 fft_20xx_cplx_f32
-      #define FFT_20XX_CPLX_F64 fft_20xx_cplx_f64
+    #else
+      #undef FFT_20XX_HAS_C99_COMPLEX
     #endif
   #endif
 
@@ -71,14 +75,14 @@
     // size_t get_required_table_byte_count_f64(size_t max_length);
     // const fft_table_f64 *initialize_table_f64(void *memory, size_t max_length);
 
-    void fft_cplx_f32(const fft_table_f32 *table, const FFT_20XX_CPLX_F32 *input, FFT_20XX_CPLX_F32 *output, size_t length);
-    void fft_cplx_f64(const fft_table_f64 *table, const FFT_20XX_CPLX_F64 *input, FFT_20XX_CPLX_F64 *output, size_t length);
+    void fft_cplx_f32(const fft_table_f32 *table, const fft_20xx_cplx_f32 *input, fft_20xx_cplx_f32 *output, size_t length);
+    void fft_cplx_f64(const fft_table_f64 *table, const fft_20xx_cplx_f64 *input, fft_20xx_cplx_f64 *output, size_t length);
 
     void fft_cplx_interleaved_f32(const fft_table_f32 *table, const float *input, float *output, size_t length);
     void fft_cplx_interleaved_f64(const fft_table_f64 *table, const double *input, double *output, size_t length);
 
-    void ifft_cplx_f32(const fft_table_f32 *table, const FFT_20XX_CPLX_F32 *input, FFT_20XX_CPLX_F32 *output, size_t length);
-    void ifft_cplx_f64(const fft_table_f64 *table, const FFT_20XX_CPLX_F64 *input, FFT_20XX_CPLX_F64 *output, size_t length);
+    void ifft_cplx_f32(const fft_table_f32 *table, const fft_20xx_cplx_f32 *input, fft_20xx_cplx_f32 *output, size_t length);
+    void ifft_cplx_f64(const fft_table_f64 *table, const fft_20xx_cplx_f64 *input, fft_20xx_cplx_f64 *output, size_t length);
 
     void ifft_cplx_interleaved_f32(const fft_table_f32 *table, const float *input, float *output, size_t length);
     void ifft_cplx_interleaved_f64(const fft_table_f64 *table, const double *input, double *output, size_t length);
@@ -216,9 +220,6 @@
         { return c::ifft_real_f64(table.c_table(), data, data, length); }
     }
   #endif
-
-  #undef FFT_20XX_CPLX_F32
-  #undef FFT_20XX_CPLX_F64
 
   #if defined(_MSC_VER)
     #pragma warning (pop)
