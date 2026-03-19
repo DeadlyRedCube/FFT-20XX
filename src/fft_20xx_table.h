@@ -1,33 +1,12 @@
 #pragma once
 
-
+#include "fft_20xx/fft_20xx_util.h"
 #include "fft_20xx_common.h"
 
 
 
 namespace FFT20XX
 {
-  template <typename T>
-  T *AlignedAlloc(std::size_t count, std::size_t elementAlignment)
-  {
-    #if defined (_MSC_VER)
-      return static_cast<T *>(_aligned_malloc(count * sizeof(T),  elementAlignment * sizeof(T)));
-    #else
-      return static_cast<T *>(std::aligned_alloc(elementAlignment * sizeof(T), count * sizeof(T)));
-    #endif
-  }
-
-  template <typename T>
-  void AlignedFree(T *mem)
-  {
-    #if defined (_MSC_VER)
-      _aligned_free(mem);
-    #else
-      std::free(mem);
-    #endif
-  }
-
-
   #if COMPILER_MSVC
     #pragma warning (push)
     #pragma warning (disable: 4820) // 'N' bytes padding added after data member 'Foo'
@@ -38,7 +17,7 @@ namespace FFT20XX
   public:
     FFTTableImpl(std::size_t maxFFTLength)
     : _maxFFTLength(std::max(size_t(32), maxFFTLength))
-    , _data{AlignedAlloc<F>(_maxFFTLength * 3 / 2, 8)}
+    , _data{fft_20xx::allocate_simd_aligned<F>(_maxFFTLength * 3 / 2)}
     , _ownsData(true)
     {
       assert(IsPowerOfTwo(maxFFTLength));
@@ -48,9 +27,7 @@ namespace FFT20XX
     ~FFTTableImpl()
     {
       if (_ownsData)
-      {
-        AlignedFree(_data);
-      }
+        { fft_20xx::free_simd_aligned(_data); }
     }
 
     size_t MaxFFTLength() const noexcept

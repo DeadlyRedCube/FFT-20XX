@@ -5,6 +5,7 @@
 #endif
 
 #include "fft_20xx/fft_20xx.h"
+#include "fft_20xx/fft_20xx_util.h"
 
 #include <cassert>
 #include <chrono>
@@ -20,82 +21,11 @@
   #include <immintrin.h>
 #endif
 
-template <typename T>
-T *AlignedAlloc(std::size_t count, std::size_t elementAlignment)
-{
-  #if defined (_MSC_VER)
-    return static_cast<T *>(_aligned_malloc(count * sizeof(T),  elementAlignment * sizeof(T)));
-  #else
-    return static_cast<T *>(std::aligned_alloc(elementAlignment * sizeof(T), count * sizeof(T)));
-  #endif
-}
-
-
-
-template <typename T>
-void AlignedFree(T *mem)
-{
-  #if defined (_MSC_VER)
-    _aligned_free(mem);
-  #else
-    std::free(mem);
-  #endif
-}
-
-
-
 enum class BufferType
 {
   InPlace,
   Separate,
 };
-
-
-
-#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
-  void FlushSubnormals()
-  {
-    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
-  }
-#elif defined(_M_ARM64) || defined(__aarch64__) || defined(_M_ARM) || defined (__arm__)
-  void FlushSubnormals()
-  {
-    #if defined(_MSC_VER)
-      std::uint32_t current;
-      _controlfp_s(&current, _DN_FLUSH, _MCW_DN);
-    #elif defined(_M_ARM64) || defined(__aarch64__)
-      // From:
-      //  https://developer.arm.com/documentation/ddi0595/2021-06/AArch64-Registers/FPCR--Floating-point-Control-Register
-      std::uint64_t current;
-      __asm__ ("mrs %0, fpcr" : "=r"(current) : ); // Read the current control values
-      current |= (1 << 24); // Add the flush-to-zero flag
-      __asm__ ("msr fpcr, %0" : : "r"(current)); // Write the updated value
-    #else
-      // From:
-      //  https://developer.arm.com/documentation/ddi0595/2021-06/AArch32-Registers/FPSCR--Floating-Point-Status-and-Control-Register
-      std::uint32_t current;
-      __asm__ ("vmrs %0, fpscr" : "=r"(current) : ); // Read the current control values
-      current |= (1 << 24); // Add the flush-to-zero flag
-      __asm__ ("vmsr fpscr, %0" : : "r"(current)); // Write the updated value
-    #endif
-  }
-#else
-  #error Unknown CPU type.
-#endif
-
-#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
-  #define CPU_X86_ANY 1
-#else
-  #define CPU_X86_ANY 0
-#endif
-
-#if defined(_M_ARM64) || defined(__aarch64__) || defined(_M_ARM) || defined (__arm__)
-  #define CPU_ARM_ANY 1
-#else
-  #define CPU_ARM_ANY 0
-#endif
-
 
 
 extern "C"
@@ -111,7 +41,7 @@ extern "C"
   void ifft_real_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t length);
   void ifft_real_f64_scalar(const fft_table_f64 *table, const double *input, double *output, size_t length);
 
-  #if CPU_X86_ANY
+  #if FFT_20XX_CPU_X86_ANY
     void fft_cplx_f32_sse2(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
     void fft_cplx_f64_sse2(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
     void ifft_cplx_f32_sse2(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
@@ -138,7 +68,7 @@ extern "C"
     void fft_real_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t length);
     void ifft_real_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t length);
     void ifft_real_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t length);
-  #elif CPU_ARM_ANY
+  #elif FFT_20XX_CPU_ARM_ANY
     void fft_cplx_f32_neon(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
     void fft_cplx_f64_neon(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
     void ifft_cplx_f32_neon(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
@@ -476,7 +406,7 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
 
 int main()
 {
-  FlushSubnormals();
+  fft_20xx::cpu_set_flush_subnormals_to_zero(true);
 
   using enum BufferType;
   using enum TestType;
@@ -489,7 +419,7 @@ int main()
       SmokeTest<Complex, B, float>("Scalar", [&](auto &&...args) { fft_cplx_f32_scalar(args...); }, [&](auto &&...args) { ifft_cplx_f32_scalar(args...); });
       SmokeTest<Complex, B, double>("Scalar", [&](auto &&...args) { fft_cplx_f64_scalar(args...); }, [&](auto &&...args) { ifft_cplx_f64_scalar(args...); });
 
-      #if CPU_X86_ANY
+      #if FFT_20XX_CPU_X86_ANY
         SmokeTest<Complex, B, float>("SSE2", [&](auto &&...args) { fft_cplx_f32_sse2(args...); }, [&](auto &&...args) { ifft_cplx_f32_sse2(args...); });
         SmokeTest<Complex, B, double>("SSE2", [&](auto &&...args) { fft_cplx_f64_sse2(args...); }, [&](auto &&...args) { ifft_cplx_f64_sse2(args...); });
 
@@ -498,7 +428,7 @@ int main()
 
         SmokeTest<Complex, B, float>("AVX w/FMA", [&](auto &&...args) { fft_cplx_f32_fma(args...); }, [&](auto &&...args) { ifft_cplx_f32_fma(args...); });
         SmokeTest<Complex, B, double>("AVX w/FMA", [&](auto &&...args) { fft_cplx_f64_fma(args...); }, [&](auto &&...args) { ifft_cplx_f64_fma(args...); });
-      #elif CPU_ARM_ANY
+      #elif FFT_20XX_CPU_ARM_ANY
         SmokeTest<Complex, B, float>("NEON", [&](auto &&...args) { fft_cplx_f32_neon(args...); }, [&](auto &&...args) { ifft_cplx_f32_neon(args...); });
         SmokeTest<Complex, B, double>("NEON", [&](auto &&...args) { fft_cplx_f64_neon(args...); }, [&](auto &&...args) { ifft_cplx_f64_neon(args...); });
       #endif
@@ -508,7 +438,7 @@ int main()
 
       SmokeTest<Real, B, float>("Scalar", [&](auto &&...args) { fft_real_f32_scalar(args...); }, [&](auto &&...args) { ifft_real_f32_scalar(args...); });
       SmokeTest<Real, B, double>("Scalar", [&](auto &&...args) { fft_real_f64_scalar(args...); }, [&](auto &&...args) { ifft_real_f64_scalar(args...); });
-      #if CPU_X86_ANY
+      #if FFT_20XX_CPU_X86_ANY
         SmokeTest<Real, B, float>("SSE2", [&](auto &&...args) { fft_real_f32_sse2(args...); }, [&](auto &&...args) { ifft_real_f32_sse2(args...); });
         SmokeTest<Real, B, double>("SSE2", [&](auto &&...args) { fft_real_f64_sse2(args...); }, [&](auto &&...args) { ifft_real_f64_sse2(args...); });
 
@@ -517,7 +447,7 @@ int main()
 
         SmokeTest<Real, B, float>("AVX w/FMA", [&](auto &&...args) { fft_real_f32_fma(args...); }, [&](auto &&...args) { ifft_real_f32_fma(args...); });
         SmokeTest<Real, B, double>("AVX w/FMA", [&](auto &&...args) { fft_real_f64_fma(args...); }, [&](auto &&...args) { ifft_real_f64_fma(args...); });
-      #elif CPU_ARM_ANY
+      #elif FFT_20XX_CPU_ARM_ANY
         SmokeTest<Real, B, float>("NEON", [&](auto &&...args) { fft_real_f32_neon(args...); }, [&](auto &&...args) { ifft_real_f32_neon(args...); });
         SmokeTest<Real, B, double>("NEON", [&](auto &&...args) { fft_real_f64_neon(args...); }, [&](auto &&...args) { ifft_real_f64_neon(args...); });
       #endif

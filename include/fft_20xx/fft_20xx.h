@@ -24,15 +24,35 @@
       namespace fft_20xx::c
       {
   #else
-    #include <complex.h>
+    #if defined (__STDC_VERSION__)
+      #if __STDC_VERSION__ >= 199901L
+        #if defined(_MSC_VER) && !defined(__clang__)
+          // MSVC has its own flavor of C complex types
+          #define FFT_20XX_CPLX_F32 _Fcomplex
+          #define FFT_20XX_CPLX_F64 _Dcomplex
+        #else
+          #define FFT_20XX_CPLX_F32 float _Complex
+          #define FFT_20XX_CPLX_F64 double _Complex
+        #endif
+      #endif
+    #endif
 
-    #if defined(_MSC_VER) && !defined(__clang__)
-      // MSVC has its own flavor of C complex types
-      #define FFT_20XX_CPLX_F32 _Fcomplex
-      #define FFT_20XX_CPLX_F64 _Dcomplex
-    #else
-      #define FFT_20XX_CPLX_F32 float _Complex
-      #define FFT_20XX_CPLX_F64 double _Complex
+    #if !defined(FFT_20XX_CPLX_F32)
+      // No built-in complex type was detected so use a simple custom struct
+      typedef struct fft_20xx_cplx_f32
+      {
+        float r;
+        float i;
+      } fft_20xx_cplx_f32;
+
+      typedef struct fft_20xx_cplx_f64
+      {
+        double r;
+        double i;
+      } fft_20xx_cplx_f64;
+
+      #define FFT_20XX_CPLX_F32 fft_20xx_cplx_f32
+      #define FFT_20XX_CPLX_F64 fft_20xx_cplx_f64
     #endif
   #endif
 

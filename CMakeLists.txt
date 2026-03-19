@@ -22,6 +22,7 @@ target_sources(
 
   PUBLIC FILE_SET HEADERS FILES
     "include/fft_20xx/fft_20xx.h"
+    "include/fft_20xx/fft_20xx_util.h"
 
   PRIVATE
     "src/fft_20xx_avx_common.h"
@@ -34,6 +35,7 @@ target_sources(
     "src/fft_20xx_scalar.cpp"
     "src/fft_20xx_table.cpp"
     "src/fft_20xx_select.cpp"
+    "src/fft_20xx_util.cpp"
 )
 
 target_include_directories(
