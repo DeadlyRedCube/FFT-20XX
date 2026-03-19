@@ -299,6 +299,7 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
     std::vector<std::complex<double>> ioutputGood(size);
 
     std::vector<ElementType> input(size);
+    std::vector<ElementType> inputIFFT(size);
     std::vector<ElementType> outputTest(size);
     std::vector<ElementType> ioutputTest(size);
 
@@ -317,19 +318,38 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
 
 
     BasicDITRadix2FFT(inputD.data(), outputGood.data(), size);
-    BasicDITRadix2IFFT(inputD.data(), ioutputGood.data(), size);
+    BasicDITRadix2IFFT(outputGood.data(), ioutputGood.data(), size);
+
+    if constexpr (T == TestType::Complex)
+    {
+      for (auto i = 0u; i < size; i++)
+        { inputIFFT[i] = { F(outputGood[i].real()), F(outputGood[i].imag()) }; }
+    }
+    else
+    {
+      inputIFFT[0] = F(outputGood[0].real());
+      if (size > 1)
+      {
+        inputIFFT[1] = F(outputGood[size / 2].real());
+        for (auto i = 2u; i < input.size(); i += 2)
+        {
+          inputIFFT[i] = F(outputGood[i / 2].real());
+          inputIFFT[i + 1] = F(outputGood[i / 2].imag());
+        }
+      }
+    }
 
     if constexpr (B == BufferType::InPlace)
     {
       std::ranges::copy(input, outputTest.begin());
-      std::ranges::copy(input, ioutputTest.begin());
+      std::ranges::copy(inputIFFT, ioutputTest.begin());
       testFwd(table, outputTest.data(), outputTest.data(), size);
       testInv(table, ioutputTest.data(), ioutputTest.data(), size);
     }
     else
     {
       testFwd(table, input.data(), outputTest.data(), size);
-      testInv(table, input.data(), ioutputTest.data(), size);
+      testInv(table, inputIFFT.data(), ioutputTest.data(), size);
     }
 
     constexpr auto Threshold = std::same_as<F, float> ? F(3e-5) : F(2e-13);
@@ -421,6 +441,12 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
             break;
           }
         }
+
+        if (auto err = Error(ioutputGood[i].real(), ioutputTest[i]); err > Threshold)
+        {
+          errorInfo = { err, "inverse", "", i, ioutputGood[i].real(), ioutputTest[i] };
+          break;
+        }
       }
     }
 
@@ -454,25 +480,51 @@ int main()
 
   using enum BufferType;
   using enum TestType;
-  SmokeTest<Complex, InPlace, float>("Auto", [&](auto &&...args) { fft_20xx::fft_cplx(args...); }, [&](auto &&...args) { fft_20xx::ifft_cplx(args...); });
-  SmokeTest<Complex, InPlace, double>("Auto", [&](auto &&...args) { fft_20xx::fft_cplx(args...); }, [&](auto &&...args) { fft_20xx::ifft_cplx(args...); });
+  auto doTests =
+    []<BufferType B>()
+    {
+      SmokeTest<Complex, B, float>("Auto", [&](auto &&...args) { fft_20xx::fft_cplx(args...); }, [&](auto &&...args) { fft_20xx::ifft_cplx(args...); });
+      SmokeTest<Complex, B, double>("Auto", [&](auto &&...args) { fft_20xx::fft_cplx(args...); }, [&](auto &&...args) { fft_20xx::ifft_cplx(args...); });
 
-  SmokeTest<Complex, InPlace, float>("Scalar", [&](auto &&...args) { fft_cplx_f32_scalar(args...); }, [&](auto &&...args) { ifft_cplx_f32_scalar(args...); });
-  SmokeTest<Complex, InPlace, double>("Scalar", [&](auto &&...args) { fft_cplx_f64_scalar(args...); }, [&](auto &&...args) { ifft_cplx_f64_scalar(args...); });
+      SmokeTest<Complex, B, float>("Scalar", [&](auto &&...args) { fft_cplx_f32_scalar(args...); }, [&](auto &&...args) { ifft_cplx_f32_scalar(args...); });
+      SmokeTest<Complex, B, double>("Scalar", [&](auto &&...args) { fft_cplx_f64_scalar(args...); }, [&](auto &&...args) { ifft_cplx_f64_scalar(args...); });
 
-  #if CPU_X86_ANY
-    SmokeTest<Complex, InPlace, float>("SSE2", [&](auto &&...args) { fft_cplx_f32_sse2(args...); }, [&](auto &&...args) { ifft_cplx_f32_sse2(args...); });
-    SmokeTest<Complex, InPlace, double>("SSE2", [&](auto &&...args) { fft_cplx_f64_sse2(args...); }, [&](auto &&...args) { ifft_cplx_f64_sse2(args...); });
+      #if CPU_X86_ANY
+        SmokeTest<Complex, B, float>("SSE2", [&](auto &&...args) { fft_cplx_f32_sse2(args...); }, [&](auto &&...args) { ifft_cplx_f32_sse2(args...); });
+        SmokeTest<Complex, B, double>("SSE2", [&](auto &&...args) { fft_cplx_f64_sse2(args...); }, [&](auto &&...args) { ifft_cplx_f64_sse2(args...); });
 
-    SmokeTest<Complex, InPlace, float>("AVX", [&](auto &&...args) { fft_cplx_f32_avx(args...); }, [&](auto &&...args) { ifft_cplx_f32_avx(args...); });
-    SmokeTest<Complex, InPlace, double>("AVX", [&](auto &&...args) { fft_cplx_f64_avx(args...); }, [&](auto &&...args) { ifft_cplx_f64_avx(args...); });
+        SmokeTest<Complex, B, float>("AVX", [&](auto &&...args) { fft_cplx_f32_avx(args...); }, [&](auto &&...args) { ifft_cplx_f32_avx(args...); });
+        SmokeTest<Complex, B, double>("AVX", [&](auto &&...args) { fft_cplx_f64_avx(args...); }, [&](auto &&...args) { ifft_cplx_f64_avx(args...); });
 
-    SmokeTest<Complex, InPlace, float>("AVX w/FMA", [&](auto &&...args) { fft_cplx_f32_fma(args...); }, [&](auto &&...args) { ifft_cplx_f32_fma(args...); });
-    SmokeTest<Complex, InPlace, double>("AVX w/FMA", [&](auto &&...args) { fft_cplx_f64_fma(args...); }, [&](auto &&...args) { ifft_cplx_f64_fma(args...); });
-  #elif CPU_ARM_ANY
-    SmokeTest<Complex, InPlace, float>("NEON", [&](auto &&...args) { fft_cplx_f32_neon(args...); }, [&](auto &&...args) { ifft_cplx_f32_neon(args...); });
-    SmokeTest<Complex, InPlace, double>("NEON", [&](auto &&...args) { fft_cplx_f64_neon(args...); }, [&](auto &&...args) { ifft_cplx_f64_neon(args...); });
-  #endif
+        SmokeTest<Complex, B, float>("AVX w/FMA", [&](auto &&...args) { fft_cplx_f32_fma(args...); }, [&](auto &&...args) { ifft_cplx_f32_fma(args...); });
+        SmokeTest<Complex, B, double>("AVX w/FMA", [&](auto &&...args) { fft_cplx_f64_fma(args...); }, [&](auto &&...args) { ifft_cplx_f64_fma(args...); });
+      #elif CPU_ARM_ANY
+        SmokeTest<Complex, B, float>("NEON", [&](auto &&...args) { fft_cplx_f32_neon(args...); }, [&](auto &&...args) { ifft_cplx_f32_neon(args...); });
+        SmokeTest<Complex, B, double>("NEON", [&](auto &&...args) { fft_cplx_f64_neon(args...); }, [&](auto &&...args) { ifft_cplx_f64_neon(args...); });
+      #endif
+
+      SmokeTest<Real, B, float>("Auto", [&](auto &&...args) { fft_20xx::fft_real(args...); }, [&](auto &&...args) { fft_20xx::ifft_real(args...); });
+      SmokeTest<Real, B, double>("Auto", [&](auto &&...args) { fft_20xx::fft_real(args...); }, [&](auto &&...args) { fft_20xx::ifft_real(args...); });
+
+      SmokeTest<Real, B, float>("Scalar", [&](auto &&...args) { fft_real_f32_scalar(args...); }, [&](auto &&...args) { ifft_real_f32_scalar(args...); });
+      SmokeTest<Real, B, double>("Scalar", [&](auto &&...args) { fft_real_f64_scalar(args...); }, [&](auto &&...args) { ifft_real_f64_scalar(args...); });
+      #if CPU_X86_ANY
+        SmokeTest<Real, B, float>("SSE2", [&](auto &&...args) { fft_real_f32_sse2(args...); }, [&](auto &&...args) { ifft_real_f32_sse2(args...); });
+        SmokeTest<Real, B, double>("SSE2", [&](auto &&...args) { fft_real_f64_sse2(args...); }, [&](auto &&...args) { ifft_real_f64_sse2(args...); });
+
+        SmokeTest<Real, B, float>("AVX", [&](auto &&...args) { fft_real_f32_avx(args...); }, [&](auto &&...args) { ifft_real_f32_avx(args...); });
+        SmokeTest<Real, B, double>("AVX", [&](auto &&...args) { fft_real_f64_avx(args...); }, [&](auto &&...args) { ifft_real_f64_avx(args...); });
+
+        SmokeTest<Real, B, float>("AVX w/FMA", [&](auto &&...args) { fft_real_f32_fma(args...); }, [&](auto &&...args) { ifft_real_f32_fma(args...); });
+        SmokeTest<Real, B, double>("AVX w/FMA", [&](auto &&...args) { fft_real_f64_fma(args...); }, [&](auto &&...args) { ifft_real_f64_fma(args...); });
+      #elif CPU_ARM_ANY
+        SmokeTest<Real, B, float>("NEON", [&](auto &&...args) { fft_real_f32_neon(args...); }, [&](auto &&...args) { ifft_real_f32_neon(args...); });
+        SmokeTest<Real, B, double>("NEON", [&](auto &&...args) { fft_real_f64_neon(args...); }, [&](auto &&...args) { ifft_real_f64_neon(args...); });
+      #endif
+    };
+
+  doTests.template operator()<InPlace>();
+  doTests.template operator()<Separate>();
 
   return 0;
 }

@@ -340,30 +340,22 @@ FORCE_INLINE void DoFirstRadix4s(const F *input, F *output, size_t radix4Count)
     auto ix1 = ix2 + radix4Count;
     auto ix3 = ix1 + radix4Count;
 
+    constexpr auto DoLoadDeinterleaved =
+      [](auto *ptr)
+      {
+        if constexpr (Force == ForceSize::Four)
+          { return LoadDeinterleavedHalf(ptr); }
+        else
+          { return LoadDeinterleaved(ptr); }
+      };
+
     if constexpr (N >= 4)
     {
       // Load the 4 sets of values (either as halves or as full values depending on whether we've forced the size)
-      auto [r0, i0, r1, i1, r2, i2, r3, i3] =
-        [&]
-        {
-          if constexpr (Force == ForceSize::Four)
-          {
-            static_assert(N == 4);
-            auto [rr0, ii0] = LoadDeinterleavedHalf(input + ix0 * 2);
-            auto [rr1, ii1] = LoadDeinterleavedHalf(input + ix1 * 2);
-            auto [rr2, ii2] = LoadDeinterleavedHalf(input + ix2 * 2);
-            auto [rr3, ii3] = LoadDeinterleavedHalf(input + ix3 * 2);
-            return std::tuple{ rr0, ii0, rr1, ii1, rr2, ii2, rr3, ii3 };
-          }
-          else
-          {
-            auto [rr0, ii0] = LoadDeinterleaved(input + ix0 * 2);
-            auto [rr1, ii1] = LoadDeinterleaved(input + ix1 * 2);
-            auto [rr2, ii2] = LoadDeinterleaved(input + ix2 * 2);
-            auto [rr3, ii3] = LoadDeinterleaved(input + ix3 * 2);
-            return std::tuple{ rr0, ii0, rr1, ii1, rr2, ii2, rr3, ii3 };
-          }
-        }();
+      auto [r0, i0] = DoLoadDeinterleaved(input + ix0 * 2);
+      auto [r1, i1] = DoLoadDeinterleaved(input + ix1 * 2);
+      auto [r2, i2] = DoLoadDeinterleaved(input + ix2 * 2);
+      auto [r3, i3] = DoLoadDeinterleaved(input + ix3 * 2);
 
       // IFFT needs to scale the coefficients
       if constexpr (D == Dir::Inverse)
@@ -373,6 +365,9 @@ FORCE_INLINE void DoFirstRadix4s(const F *input, F *output, size_t radix4Count)
 
       // Store the real and imaginary values side by side (in SIMD vectors). Note that for 8-element vectors this is
       //  doing two pairs of 4x4 transposes (transposing the first 4s of each vector and the last 4s separately)
+
+      // Note that if the native vector size is more than 4 (i.e. AVX f32), all the downstream work for this
+      //  FFT will also be done at half-size, so this store is correct.
       Store4x4Transposed(
         output + ix0 * 2,
         output + ix1 * 2,
@@ -488,14 +483,17 @@ FORCE_INLINE void DoFirstRadix4sNoDeinterleave(const F *input, F *output, size_t
           if constexpr (Force == ForceSize::Four)
           {
             static_assert(N == 4);
-            auto rr0 = LoadHalf(input + ix0 * 2);
-            auto ii0 = LoadHalf(input + ix0 * 2 + N);
-            auto rr1 = LoadHalf(input + ix1 * 2);
-            auto ii1 = LoadHalf(input + ix1 * 2 + N);
-            auto rr2 = LoadHalf(input + ix2 * 2);
-            auto ii2 = LoadHalf(input + ix2 * 2 + N);
-            auto rr3 = LoadHalf(input + ix3 * 2);
-            auto ii3 = LoadHalf(input + ix3 * 2 + N);
+            static_assert(VecSize<V> == 8u);
+            // This is coming off of the real IFFT, which stored them in full 8-element blocks,
+            //  so do the load in a slightly different arrangement than usual.
+            auto rr0 = LoadHalf(input + 0u);
+            auto rr2 = LoadHalf(input + 4u);
+            auto ii0 = LoadHalf(input + 8u);
+            auto ii2 = LoadHalf(input + 12u);
+            auto rr1 = LoadHalf(input + 16u);
+            auto rr3 = LoadHalf(input + 20u);
+            auto ii1 = LoadHalf(input + 24u);
+            auto ii3 = LoadHalf(input + 28u);
             return std::tuple{ rr0, ii0, rr1, ii1, rr2, ii2, rr3, ii3 };
           }
           else
@@ -1416,6 +1414,80 @@ void DoNoFlipRadix4(
 }
 
 
+template <Dir D, std::floating_point F>
+void DoNoFlipRadix4ForCount4(
+  const F *tableData,
+  F *data)
+{
+  const auto groupSize = 4u;
+
+  using V = Vec<F>;
+
+  // For a 16-element FFT, the final Reinterleave is *also* the four-angle case.
+  constexpr auto N = std::min(4u, VecSize<V>);
+
+  constexpr auto DoLoad =
+    [](auto *ptr)
+    {
+      if constexpr (VecSize<V> == 8u)
+        { return LoadHalf(ptr); }
+      else
+        { return Load(ptr); }
+    };
+
+  for (auto angleIndex = 0u; angleIndex < 4u; angleIndex += N)
+  {
+    const auto ws =
+      [&]
+      {
+        if constexpr (VecSize<V> == 8u)
+          { return LoadAnglesRadix4FromCount4Half(tableData, angleIndex); }
+        else
+          { return LoadAnglesRadix4FromCount4(tableData, angleIndex); }
+      }();
+
+    auto ix0 = angleIndex;
+    auto ix1 = ix0 + groupSize; // i2/i1 *not* reversed this time around
+    auto ix2 = ix1 + groupSize;
+    auto ix3 = ix2 + groupSize;
+
+    auto r0 = DoLoad(data + ix0 * 2);
+    auto i0 = DoLoad(data + ix0 * 2 + N);
+    auto r1 = DoLoad(data + ix1 * 2);
+    auto i1 = DoLoad(data + ix1 * 2 + N);
+    auto r2 = DoLoad(data + ix2 * 2);
+    auto i2 = DoLoad(data + ix2 * 2 + N);
+    auto r3 = DoLoad(data + ix3 * 2);
+    auto i3 = DoLoad(data + ix3 * 2 + N);
+
+    Radix4Butterfly<D>(r0, i0, r1, i1, r2, i2, r3, i3, ws);
+
+    if constexpr (VecSize<V> > 4u)
+    {
+      Store(data + 0u, r0);
+      Store(data + 4u, r1);
+      Store(data + 8u, i0);
+      Store(data + 12u, i1);
+      Store(data + 16u, r2);
+      Store(data + 20u, r3);
+      Store(data + 24u, i2);
+      Store(data + 28u, i3);
+    }
+    else
+    {
+      Store(data + ix0 * 2, r0);
+      Store(data + ix0 * 2 + N, i0);
+      Store(data + ix1 * 2, r1);
+      Store(data + ix1 * 2 + N, i1);
+      Store(data + ix2 * 2, r2);
+      Store(data + ix2 * 2 + N, i2);
+      Store(data + ix3 * 2, r3);
+      Store(data + ix3 * 2 + N, i3);
+    }
+  }
+}
+
+
 // The final radix-4 pass loads alllll the angles, and also re-interleaves the data as it is the final output.
 template <Dir D, std::floating_point F>
 void DoFinalReinterleaveRadix4(
@@ -1731,7 +1803,11 @@ void RunComplexFFTForFwdRealTransform(const F *tableData, const F *input, F *out
   const auto radix4Count = fftLength / 4u;
   DoFirstRadix4s<Dir::Forward>(input, output, radix4Count);
   RunComplexFFTMiddleStages<Dir::Forward>(tableData, output, fftLength);
-  DoNoFlipRadix4<Dir::Forward>(tableData, output, radix4Count, radix4Count, radix4Count);
+
+  if (fftLength == 16u)
+    { DoNoFlipRadix4ForCount4<Dir::Forward>(tableData, output); }
+  else
+    { DoNoFlipRadix4<Dir::Forward>(tableData, output, radix4Count, radix4Count, radix4Count); }
 }
 
 
@@ -1772,6 +1848,12 @@ void RunRealFwdFFT(const F *tableData, const F *input, F *output, size_t fftLeng
 {
   if (fftLength < 2 * SmallestPiecewiseComplexFFT)
   {
+    if (fftLength == 1)
+    {
+      output[0] = input[0];
+      return;
+    }
+
     // Small complex FFTs are simple enough that they're hardcoded and we don't have a "real transform" variant of
     //  them. Instead, just run it as a full-sized complex transform and pull out the half (plus 1) of the results we
     //  care about.
@@ -1780,7 +1862,7 @@ void RunRealFwdFFT(const F *tableData, const F *input, F *output, size_t fftLeng
       #pragma GCC diagnostic push
       #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     #endif
-    F data[SmallestPiecewiseComplexFFT];
+    F data[2 * SmallestPiecewiseComplexFFT];
     assert(fftLength <= SmallestPiecewiseComplexFFT);
 
     for (auto i = 0_z; i < fftLength; i++)
@@ -1928,6 +2010,12 @@ void RunRealInvFFT(const F *tableData, const F *input, F *output, size_t fftLeng
 
   if (fftLength < 2 * SmallestPiecewiseComplexFFT)
   {
+    if (fftLength == 1)
+    {
+      output[0] = input[0];
+      return;
+    }
+
     #if COMPILER_GCC
       #pragma GCC diagnostic push
       #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
@@ -1936,7 +2024,7 @@ void RunRealInvFFT(const F *tableData, const F *input, F *output, size_t fftLeng
     // Small complex FFTs are simple enough that they're hardcoded and we don't have a "real transform" variant of
     //  them. Instead, just run it as a full-sized complex transform and pull out the half (plus 1) of the results we
     //  care about.
-    F data[SmallestPiecewiseComplexFFT];
+    F data[2 * SmallestPiecewiseComplexFFT];
     assert(fftLength <= SmallestPiecewiseComplexFFT);
 
     data[0] = input[0];
