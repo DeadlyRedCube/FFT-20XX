@@ -406,7 +406,7 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
 
 int main()
 {
-  fft_20xx::cpu_set_flush_subnormals_to_zero(true);
+  fft_20xx::set_flush_subnormals_to_zero(true);
 
   using enum BufferType;
   using enum TestType;

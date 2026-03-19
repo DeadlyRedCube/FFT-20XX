@@ -109,12 +109,12 @@ extern "C"
   #endif
 
 
-  void *fft_20xx_allocate_simd_aligned(std::size_t byte_count)
+  void *fft_20xx_allocate_bytes_simd_aligned(std::size_t byte_count)
   {
     #if defined (_MSC_VER)
       return _aligned_malloc(byte_count,  SIMDAlignment);
     #else
-      std::aligned_alloc(SIMDAlignment, byte_count));
+      return std::aligned_alloc(SIMDAlignment, byte_count);
     #endif
   }
 
@@ -127,8 +127,8 @@ extern "C"
     #endif
   }
 
-  #if FFT_20XX_CPU_X86_ANY || FFT_20XX_CPU_ARM_ANY
-    void fft_20xx_cpu_set_flush_subnormals_to_zero(bool flush_to_zero)
+  #if FFT_20XX_CPU_X86_ANY
+    void fft_20xx_set_flush_subnormals_to_zero(bool flush_to_zero)
     {
       auto prevCSR = _mm_getcsr();
 
@@ -137,8 +137,8 @@ extern "C"
         (prevCSR & ~(_MM_FLUSH_ZERO_MASK | _MM_DENORMALS_ZERO_MASK))
           | (flush_to_zero ? (_MM_FLUSH_ZERO_ON | _MM_DENORMALS_ZERO_ON) : 0));
     }
-  #elif defined(_M_ARM64) || defined(__aarch64__) || defined(_M_ARM) || defined (__arm__)
-    void fft_20xx_cpu_set_flush_subnormals_to_zero(bool flush_to_zero)
+  #elif FFT_20XX_CPU_ARM_ANY
+    void fft_20xx_set_flush_subnormals_to_zero(bool flush_to_zero)
     {
       #if defined(_MSC_VER)
         std::uint32_t current;

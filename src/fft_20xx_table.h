@@ -17,7 +17,7 @@ namespace FFT20XX
   public:
     FFTTableImpl(std::size_t maxFFTLength)
     : _maxFFTLength(std::max(size_t(32), maxFFTLength))
-    , _data{fft_20xx::allocate_simd_aligned<F>(_maxFFTLength * 3 / 2)}
+    , _data{fft_20xx::allocate_type_simd_aligned<F>(_maxFFTLength * 3 / 2)}
     , _ownsData(true)
     {
       assert(IsPowerOfTwo(maxFFTLength));

@@ -48,7 +48,7 @@
           void fft_20xx_set_flush_subnormals_to_zero(bool flush_to_zero);
         #endif
 
-        void *fft_20xx_allocate_simd_aligned(size_t byte_count);
+        void *fft_20xx_allocate_bytes_simd_aligned(size_t byte_count);
         void fft_20xx_free_simd_aligned(void *memory);
   #ifdef __cplusplus
       } // namespace
@@ -57,12 +57,12 @@
 
     namespace fft_20xx
     {
-      inline auto allocate_simd_aligned(size_t byte_count) -> void *
-        { return c::fft_20xx_allocate_simd_aligned(byte_count); }
+      inline auto allocate_bytes_simd_aligned(size_t byte_count) -> void *
+        { return c::fft_20xx_allocate_bytes_simd_aligned(byte_count); }
 
       template <typename T>
-      auto allocate_simd_aligned(size_t element_count) -> T *
-        { return static_cast<T *>(allocate_simd_aligned(element_count * sizeof(T))); }
+      auto allocate_type_simd_aligned(size_t element_count) -> T *
+        { return static_cast<T *>(allocate_bytes_simd_aligned(element_count * sizeof(T))); }
 
       inline void free_simd_aligned(void *memory)
         { c::fft_20xx_free_simd_aligned(memory); }
