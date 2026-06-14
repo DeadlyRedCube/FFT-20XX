@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>FFT Flip Visualizer</title>
+    <script src="fftflip-complex.js"></script>
+    <link href="fftflip-complex.css" rel="stylesheet">
+  </head>
+
+  <body>
+    <main>
+      <div class="gridDisplayContainer" id="gridDisplayContainer">
+        <canvas id="gridDisplay">
+        </canvas>
+      </div>
+      <div class="sideBySide">
+        <div class="sliders">
+          <div class="text" id="onscreenCountText">&nbsp;</div>
+          <div class="text">&nbsp;</div>
+          <div class="text" id="widthText">&nbsp;</div>
+          <div class="slidecontainer">
+            <input type="range" min="2" max="15" value="8" class="slider" id="lengthSlider">
+          </div>
+          <div class="text">&nbsp;</div>
+          <div class="text" id="stepText">&nbsp;</div>
+          <div class="slidecontainer">
+            <input type="range" min="0" max="3" value="0" class="slider" id="stepSlider">
+          </div>
+        </div>
+        <div class="buttons">
+          <button id="simdToggle">SIMD Size: 8</button>
+          <button id="radixToggle">Radix: 2</button>
+          <button id="bitFlipToggle">Bit flip: Enabled</button>
+          <button id="showIndicesToggle">Element Indices: Visible</button>
+        </div>
+      </div>
+   </main>
+  </body>
+</html>

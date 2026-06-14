@@ -1,0 +1,155 @@
+*
+{
+  box-sizing: border-box;
+}
+body
+{
+  background-color: black;
+  padding-top: 20px;
+}
+
+.sideBySide
+{
+  position: relative;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+
+  .sliders
+  {
+    flex: 1;
+  }
+}
+
+.gridDisplayContainer,
+.addressDisplayContainer
+{
+  display: flex;
+  container-name: grid-display-container;
+  container-type: inline-size;
+  contain: size;
+  flex: 1;
+  height: 100%;
+}
+
+.addressDisplayContainer
+{
+  container-name: address-display-container;
+  flex: 0.25;
+}
+
+#gridDisplay,
+#addressDisplay
+{
+  display: inline-block;
+  margin: auto;
+  box-sizing: border-box;
+  border: 1px solid #4070f0;
+}
+
+.slidecontainer input
+{
+  width: 100%;
+}
+
+main
+{
+  height: 95vh;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  max-height: 95vh;
+}
+
+.side
+{
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.text
+{
+  width: 100%;
+  color: #9EB9FF;
+  font-family: sans-serif;
+  font-size: 18pt;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+.bad
+{
+  color: #EF7F1D;
+}
+
+.c0
+{
+  color: #931F1D;
+}
+
+.c1
+{
+  color: #5398be;
+}
+
+.c2
+{
+  color: #b6cca1;
+}
+
+.c3
+{
+  color: #8764A6;
+}
+
+.c4
+{
+  color: #9B5752;
+}
+
+.c5
+{
+  color: #4259B3;
+}
+
+.c6
+{
+  color: #6DAD94;
+}
+
+.c7
+{
+  color: #E3AF36;
+}
+
+button
+{
+  background-color: #4070f0;
+  border: none;
+  color: #efefef;
+  font-size: 16px;
+  text-align: center;
+  padding: 10px;
+  border-radius: px;
+
+  &:hover
+  {
+    background-color: #6090f0;
+  }
+
+  &:active
+  {
+    background-color: #dfdfdf;
+  }
+}
+
+.buttons
+{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 200px;
+}
