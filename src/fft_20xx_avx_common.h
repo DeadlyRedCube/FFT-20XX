@@ -182,19 +182,19 @@ static void StoreInterleaved(F *ptr, Vec<F> a, Vec<F> b)
   if constexpr (f32<F>)
   {
     // (A B C D E F G H) (a b c d e f g h) -> (A a B b E e F f)
-    auto loHalves = _mm256_unpacklo_ps(a, b);
+    auto AaBbEeFf = _mm256_unpacklo_ps(a, b);
 
     // (A B C D E F G H) (a b c d e f g h) -> (C c D d G g H h)
-    auto hiHalves = _mm256_unpackhi_ps(a, b);
+    auto CcDdGgHh = _mm256_unpackhi_ps(a, b);
 
-    // (A a B b E e F f) (C c D d G g H h) -> (A a B b C c D d)
-    a = _mm256_permute2f128_ps(loHalves, hiHalves, 0x20);
-
-    // (A a B b E e F f) (C c D d G g H h) -> (E e F f G g H h)
-    b = _mm256_permute2f128_ps(loHalves, hiHalves, 0x31);
-
-    _mm256_storeu_ps(ptr, a);
-    _mm256_storeu_ps(ptr + 8, b);
+    auto EeFf = _mm256_extractf128_ps(AaBbEeFf, 1);
+    auto GgHh = _mm256_extractf128_ps(CcDdGgHh, 1);
+    auto AaBb = _mm256_castps256_ps128(AaBbEeFf);
+    auto CcDd = _mm256_castps256_ps128(CcDdGgHh);
+    _mm_storeu_ps(ptr + 0, AaBb);
+    _mm_storeu_ps(ptr + 4, CcDd);
+    _mm_storeu_ps(ptr + 8, EeFf);
+    _mm_storeu_ps(ptr + 12, GgHh);
   }
   else
   {
@@ -753,6 +753,5 @@ inline void StoreFinalRightSideForInverseRealTransform(F *output, Vec<F> r1, Vec
     _mm256_storeu_pd(output + 4u, Xd_cb_I);
   }
 }
-
 
 #include "fft_20xx_run.h"

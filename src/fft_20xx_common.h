@@ -26,8 +26,9 @@ namespace FFT20XX
     return size_t(l);
   }
 
-  template <typename F>
-  static constexpr auto InvSqrt2 = F(0.7071067811865476);
+  template <typename F> constexpr auto InvSqrt2 = F(0.7071067811865476);
+  template <typename F> constexpr auto CosPiOver8 = F(0.9238795325112867561);
+  template <typename F> constexpr auto SinPiOver8 = F(0.3826834323650897717);
 
   template <std::unsigned_integral I>
   constexpr auto IsPowerOfTwo(I v) -> bool
@@ -151,6 +152,13 @@ namespace FFT20XX
       { return { .r = -InvSqrt2<F> * (v.r + v.i), .i = InvSqrt2<F> * (v.r - v.i) }; }
   }
 
+  template <typename V>
+  struct ComplexVec
+  {
+    V r;
+    V i;
+  };
+
   // Using a custom Pair struct instead of std::pair simply to avoid some ABI warnings on GCC (on ARM), which could be
   //  disabled with -Wno-psabi but in practice that's not a great solution.
   template <typename A, typename B>
@@ -159,5 +167,54 @@ namespace FFT20XX
     A first;
     B second;
   };
-}
 
+  enum class Alignment
+  {
+    Unaligned,
+    Aligned,
+  };
+
+
+  // !!! This should go back taway
+  enum class DataType
+  {
+    Complex,
+    Real,
+  };
+
+
+
+  enum class TangleType
+  {
+    ForwardLargest,
+    ForwardInner,
+    InverseLargest,
+    InverseInner,
+  };
+
+
+
+  auto BitRev(std::integral auto v)
+  {
+    if constexpr (sizeof(v) == sizeof(uint64_t))
+    {
+      v = ((v >>  1) & 0x55555555'55555555) | ((v & 0x55555555'55555555) << 1);
+      v = ((v >>  2) & 0x33333333'33333333) | ((v & 0x33333333'33333333) << 2);
+      v = ((v >>  4) & 0x0f0f0f0f'0f0f0f0f) | ((v & 0x0f0f0f0f'0f0f0f0f) << 4);
+      v = ((v >>  8) & 0x00ff00ff'00ff00ff) | ((v & 0x00ff00ff'00ff00ff) << 8);
+      v = ((v >> 16) & 0x0000ffff'0000ffff) | ((v & 0x0000ffff'0000ffff) << 16);
+      v = (v >> 32) | (v << 32);
+    }
+    else
+    {
+      static_assert(sizeof(v) == sizeof(uint32_t));
+      v = ((v >>  1) & 0x55555555) | ((v & 0x55555555) << 1);
+      v = ((v >>  2) & 0x33333333) | ((v & 0x33333333) << 2);
+      v = ((v >>  4) & 0x0f0f0f0f) | ((v & 0x0f0f0f0f) << 4);
+      v = ((v >>  8) & 0x00ff00ff) | ((v & 0x00ff00ff) << 8);
+      v = (v >> 16) | (v << 16);
+    }
+
+    return v;
+  }
+}

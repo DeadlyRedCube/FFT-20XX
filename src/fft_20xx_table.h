@@ -18,6 +18,7 @@ namespace FFT20XX
     FFTTableImpl(std::size_t maxFFTLength)
     : _maxFFTLength(std::max(size_t(32), maxFFTLength))
     , _data{fft_20xx::allocate_type_simd_aligned<F>(_maxFFTLength * 3 / 2)}
+    , _realData{fft_20xx::allocate_type_simd_aligned<F>(_maxFFTLength)}
     , _ownsData(true)
     {
       assert(IsPowerOfTwo(maxFFTLength));
@@ -36,25 +37,50 @@ namespace FFT20XX
     const F *Data() const noexcept
       { return _data; }
 
+    const F *RealData() const noexcept
+      { return _realData; }
+
   private:
+    // The real FFTs have a strange ordering to the angles due to the order that the data moves around through the
+    //  algorithm - this flips the index around when creating the angle so that we store the tables in this oddly-
+    //  reversed order.
+    static size_t DoRealFFTIndexReverse(size_t i)
+    {
+      auto mask = (i & (i - 1)) >> 1;
+
+      // Turns out, this transformation is called "Gray code"
+      // It's possible (via wikipedia) to calculate this with a single "carryless multiply" instruction on
+      // Platforms where that's a thing - but I couldn't find a clean way to test that in C++.
+      mask ^= mask >> 32;
+      mask ^= mask >> 16;
+      mask ^= mask >> 8;
+      mask ^= mask >> 4;
+      mask ^= mask >> 2;
+      mask ^= mask >> 1;
+
+      return (i - (mask & 1)) ^ mask;
+    }
+
     void BuildTable() noexcept
     {
       if (_maxFFTLength >= 16u)
       {
-        for (auto i = size_t(0); i < _maxFFTLength * 3 / 4; i++)
         {
-          constexpr auto NegTwoPi = -6.283185307179586;
-          auto angle = NegTwoPi * double(i) / double(_maxFFTLength);
           const auto offset = _maxFFTLength * 3 / 4;
-          _data[i + offset] = F(std::cos(angle));
+          for (auto i = size_t(0); i < _maxFFTLength * 3 / 4; i++)
+          {
+            constexpr auto NegTwoPi = -6.283185307179586;
+            auto angle = NegTwoPi * double(i) / double(_maxFFTLength);
+            _data[i + offset] = F(std::cos(angle));
+          }
         }
 
         // Now spread back from max until we reach 16 (8 and 4 are handled specially)
         for (auto realCount = _maxFFTLength / 4; realCount >= 16; realCount /= 2)
         {
+          const auto offset = realCount * 3 / 2;
           for (auto i = 0u; i < realCount * 3 / 2; i++)
           {
-            const auto offset = realCount * 3 / 2;
             _data[i + offset] = _data[(i + offset) * 2];
           }
         }
@@ -72,10 +98,33 @@ namespace FFT20XX
           _data[4 + i] = _data[8 + 8 + 2*i];
         }
       }
+
+      // First 8 elements are completely unused and are just there for padding/ease of indexing.
+      _realData[0] = 0.0f;
+      _realData[1] = 0.0f;
+      _realData[2] = 0.0f;
+      _realData[3] = 0.0f;
+      _realData[4] = 0.0f;
+      _realData[5] = 0.0f;
+      _realData[6] = 0.0f;
+      _realData[7] = 0.0f;
+      for (auto angleCount = 4_z; angleCount <= _maxFFTLength / 4; angleCount *= 2)
+      {
+        const auto cosOffset = angleCount * 2;
+        const auto sinOffset = cosOffset + angleCount;
+        for (auto i = 0_z; i < angleCount; i++)
+        {
+          constexpr auto NegTwoPi = -6.283185307179586;
+          auto angle = NegTwoPi * double(DoRealFFTIndexReverse(i)) / double(angleCount * 4);
+          _realData[cosOffset + i] = F(std::cos(angle));
+          _realData[sinOffset + i] = F(std::sin(angle));
+        }
+      }
     }
 
     size_t _maxFFTLength = 0;
     F *_data = nullptr;
+    F *_realData = nullptr;
     bool _ownsData = false;
   };
 

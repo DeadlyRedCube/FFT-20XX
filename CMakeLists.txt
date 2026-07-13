@@ -25,12 +25,16 @@ target_sources(
     "include/fft_20xx/fft_20xx_util.h"
 
   PRIVATE
+    "src/fft_20xx_algo_cplx.h"
+    "src/fft_20xx_algo_real_fwd.h"
     "src/fft_20xx_avx_common.h"
     "src/fft_20xx_common.h"
     "src/fft_20xx_platform.h"
     "src/fft_20xx_run.h"
     "src/fft_20xx_table.h"
     "src/fft_20xx_run.h"
+    "src/fft_20xx_tiny.h"
+    "src/fft_20xx_tiny_real.h"
 
     "src/fft_20xx_scalar.cpp"
     "src/fft_20xx_table.cpp"
@@ -53,13 +57,15 @@ if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
       fft-20xx
 
       PRIVATE
-        "src/fft_20xx_sse2.cpp"
+        "src/fft_20xx_sse2_cplx.cpp"
+        "src/fft_20xx_sse2_real_fwd.cpp"
         "src/fft_20xx_avx.cpp"
         "src/fft_20xx_fma.cpp"
   )
 
   if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    set_source_files_properties("src/fft_20xx_sse2.cpp" PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
+    set_source_files_properties("src/fft_20xx_sse2_cplx.cpp" PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
+    set_source_files_properties("src/fft_20xx_sse2_real_fwd.cpp" PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
     set_source_files_properties("src/fft_20xx_avx.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX")
     set_source_files_properties("src/fft_20xx_fma.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
   else()
@@ -90,4 +96,5 @@ endif()
 
 if (FFT_20XX_BUILD_TESTS)
   add_subdirectory("tests/smoke_test")
+  add_subdirectory("tests/benchmark")
 endif()
