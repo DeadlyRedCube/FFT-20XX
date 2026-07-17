@@ -1,3 +1,5 @@
+#include "fft_20xx_algo_real_common.h"
+
 template <Alignment Align, std::floating_point F>
 void Radix4InitialStepRealFwd(const F *input, F *output, size_t length)
 {
@@ -6,8 +8,10 @@ void Radix4InitialStepRealFwd(const F *input, F *output, size_t length)
   for (auto i = 0u; i < stride; i += VecSize)
   {
     // First radix 2
-    auto [a, b, c, d, e, f, g, h] = LoadStridedSets<Align, 8>(input + i, stride);
-    DITRealInputRadix4Pair(a, b, c, d, e, f, g, h, z);
+    VecType a, b, c, d, e, f, g, h;
+    LoadStridedSets<Align>(input + i, stride, a, b, c, d, e, f, g, h);
+    VecType t;
+    DITRealInputRadix4Pair(a, b, c, d, e, f, g, h, z, t);
     StoreStridedSets<Align>(output + i, stride, a, b, c, d, e, f, g, h);
   }
 }
@@ -27,10 +31,11 @@ inline void Radix2FwdPass(F *data, size_t length)
       auto c = Load<Align>(&data[i + 2 * stride]);
       auto d = Load<Align>(&data[i + 3 * stride]);
 
-      DITRealInputRadix2Pair(a, b, c, d);
+      VecType a2, b2;
+      DITRealInputRadix2Pair(a, b, c, d, a2, b2);
 
-      Store<Align>(&data[i + 0 * stride], a);
-      Store<Align>(&data[i + 1 * stride], b);
+      Store<Align>(&data[i + 0 * stride], a2);
+      Store<Align>(&data[i + 1 * stride], b2);
       Store<Align>(&data[i + 2 * stride], c);
       Store<Align>(&data[i + 3 * stride], d);
     }
@@ -53,10 +58,11 @@ inline void Radix2FwdPass(F *data, size_t length)
       auto aI = Load<Align>(&data[start + i + 2 * stride]);
       auto bI = Load<Align>(&data[start + i + 3 * stride]);
 
-      DITComplexRadix2(aR, aI, bR, bI, wR, wI);
+      VecType aR2, aI2;
+      DITComplexRadix2(aR, aI, bR, bI, wR, wI, aR2, aI2);
 
-      Store<Align>(&data[start + i + 0 * stride], aR);
-      Store<Align>(&data[start + i + 1 * stride], aI);
+      Store<Align>(&data[start + i + 0 * stride], aR2);
+      Store<Align>(&data[start + i + 1 * stride], aI2);
       Store<Align>(&data[start + i + 2 * stride], bR);
       Store<Align>(&data[start + i + 3 * stride], bI);
     }
@@ -93,15 +99,20 @@ FORCE_INLINE auto LoadScalarAngleTriple(const F *tableData, size_t angleIndex, s
 
 
 template <std::floating_point F>
-FORCE_INLINE auto LoadSIMDAngleDouble(const F *tableData, size_t angleIndex, size_t angleCount)
+FORCE_INLINE void LoadSIMDAngleDouble(
+  const F *tableData,
+  size_t angleIndex,
+  size_t angleCount,
+  VecType &wr2,
+  VecType &wi2,
+  VecType &wr1,
+  VecType &wi1)
 {
   auto [r0, i0, r1, i1] = GetScalarAngleIndices(angleIndex, angleCount);
-  auto wr1 = Load<Alignment::Aligned>(&tableData[r0]);
-  auto wi1 = Load<Alignment::Aligned>(&tableData[i0]);
-  auto wr2 = Load<Alignment::Aligned>(&tableData[r1]);
-  auto wi2 = Load<Alignment::Aligned>(&tableData[i1]);
-
-  return std::tuple{wr2, wi2, wr1, wi1};
+  wr1 = Load<Alignment::Aligned>(&tableData[r0]);
+  wi1 = Load<Alignment::Aligned>(&tableData[i0]);
+  wr2 = Load<Alignment::Aligned>(&tableData[r1]);
+  wi2 = Load<Alignment::Aligned>(&tableData[i1]);
 }
 
 
@@ -119,8 +130,10 @@ inline void NoFlipRadix4PassRealFwd(const F *tableData, F *data, size_t length, 
 
     for (auto i = 0u; i < stride; i += VecSize)
     {
-      auto [a, b, c, d, e, f, g, h] = LoadStridedSets<Align, 8>(data + i, stride);
-      DITRealInputRadix4Pair(a, b, c, d, e, f, g, h, z);
+      VecType a, b, c, d, e, f, g, h;
+      LoadStridedSets<Align>(data + i, stride, a, b, c, d, e, f, g, h);
+      VecType t;
+      DITRealInputRadix4Pair(a, b, c, d, e, f, g, h, z, t);
       StoreStridedSets<Align>(data + i, stride, a, b, c, d, e, f, g, h);
     }
   }
@@ -140,8 +153,10 @@ inline void NoFlipRadix4PassRealFwd(const F *tableData, F *data, size_t length, 
 
     for (auto i = subsetStartIndex; i < subsetStartIndex + stride; i += VecSize)
     {
-      auto [aR, bR, cR, dR, aI, bI, cI, dI] = LoadStridedSets<Align, 8>(data + i, stride);
-      DITComplexRadix4(aR, aI, bR, bI, cR, cI, dR, dI, w0r, w0i, w1r, w1i, w2r, w2i);
+      VecType aR, bR, cR, dR, aI, bI, cI, dI;
+      LoadStridedSets<Align>(data + i, stride, aR, bR, cR, dR, aI, bI, cI, dI);
+      VecType t0, t1;
+      DITComplexRadix4(aR, aI, bR, bI, cR, cI, dR, dI, w0r, w0i, w1r, w1i, w2r, w2i, t0, t1);
       StoreStridedSets<Align>(data + i, stride, aR, aI, bR, bI, cR, cI, dR, dI);
     }
   }
@@ -174,9 +189,12 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
       for (auto i = 0u; i < subLength / 8; i += VecSize)
       {
         // 8+6 == 14 loaded ( + 1 temp)
-        auto [a0, b0, c0, d0, e0, f0, g0, h0] = LoadStridedSets<Align, 8>(data + i, stride);
+        VecType a0, b0, c0, d0, e0, f0, g0, h0;
+        LoadStridedSets<Align>(data + i, stride, a0, b0, c0, d0, e0, f0, g0, h0);
 
-        DITRealInputRadix4Pair(a0, b0, c0, d0, e0, f0, g0, h0, InvSqrt2<F>);
+        auto z = Set1(InvSqrt2<F>);
+        VecType t0, t1;
+        DITRealInputRadix4Pair(a0, b0, c0, d0, e0, f0, g0, h0, z, t0);
 
         // Now down to 11
         Store<Align>(&data[i + 0 * stride], a0);
@@ -202,7 +220,7 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
         auto dI1 = Load<Align>(&data[i + subLength + 7 * stride]);
 
         // Back up to 15, but now we can jettison `z` to be 14, and now we have 2 temp registers, so 16 total
-        DITComplexRadix4(aR1, aI1, bR1, bI1, cR1, cI1, dR1, dI1, w0r_1, w0i_1, w1r_1, w1i_1, w2r_1, w2i_1);
+        DITComplexRadix4(aR1, aI1, bR1, bI1, cR1, cI1, dR1, dI1, w0r_1, w0i_1, w1r_1, w1i_1, w2r_1, w2i_1, t0, t1);
 
         Store<Align>(&data[i + 2 * stride], aR1);
         Store<Align>(&data[i + 3 * stride], aI1);
@@ -229,9 +247,11 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
 
       for (auto i = subsetStartIndex; i < subsetStartIndex + stride; i += VecSize)
       {
-        auto [aR0, bR0, cR0, dR0, aI0, bI0, cI0, dI0] = LoadStridedSets<Align, 8>(data + i, stride);
+        VecType aR0, bR0, cR0, dR0, aI0, bI0, cI0, dI0;
+        LoadStridedSets<Align>(data + i, stride, aR0, bR0, cR0, dR0, aI0, bI0, cI0, dI0);
 
-        DITComplexRadix4(aR0, aI0, bR0, bI0, cR0, cI0, dR0, dI0, sw0r_0, sw0i_0, sw1r_0, sw1i_0, sw2r_0, sw2i_0);
+        VecType t0, t1, t2;
+        DITComplexRadix4(aR0, aI0, bR0, bI0, cR0, cI0, dR0, dI0, sw0r_0, sw0i_0, sw1r_0, sw1i_0, sw2r_0, sw2i_0, t0, t1, t2);
 
         Store<Align>(&data[i + 0 * stride], aR0);
         Store<Align>(&data[i + 1 * stride], aI0);
@@ -252,7 +272,7 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
         auto cI1 = Load<Align>(&data[i + subLength + 6 * stride]);
         auto dI1 = Load<Align>(&data[i + subLength + 7 * stride]);
 
-        DITComplexRadix4(aR1, aI1, bR1, bI1, cR1, cI1, dR1, dI1, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1);
+        DITComplexRadix4(aR1, aI1, bR1, bI1, cR1, cI1, dR1, dI1, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1, t0, t1, t2);
 
         Store<Align>(&data[i + 2 * stride], aR1);
         Store<Align>(&data[i + 3 * stride], aI1);
@@ -277,8 +297,10 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
 
       for (auto i = 0u; i < subLength / 8; i += VecSize)
       {
-        auto [a, b, c, d, e, f, g, h] = LoadStridedSets<Align, 8>(data + i, stride);
-        DITRealInputRadix4Pair(a, b, c, d, e, f, g, h, z);
+        VecType a, b, c, d, e, f, g, h;
+        LoadStridedSets<Align>(data + i, stride, a, b, c, d, e, f, g, h);
+        VecType t;
+        DITRealInputRadix4Pair(a, b, c, d, e, f, g, h, z, t);
         StoreStridedSets<Align>(data + i, stride, a, b, e, f, c, d, g, h);
       }
     }
@@ -298,8 +320,10 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
 
       for (auto i = subsetStartIndex; i < subsetStartIndex + stride; i += VecSize)
       {
-        auto [aR, bR, cR, dR, aI, bI, cI, dI] = LoadStridedSets<Align, 8>(data + i, stride);
-        DITComplexRadix4(aR, aI, bR, bI, cR, cI, dR, dI, w0r, w0i, w1r, w1i, w2r, w2i);
+        VecType aR, bR, cR, dR, aI, bI, cI, dI;
+        LoadStridedSets<Align>(data + i, stride, aR, bR, cR, dR, aI, bI, cI, dI);
+        VecType t0, t1;
+        DITComplexRadix4(aR, aI, bR, bI, cR, cI, dR, dI, w0r, w0i, w1r, w1i, w2r, w2i, t0, t1);
         StoreStridedSets<Align>(data + i, stride, aR, aI, cR, cI, bR, bI, dR, dI);
       }
     }
@@ -347,7 +371,9 @@ inline void DoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
       auto g0 = Load<Align>(&data[start0 + i + 6 * stride]);
       auto h0 = Load<Align>(&data[start0 + i + 7 * stride]);
 
-      DITRealInputRadix4Pair(a0, b0, c0, d0, e0, f0, g0, h0, InvSqrt2<F>);
+      auto z = Set1(InvSqrt2<F>);
+      VecType t0, t1, t2;
+      DITRealInputRadix4Pair(a0, b0, c0, d0, e0, f0, g0, h0, z, t0);
 
       Store<Align>(&data[start0 + i + 0 * stride], a0);
       Store<Align>(&data[start0 + i + 1 * stride], b0);
@@ -378,7 +404,7 @@ inline void DoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
       auto h1 = Load<Align>(&data[start1 + i + 7 * stride]);
 
       // now 12 sets - R4 needs 4 additional registers (2 to hold current angle, 2 temp) so this is 16 total
-      DITComplexRadix4(a1, b1, c1, d1, e1, f1, g1, h1, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1);
+      DITComplexRadix4(a1, b1, c1, d1, e1, f1, g1, h1, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1, t0, t1, t2);
 
       Store<Align>(&data[start0 + i + 4 * stride], a1);
       Store<Align>(&data[start0 + i + 5 * stride], b1);
@@ -405,7 +431,7 @@ inline void DoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
       auto h2 = Load<Align>(&data[start2 + i + 7 * stride]);
 
       // Back up to 12 - still good on register space
-      DITComplexRadix4(a2, b2, c2, d2, e2, f2, g2, h2, sw0r_2, sw0i_2, sw1r_2, sw1i_2, sw2r_2, sw2i_2);
+      DITComplexRadix4(a2, b2, c2, d2, e2, f2, g2, h2, sw0r_2, sw0i_2, sw1r_2, sw1i_2, sw2r_2, sw2i_2, t0, t1, t2);
 
       Store<Align>(&data[start0 + i + 2 * stride], a2);
       Store<Align>(&data[start0 + i + 3 * stride], b2);
@@ -426,7 +452,7 @@ inline void DoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
 
       // At 8
 
-      DITComplexRadix4(a3, b3, c3, d3, e3, f3, g3, h3, sw0r_3, sw0i_3, sw1r_3, sw1i_3, sw2r_3, sw2i_3);
+      DITComplexRadix4(a3, b3, c3, d3, e3, f3, g3, h3, sw0r_3, sw0i_3, sw1r_3, sw1i_3, sw2r_3, sw2i_3, t0, t1, t2);
 
       // Transpose and store
       Store<Align>(&data[start0 + i + 6 * stride], a3);
@@ -480,7 +506,8 @@ inline void DoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
         auto f0 = Load<Align>(&data[start0 + i + 6 * stride]);
         auto h0 = Load<Align>(&data[start0 + i + 7 * stride]);
 
-        DITComplexRadix4(a0, b0, c0, d0, e0, f0, g0, h0, sw0r_0, sw0i_0, sw1r_0, sw1i_0, sw2r_0, sw2i_0);
+        VecType t0, t1, t2;
+        DITComplexRadix4(a0, b0, c0, d0, e0, f0, g0, h0, sw0r_0, sw0i_0, sw1r_0, sw1i_0, sw2r_0, sw2i_0, t0, t1, t2);
 
         Store<Align>(&data[start0 + i + 0 * stride], a0);
         Store<Align>(&data[start0 + i + 1 * stride], b0);
@@ -508,7 +535,7 @@ inline void DoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
         auto f1 = Load<Align>(&data[start1 + i + 6 * stride]);
         auto h1 = Load<Align>(&data[start1 + i + 7 * stride]);
 
-        DITComplexRadix4(a1, b1, c1, d1, e1, f1, g1, h1, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1);
+        DITComplexRadix4(a1, b1, c1, d1, e1, f1, g1, h1, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1, t0, t1, t2);
 
         Store<Align>(&data[start0 + i + 4 * stride], a1);
         Store<Align>(&data[start0 + i + 5 * stride], b1);
@@ -530,7 +557,7 @@ inline void DoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
         auto f2 = Load<Align>(&data[start2 + i + 6 * stride]);
         auto h2 = Load<Align>(&data[start2 + i + 7 * stride]);
 
-        DITComplexRadix4(a2, b2, c2, d2, e2, f2, g2, h2, sw0r_2, sw0i_2, sw1r_2, sw1i_2, sw2r_2, sw2i_2);
+        DITComplexRadix4(a2, b2, c2, d2, e2, f2, g2, h2, sw0r_2, sw0i_2, sw1r_2, sw1i_2, sw2r_2, sw2i_2, t0, t1, t2);
 
         Store<Align>(&data[start0 + i + 2 * stride], a2);
         Store<Align>(&data[start0 + i + 3 * stride], b2);
@@ -547,7 +574,7 @@ inline void DoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
         auto f3 = Load<Align>(&data[start3 + i + 6 * stride]);
         auto h3 = Load<Align>(&data[start3 + i + 7 * stride]);
 
-        DITComplexRadix4(a3, b3, c3, d3, e3, f3, g3, h3, sw0r_3, sw0i_3, sw1r_3, sw1i_3, sw2r_3, sw2i_3);
+        DITComplexRadix4(a3, b3, c3, d3, e3, f3, g3, h3, sw0r_3, sw0i_3, sw1r_3, sw1i_3, sw2r_3, sw2i_3, t0, t1, t2);
 
         // Transpose and store
         Store<Align>(&data[start0 + i + 6 * stride], a3);
@@ -598,22 +625,35 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
     auto bdfh3 = Load<Align>(&data[start3 + 4]);
 
     // swap {e0, g0} and {b0, d0} because the real butterfly needs them in this order instead.
-    SwapRealComponentsForLastDoubleFlip(aceg0, bdfh0);
+    VecType t1, t2;
+    SwapRealComponentsForLastDoubleFlip(aceg0, bdfh0, t1);
+    aceg0 = t1;
 
     // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler.
-    auto [a, c, e, g] = Transpose4(aceg0, aceg2, aceg1, aceg3);
-    auto [b, d, f, h] = Transpose4(bdfh0, bdfh2, bdfh1, bdfh3);
+    auto a = aceg0, c = aceg2, e = aceg1, g = aceg3;
+    auto b = bdfh0, d = bdfh2, f = bdfh1, h = bdfh3;
+    Transpose4(a, c, e, g, t1, t2);
+    Transpose4(b, d, f, h, t1, t2);
 
     // [0] angles are special-cased here because they're from a "previous" radix2 step (which hasn't been angle-
     //  reversed yet, effectively, so it's still in bit reverse order, hence the 1/sqrt(2) terms)
-    const auto [w1R, w1I, w0R, w0I] = LoadSIMDAngleDouble(tableData, 0, flipStride);
-    FinalRealDITRealComplexRadix4(a, b, c, d, e, f, g, h, w0R, w0I, w1R, w1I);
+    VecType w1R, w1I, w0R, w0I;
+    LoadSIMDAngleDouble(tableData, 0, flipStride, w1R, w1I, w0R, w0I);
+    FinalRealDITRealComplexRadix4(a, b, c, d, e, f, g, h, w0R, w0I, w1R, w1I, t1, t2);
 
     // Re-interleave the pairs (a/b, c/d, e/f, g/h)
-    auto [ab01, ab23] = Interleave4(a, b);
-    auto [cd01, cd23] = Interleave4(c, d);
-    auto [ef01, ef23] = Interleave4(e, f);
-    auto [gh01, gh23] = Interleave4(g, h);
+    Interleave4(a, b, t1);
+    auto ab01 = t1;
+    auto ab23 = b;
+    Interleave4(c, d, t1);
+    auto cd01 = t1;
+    auto cd23 = d;
+    Interleave4(e, f, t1);
+    auto ef01 = t1;
+    auto ef23 = f;
+    Interleave4(g, h, t1);
+    auto gh01 = t1;
+    auto gh23 = h;
 
     Store<Align>(&data[0], ab01);
     Store<Align>(&data[4], ab23);
@@ -653,19 +693,32 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
 
     // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler (and
     //  also lines the values up with the loaded angles)
-    auto [a, c, e, g] = Transpose4(aceg0, aceg2, aceg1, aceg3);
-    auto [b, d, f, h] = Transpose4(bdfh0, bdfh2, bdfh1, bdfh3);
 
-    const auto [w0R, w0I, w1R, w1I] = LoadSIMDAngleDouble(tableData, angleIndex0, flipStride);
-    const auto [w2R, w2I] = ComplexMultiply(w0R, w0I, w1R, w1I);
+    auto a = aceg0, c = aceg2, e = aceg1, g = aceg3;
+    auto b = bdfh0, d = bdfh2, f = bdfh1, h = bdfh3;
+    VecType t1, t2;
+    Transpose4(a, c, e, g, t1, t2);
+    Transpose4(b, d, f, h, t1, t2);
 
-    DITComplexRadix4(a, b, c, d, e, f, g, h, w0R, w0I, w1R, w1I, w2R, w2I);
+    VecType w0R, w0I, w1R, w1I, w2R, w2I;
+    LoadSIMDAngleDouble(tableData, angleIndex0, flipStride, w0R, w0I, w1R, w1I);
+    ComplexMultiply(w0R, w0I, w1R, w1I, w2R, w2I, t1, t2);
+
+    DITComplexRadix4(a, b, c, d, e, f, g, h, w0R, w0I, w1R, w1I, w2R, w2I, t1, t2);
 
     // Reinterleave
-    auto [ab01, ab23] = Interleave4(a, b);
-    auto [cd01, cd23] = Interleave4(c, d);
-    auto [ef01, ef23] = Interleave4(e, f);
-    auto [gh01, gh23] = Interleave4(g, h);
+    Interleave4(a, b, t1);
+    auto ab01 = t1;
+    auto ab23 = b;
+    Interleave4(c, d, t1);
+    auto cd01 = t1;
+    auto cd23 = d;
+    Interleave4(e, f, t1);
+    auto ef01 = t1;
+    auto ef23 = f;
+    Interleave4(g, h, t1);
+    auto gh01 = t1;
+    auto gh23 = h;
 
     Store<Align>(&data[start0 + 0], ab01);
     Store<Align>(&data[start0 + 4], ab23);

@@ -26,7 +26,9 @@ target_sources(
 
   PRIVATE
     "src/fft_20xx_algo_cplx.h"
+    "src/fft_20xx_algo_real_common.h"
     "src/fft_20xx_algo_real_fwd.h"
+    "src/fft_20xx_algo_real_inv.h"
     "src/fft_20xx_avx_common.h"
     "src/fft_20xx_common.h"
     "src/fft_20xx_platform.h"

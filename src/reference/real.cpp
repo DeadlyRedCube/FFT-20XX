@@ -1,4 +1,5 @@
 #ifdef _MSC_VER
+  #pragma warning (disable : 4710) // Function not inlined
   #pragma warning (disable : 4711)
   #pragma warning (disable : 5045)
 #endif
@@ -511,7 +512,6 @@ namespace FFT20XX
 
   void RealForwardReference(const double *input, double *output, size_t length)
   {
-    // !!! Special-cased FFT sizes
     constexpr auto MinimumPiecewiseRealFFTLength = 32;
     if (length < MinimumPiecewiseRealFFTLength)
     {
@@ -625,8 +625,6 @@ namespace FFT20XX
             DoComplexRealDIFInverseRadix4(a1, b1, c1, d1, e1, f1, g1, h1, angle0_1, angle1_1);
             DoComplexRealDIFInverseRadix4(a2, b2, c2, d2, e2, f2, g2, h2, angle0_2, angle1_2);
             DoComplexRealDIFInverseRadix4(a3, b3, c3, d3, e3, f3, g3, h3, angle0_3, angle1_3);
-
-            // !!! DIVIDES
 
             Store8(data, start0 + i, subLength / 8, a0, b0, c0, d0, e0, f0, g0, h0);
             Store8(data, start1 + i, subLength / 8, a1, b1, c1, d1, e1, f1, g1, h1);
@@ -821,25 +819,21 @@ namespace FFT20XX
     auto subLength = 8_z;
     for (; subLength <= maxDoubleFlipSubLength; subLength <<= 2)
     {
-      printf("Double flip\n");
       DoubleFlipRadix4PassRealInv(output, length, subLength);
     }
 
     if ((bitReverseCount & 1) != 0)
     {
-      printf("Single flip\n");
       SingleFlipRadix4PassRealInv(output, length, subLength);
       subLength <<= 2;
     }
 
     while (subLength <= maxSubLength)
     {
-      printf("No flip\n");
       NoFlipRadix4PassRealInv(output, length, subLength);
       subLength <<= 2;
     }
 
-    printf("Last (First)!\n");
     Radix4Or8FinalStepRealInv(output, length);
   }
 }
