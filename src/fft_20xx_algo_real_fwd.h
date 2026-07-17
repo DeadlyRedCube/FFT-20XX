@@ -8,9 +8,8 @@ void Radix4InitialStepRealFwd(const F *input, F *output, size_t length)
   for (auto i = 0u; i < stride; i += VecSize)
   {
     // First radix 2
-    VecType a, b, c, d, e, f, g, h;
+    VecType a, b, c, d, e, f, g, h, t;
     LoadStridedSets<Align>(input + i, stride, a, b, c, d, e, f, g, h);
-    VecType t;
     DITRealInputRadix4Pair(a, b, c, d, e, f, g, h, z, t);
     StoreStridedSets<Align>(output + i, stride, a, b, c, d, e, f, g, h);
   }
@@ -179,6 +178,7 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
         = LoadScalarAngleTriple(tableData, angleIndex1, angleCount);
 
       // If we load these once, they can stay resident (we'll need to re-set 1/sqrt2 every loop)
+      // These are effectively r00-r05 but they have consistent names
       const auto w0r_1 = Set1(sw0r_1);
       const auto w0i_1 = Set1(sw0i_1);
       const auto w1r_1 = Set1(sw1r_1);
@@ -188,48 +188,43 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
 
       for (auto i = 0u; i < subLength / 8; i += VecSize)
       {
-        // 8+6 == 14 loaded ( + 1 temp)
-        VecType a0, b0, c0, d0, e0, f0, g0, h0;
-        LoadStridedSets<Align>(data + i, stride, a0, b0, c0, d0, e0, f0, g0, h0);
+        VecType r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
+        LoadStridedSets<Align>(data + i, stride, r06, r07, r08, r09, r10, r11, r12, r13);
 
-        auto z = Set1(InvSqrt2<F>);
-        VecType t0, t1;
-        DITRealInputRadix4Pair(a0, b0, c0, d0, e0, f0, g0, h0, z, t0);
+        r14 = Set1(InvSqrt2<F>);
+        DITRealInputRadix4Pair(r06, r07, r08, r09, r10, r11, r12, r13, r14, r15);
 
-        // Now down to 11
-        Store<Align>(&data[i + 0 * stride], a0);
-        Store<Align>(&data[i + 1 * stride], b0);
-        Store<Align>(&data[i + 4 * stride], e0);
-        Store<Align>(&data[i + 5 * stride], f0);
+        Store<Align>(&data[i + 0 * stride], r06);
+        Store<Align>(&data[i + 1 * stride], r07);
+        Store<Align>(&data[i + 4 * stride], r10);
+        Store<Align>(&data[i + 5 * stride], r11);
 
-        auto aR1 = Load<Align>(&data[i + subLength + 0 * stride]);
-        auto bR1 = Load<Align>(&data[i + subLength + 1 * stride]);
-        Store<Align>(&data[i + subLength + 0 * stride], c0);
-        Store<Align>(&data[i + subLength + 1 * stride], d0);
+        r06 = Load<Align>(&data[i + subLength + 0 * stride]);
+        r07 = Load<Align>(&data[i + subLength + 1 * stride]);
+        Store<Align>(&data[i + subLength + 0 * stride], r08);
+        Store<Align>(&data[i + subLength + 1 * stride], r09);
 
-        auto aI1 = Load<Align>(&data[i + subLength + 4 * stride]);
-        auto bI1 = Load<Align>(&data[i + subLength + 5 * stride]);
-        Store<Align>(&data[i + subLength + 4 * stride], g0);
-        Store<Align>(&data[i + subLength + 5 * stride], h0);
+        r08 = Load<Align>(&data[i + subLength + 4 * stride]);
+        r09 = Load<Align>(&data[i + subLength + 5 * stride]);
+        Store<Align>(&data[i + subLength + 4 * stride], r12);
+        Store<Align>(&data[i + subLength + 5 * stride], r13);
 
-        // Still 11
-
-        auto cR1 = Load<Align>(&data[i + subLength + 2 * stride]);
-        auto dR1 = Load<Align>(&data[i + subLength + 3 * stride]);
-        auto cI1 = Load<Align>(&data[i + subLength + 6 * stride]);
-        auto dI1 = Load<Align>(&data[i + subLength + 7 * stride]);
+        r10 = Load<Align>(&data[i + subLength + 2 * stride]);
+        r11 = Load<Align>(&data[i + subLength + 3 * stride]);
+        r12 = Load<Align>(&data[i + subLength + 6 * stride]);
+        r13 = Load<Align>(&data[i + subLength + 7 * stride]);
 
         // Back up to 15, but now we can jettison `z` to be 14, and now we have 2 temp registers, so 16 total
-        DITComplexRadix4(aR1, aI1, bR1, bI1, cR1, cI1, dR1, dI1, w0r_1, w0i_1, w1r_1, w1i_1, w2r_1, w2i_1, t0, t1);
+        DITComplexRadix4(r06, r08, r07, r09, r10, r12, r11, r13, w0r_1, w0i_1, w1r_1, w1i_1, w2r_1, w2i_1, r14, r15);
 
-        Store<Align>(&data[i + 2 * stride], aR1);
-        Store<Align>(&data[i + 3 * stride], aI1);
-        Store<Align>(&data[i + 6 * stride], cR1);
-        Store<Align>(&data[i + 7 * stride], cI1);
-        Store<Align>(&data[i + subLength + 2 * stride], bR1);
-        Store<Align>(&data[i + subLength + 3 * stride], bI1);
-        Store<Align>(&data[i + subLength + 6 * stride], dR1);
-        Store<Align>(&data[i + subLength + 7 * stride], dI1);
+        Store<Align>(&data[i + 2 * stride], r06);
+        Store<Align>(&data[i + 3 * stride], r08);
+        Store<Align>(&data[i + 6 * stride], r10);
+        Store<Align>(&data[i + 7 * stride], r12);
+        Store<Align>(&data[i + subLength + 2 * stride], r07);
+        Store<Align>(&data[i + subLength + 3 * stride], r09);
+        Store<Align>(&data[i + subLength + 6 * stride], r11);
+        Store<Align>(&data[i + subLength + 7 * stride], r13);
       }
     }
 
@@ -245,43 +240,50 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
       const auto [sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1]
         = LoadScalarAngleTriple(tableData, angleIndex1, angleCount);
 
+      // We can pre-load these 5 angles and not have to re-set them every time since we have some spare registers.
+      //  Alas, the last imaginary component still needs to be re-set each time.
+      VecType r11, r12, r13, r14, r15;
+      r11 = Set1(sw0r_0);
+      r12 = Set1(sw0i_0);
+      r13 = Set1(sw1r_0);
+      r14 = Set1(sw1i_0);
+      r15 = Set1(sw2r_0);
       for (auto i = subsetStartIndex; i < subsetStartIndex + stride; i += VecSize)
       {
-        VecType aR0, bR0, cR0, dR0, aI0, bI0, cI0, dI0;
-        LoadStridedSets<Align>(data + i, stride, aR0, bR0, cR0, dR0, aI0, bI0, cI0, dI0);
+        VecType r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10;
+        r08 = Set1(sw2i_0);
+        LoadStridedSets<Align>(data + i, stride, r00, r01, r02, r03, r04, r05, r06, r07);
+        DITComplexRadix4(r00, r04, r01, r05, r02, r06, r03, r07, r11, r12, r13, r14, r15, r08, r09, r10);
 
-        VecType t0, t1, t2;
-        DITComplexRadix4(aR0, aI0, bR0, bI0, cR0, cI0, dR0, dI0, sw0r_0, sw0i_0, sw1r_0, sw1i_0, sw2r_0, sw2i_0, t0, t1, t2);
+        Store<Align>(&data[i + 0 * stride], r00);
+        Store<Align>(&data[i + 1 * stride], r04);
+        Store<Align>(&data[i + 4 * stride], r02);
+        Store<Align>(&data[i + 5 * stride], r06);
 
-        Store<Align>(&data[i + 0 * stride], aR0);
-        Store<Align>(&data[i + 1 * stride], aI0);
-        Store<Align>(&data[i + 4 * stride], cR0);
-        Store<Align>(&data[i + 5 * stride], cI0);
+        r00 = Load<Align>(&data[i + subLength + 0 * stride]);
+        r02 = Load<Align>(&data[i + subLength + 1 * stride]);
+        Store<Align>(&data[i + subLength + 0 * stride], r01);
+        Store<Align>(&data[i + subLength + 1 * stride], r05);
+        r01 = Load<Align>(&data[i + subLength + 4 * stride]);
+        r04 = Load<Align>(&data[i + subLength + 5 * stride]);
+        Store<Align>(&data[i + subLength + 4 * stride], r03);
+        Store<Align>(&data[i + subLength + 5 * stride], r07);
 
-        auto aR1 = Load<Align>(&data[i + subLength + 0 * stride]);
-        auto bR1 = Load<Align>(&data[i + subLength + 1 * stride]);
-        Store<Align>(&data[i + subLength + 0 * stride], bR0);
-        Store<Align>(&data[i + subLength + 1 * stride], bI0);
-        auto aI1 = Load<Align>(&data[i + subLength + 4 * stride]);
-        auto bI1 = Load<Align>(&data[i + subLength + 5 * stride]);
-        Store<Align>(&data[i + subLength + 4 * stride], dR0);
-        Store<Align>(&data[i + subLength + 5 * stride], dI0);
+        r03 = Load<Align>(&data[i + subLength + 2 * stride]);
+        r05 = Load<Align>(&data[i + subLength + 3 * stride]);
+        r06 = Load<Align>(&data[i + subLength + 6 * stride]);
+        r07 = Load<Align>(&data[i + subLength + 7 * stride]);
 
-        auto cR1 = Load<Align>(&data[i + subLength + 2 * stride]);
-        auto dR1 = Load<Align>(&data[i + subLength + 3 * stride]);
-        auto cI1 = Load<Align>(&data[i + subLength + 6 * stride]);
-        auto dI1 = Load<Align>(&data[i + subLength + 7 * stride]);
+        DITComplexRadix4(r00, r01, r02, r04, r03, r06, r05, r07, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1, r08, r09, r10);
 
-        DITComplexRadix4(aR1, aI1, bR1, bI1, cR1, cI1, dR1, dI1, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1, t0, t1, t2);
-
-        Store<Align>(&data[i + 2 * stride], aR1);
-        Store<Align>(&data[i + 3 * stride], aI1);
-        Store<Align>(&data[i + 6 * stride], cR1);
-        Store<Align>(&data[i + 7 * stride], cI1);
-        Store<Align>(&data[i + subLength + 2 * stride], bR1);
-        Store<Align>(&data[i + subLength + 3 * stride], bI1);
-        Store<Align>(&data[i + subLength + 6 * stride], dR1);
-        Store<Align>(&data[i + subLength + 7 * stride], dI1);
+        Store<Align>(&data[i + 2 * stride], r00);
+        Store<Align>(&data[i + 3 * stride], r01);
+        Store<Align>(&data[i + 6 * stride], r03);
+        Store<Align>(&data[i + 7 * stride], r06);
+        Store<Align>(&data[i + subLength + 2 * stride], r02);
+        Store<Align>(&data[i + subLength + 3 * stride], r04);
+        Store<Align>(&data[i + subLength + 6 * stride], r05);
+        Store<Align>(&data[i + subLength + 7 * stride], r07);
       }
     }
   }
@@ -297,9 +299,8 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
 
       for (auto i = 0u; i < subLength / 8; i += VecSize)
       {
-        VecType a, b, c, d, e, f, g, h;
+        VecType a, b, c, d, e, f, g, h, t;
         LoadStridedSets<Align>(data + i, stride, a, b, c, d, e, f, g, h);
-        VecType t;
         DITRealInputRadix4Pair(a, b, c, d, e, f, g, h, z, t);
         StoreStridedSets<Align>(data + i, stride, a, b, e, f, c, d, g, h);
       }
@@ -320,9 +321,8 @@ inline void SingleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
 
       for (auto i = subsetStartIndex; i < subsetStartIndex + stride; i += VecSize)
       {
-        VecType aR, bR, cR, dR, aI, bI, cI, dI;
+        VecType aR, bR, cR, dR, aI, bI, cI, dI, t0, t1;
         LoadStridedSets<Align>(data + i, stride, aR, bR, cR, dR, aI, bI, cI, dI);
-        VecType t0, t1;
         DITComplexRadix4(aR, aI, bR, bI, cR, cI, dR, dI, w0r, w0i, w1r, w1i, w2r, w2i, t0, t1);
         StoreStridedSets<Align>(data + i, stride, aR, aI, cR, cI, bR, bI, dR, dI);
       }
@@ -359,110 +359,110 @@ inline void DoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
       = LoadScalarAngleTriple(tableData, angleIndex2, flipStride);
     const auto [sw0r_3, sw0i_3, sw1r_3, sw1i_3, sw2r_3, sw2i_3]
       = LoadScalarAngleTriple(tableData, angleIndex3, flipStride);
+    const auto r15 = Set1(InvSqrt2<F>);
     for (auto i = 0u;;)
     {
       // 8 sets loaded
-      auto a0 = Load<Align>(&data[start0 + i + 0 * stride]);
-      auto b0 = Load<Align>(&data[start0 + i + 1 * stride]);
-      auto c0 = Load<Align>(&data[start0 + i + 2 * stride]);
-      auto d0 = Load<Align>(&data[start0 + i + 3 * stride]);
-      auto e0 = Load<Align>(&data[start0 + i + 4 * stride]);
-      auto f0 = Load<Align>(&data[start0 + i + 5 * stride]);
-      auto g0 = Load<Align>(&data[start0 + i + 6 * stride]);
-      auto h0 = Load<Align>(&data[start0 + i + 7 * stride]);
+      VecType r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14;
+      r00 = Load<Align>(&data[start0 + i + 0 * stride]);
+      r01 = Load<Align>(&data[start0 + i + 1 * stride]);
+      r02 = Load<Align>(&data[start0 + i + 2 * stride]);
+      r03 = Load<Align>(&data[start0 + i + 3 * stride]);
+      r04 = Load<Align>(&data[start0 + i + 4 * stride]);
+      r05 = Load<Align>(&data[start0 + i + 5 * stride]);
+      r06 = Load<Align>(&data[start0 + i + 6 * stride]);
+      r07 = Load<Align>(&data[start0 + i + 7 * stride]);
 
-      auto z = Set1(InvSqrt2<F>);
-      VecType t0, t1, t2;
-      DITRealInputRadix4Pair(a0, b0, c0, d0, e0, f0, g0, h0, z, t0);
+      DITRealInputRadix4Pair(r00, r01, r02, r03, r04, r05, r06, r07, r15, r12);
 
-      Store<Align>(&data[start0 + i + 0 * stride], a0);
-      Store<Align>(&data[start0 + i + 1 * stride], b0);
+      Store<Align>(&data[start0 + i + 0 * stride], r00);
+      Store<Align>(&data[start0 + i + 1 * stride], r01);
 
       // 6 sets loaded
-      auto a2 = Load<Align>(&data[start2 + i + 0 * stride]);
-      auto c2 = Load<Align>(&data[start2 + i + 1 * stride]);
-      Store<Align>(&data[start2 + i + 0 * stride], c0);
-      Store<Align>(&data[start2 + i + 1 * stride], d0);
+      r00 = Load<Align>(&data[start2 + i + 0 * stride]);
+      r01 = Load<Align>(&data[start2 + i + 1 * stride]);
+      Store<Align>(&data[start2 + i + 0 * stride], r02);
+      Store<Align>(&data[start2 + i + 1 * stride], r03);
 
-      auto a3 = Load<Align>(&data[start3 + i + 0 * stride]);
-      auto c3 = Load<Align>(&data[start3 + i + 1 * stride]);
-      Store<Align>(&data[start3 + i + 0 * stride], g0);
-      Store<Align>(&data[start3 + i + 1 * stride], h0);
+      r02 = Load<Align>(&data[start3 + i + 0 * stride]);
+      r03 = Load<Align>(&data[start3 + i + 1 * stride]);
+      Store<Align>(&data[start3 + i + 0 * stride], r06);
+      Store<Align>(&data[start3 + i + 1 * stride], r07);
 
-      auto a1 = Load<Align>(&data[start1 + i + 0 * stride]);
-      auto c1 = Load<Align>(&data[start1 + i + 1 * stride]);
-      Store<Align>(&data[start1 + i + 0 * stride], e0);
-      Store<Align>(&data[start1 + i + 1 * stride], f0);
+      r06 = Load<Align>(&data[start1 + i + 0 * stride]);
+      r07 = Load<Align>(&data[start1 + i + 1 * stride]);
+      Store<Align>(&data[start1 + i + 0 * stride], r04);
+      Store<Align>(&data[start1 + i + 1 * stride], r05);
 
       // still 6 sets loaded
 
-      auto e1 = Load<Align>(&data[start1 + i + 2 * stride]);
-      auto g1 = Load<Align>(&data[start1 + i + 3 * stride]);
-      auto b1 = Load<Align>(&data[start1 + i + 4 * stride]);
-      auto d1 = Load<Align>(&data[start1 + i + 5 * stride]);
-      auto f1 = Load<Align>(&data[start1 + i + 6 * stride]);
-      auto h1 = Load<Align>(&data[start1 + i + 7 * stride]);
+      r04 = Load<Align>(&data[start1 + i + 2 * stride]);
+      r05 = Load<Align>(&data[start1 + i + 3 * stride]);
+      r08 = Load<Align>(&data[start1 + i + 4 * stride]);
+      r09 = Load<Align>(&data[start1 + i + 5 * stride]);
+      r10 = Load<Align>(&data[start1 + i + 6 * stride]);
+      r11 = Load<Align>(&data[start1 + i + 7 * stride]);
 
       // now 12 sets - R4 needs 4 additional registers (2 to hold current angle, 2 temp) so this is 16 total
-      DITComplexRadix4(a1, b1, c1, d1, e1, f1, g1, h1, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1, t0, t1, t2);
+      DITComplexRadix4(r06, r08, r07, r09, r04, r10, r05, r11, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1, r12, r13, r14);
 
-      Store<Align>(&data[start0 + i + 4 * stride], a1);
-      Store<Align>(&data[start0 + i + 5 * stride], b1);
-      Store<Align>(&data[start1 + i + 4 * stride], e1);
-      Store<Align>(&data[start1 + i + 5 * stride], f1);
+      Store<Align>(&data[start0 + i + 4 * stride], r06);
+      Store<Align>(&data[start0 + i + 5 * stride], r08);
+      Store<Align>(&data[start1 + i + 4 * stride], r04);
+      Store<Align>(&data[start1 + i + 5 * stride], r10);
 
       // now 8 sets loaded
 
-      auto b3 = Load<Align>(&data[start3 + i + 4 * stride]);
-      auto d3 = Load<Align>(&data[start3 + i + 5 * stride]);
-      Store<Align>(&data[start3 + i + 4 * stride], g1);
-      Store<Align>(&data[start3 + i + 5 * stride], h1);
+      r04 = Load<Align>(&data[start3 + i + 4 * stride]);
+      r06 = Load<Align>(&data[start3 + i + 5 * stride]);
+      Store<Align>(&data[start3 + i + 4 * stride], r05);
+      Store<Align>(&data[start3 + i + 5 * stride], r11);
 
-      auto b2 = Load<Align>(&data[start2 + i + 4 * stride]);
-      auto d2 = Load<Align>(&data[start2 + i + 5 * stride]);
-      Store<Align>(&data[start2 + i + 4 * stride], c1);
-      Store<Align>(&data[start2 + i + 5 * stride], d1);
+      r05 = Load<Align>(&data[start2 + i + 4 * stride]);
+      r08 = Load<Align>(&data[start2 + i + 5 * stride]);
+      Store<Align>(&data[start2 + i + 4 * stride], r07);
+      Store<Align>(&data[start2 + i + 5 * stride], r09);
 
       // Still 8 loaded
 
-      auto e2 = Load<Align>(&data[start2 + i + 2 * stride]);
-      auto g2 = Load<Align>(&data[start2 + i + 3 * stride]);
-      auto f2 = Load<Align>(&data[start2 + i + 6 * stride]);
-      auto h2 = Load<Align>(&data[start2 + i + 7 * stride]);
+      r07 = Load<Align>(&data[start2 + i + 2 * stride]);
+      r09 = Load<Align>(&data[start2 + i + 3 * stride]);
+      r10 = Load<Align>(&data[start2 + i + 6 * stride]);
+      r11 = Load<Align>(&data[start2 + i + 7 * stride]);
 
       // Back up to 12 - still good on register space
-      DITComplexRadix4(a2, b2, c2, d2, e2, f2, g2, h2, sw0r_2, sw0i_2, sw1r_2, sw1i_2, sw2r_2, sw2i_2, t0, t1, t2);
+      DITComplexRadix4(r00, r05, r01, r08, r07, r10, r09, r11, sw0r_2, sw0i_2, sw1r_2, sw1i_2, sw2r_2, sw2i_2, r12, r13, r14);
 
-      Store<Align>(&data[start0 + i + 2 * stride], a2);
-      Store<Align>(&data[start0 + i + 3 * stride], b2);
-      Store<Align>(&data[start1 + i + 2 * stride], e2);
-      Store<Align>(&data[start1 + i + 3 * stride], f2);
-      Store<Align>(&data[start2 + i + 2 * stride], c2);
-      Store<Align>(&data[start2 + i + 3 * stride], d2);
+      Store<Align>(&data[start0 + i + 2 * stride], r00);
+      Store<Align>(&data[start0 + i + 3 * stride], r05);
+      Store<Align>(&data[start1 + i + 2 * stride], r07);
+      Store<Align>(&data[start1 + i + 3 * stride], r10);
+      Store<Align>(&data[start2 + i + 2 * stride], r01);
+      Store<Align>(&data[start2 + i + 3 * stride], r08);
 
       // Down to 6 registers now
 
-      auto e3 = Load<Align>(&data[start3 + i + 2 * stride]);
-      auto g3 = Load<Align>(&data[start3 + i + 3 * stride]);
-      Store<Align>(&data[start3 + i + 2 * stride], g2);
-      Store<Align>(&data[start3 + i + 3 * stride], h2);
+      r00 = Load<Align>(&data[start3 + i + 2 * stride]);
+      r01 = Load<Align>(&data[start3 + i + 3 * stride]);
+      Store<Align>(&data[start3 + i + 2 * stride], r09);
+      Store<Align>(&data[start3 + i + 3 * stride], r11);
 
-      auto f3 = Load<Align>(&data[start3 + i + 6 * stride]);
-      auto h3 = Load<Align>(&data[start3 + i + 7 * stride]);
+      r05 = Load<Align>(&data[start3 + i + 6 * stride]);
+      r07 = Load<Align>(&data[start3 + i + 7 * stride]);
 
       // At 8
 
-      DITComplexRadix4(a3, b3, c3, d3, e3, f3, g3, h3, sw0r_3, sw0i_3, sw1r_3, sw1i_3, sw2r_3, sw2i_3, t0, t1, t2);
+      DITComplexRadix4(r02, r04, r03, r06, r00, r05, r01, r07, sw0r_3, sw0i_3, sw1r_3, sw1i_3, sw2r_3, sw2i_3, r12, r13, r14);
 
       // Transpose and store
-      Store<Align>(&data[start0 + i + 6 * stride], a3);
-      Store<Align>(&data[start0 + i + 7 * stride], b3);
-      Store<Align>(&data[start1 + i + 6 * stride], e3);
-      Store<Align>(&data[start1 + i + 7 * stride], f3);
-      Store<Align>(&data[start2 + i + 6 * stride], c3);
-      Store<Align>(&data[start2 + i + 7 * stride], d3);
-      Store<Align>(&data[start3 + i + 6 * stride], g3);
-      Store<Align>(&data[start3 + i + 7 * stride], h3);
+      Store<Align>(&data[start0 + i + 6 * stride], r02);
+      Store<Align>(&data[start0 + i + 7 * stride], r04);
+      Store<Align>(&data[start1 + i + 6 * stride], r00);
+      Store<Align>(&data[start1 + i + 7 * stride], r05);
+      Store<Align>(&data[start2 + i + 6 * stride], r03);
+      Store<Align>(&data[start2 + i + 7 * stride], r06);
+      Store<Align>(&data[start3 + i + 6 * stride], r01);
+      Store<Align>(&data[start3 + i + 7 * stride], r07);
 
       i += VecSize;
       if (i >= stride)
@@ -497,94 +497,94 @@ inline void DoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t leng
         = LoadScalarAngleTriple(tableData, angleIndex3, flipStride);
       for (auto i = 0u;;)
       {
-        auto a0 = Load<Align>(&data[start0 + i + 0 * stride]);
-        auto c0 = Load<Align>(&data[start0 + i + 1 * stride]);
-        auto e0 = Load<Align>(&data[start0 + i + 2 * stride]);
-        auto g0 = Load<Align>(&data[start0 + i + 3 * stride]);
-        auto b0 = Load<Align>(&data[start0 + i + 4 * stride]);
-        auto d0 = Load<Align>(&data[start0 + i + 5 * stride]);
-        auto f0 = Load<Align>(&data[start0 + i + 6 * stride]);
-        auto h0 = Load<Align>(&data[start0 + i + 7 * stride]);
+        VecType r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14;
+        r00 = Load<Align>(&data[start0 + i + 0 * stride]);
+        r01 = Load<Align>(&data[start0 + i + 1 * stride]);
+        r02 = Load<Align>(&data[start0 + i + 2 * stride]);
+        r03 = Load<Align>(&data[start0 + i + 3 * stride]);
+        r04 = Load<Align>(&data[start0 + i + 4 * stride]);
+        r05 = Load<Align>(&data[start0 + i + 5 * stride]);
+        r06 = Load<Align>(&data[start0 + i + 6 * stride]);
+        r07 = Load<Align>(&data[start0 + i + 7 * stride]);
 
-        VecType t0, t1, t2;
-        DITComplexRadix4(a0, b0, c0, d0, e0, f0, g0, h0, sw0r_0, sw0i_0, sw1r_0, sw1i_0, sw2r_0, sw2i_0, t0, t1, t2);
+        DITComplexRadix4(r00, r04, r01, r05, r02, r06, r03, r07, sw0r_0, sw0i_0, sw1r_0, sw1i_0, sw2r_0, sw2i_0, r12, r13, r14);
 
-        Store<Align>(&data[start0 + i + 0 * stride], a0);
-        Store<Align>(&data[start0 + i + 1 * stride], b0);
+        Store<Align>(&data[start0 + i + 0 * stride], r00);
+        Store<Align>(&data[start0 + i + 1 * stride], r04);
 
-        auto a2 = Load<Align>(&data[start2 + i + 0 * stride]);
-        auto c2 = Load<Align>(&data[start2 + i + 1 * stride]);
-        Store<Align>(&data[start2 + i + 0 * stride], c0);
-        Store<Align>(&data[start2 + i + 1 * stride], d0);
+        r00 = Load<Align>(&data[start2 + i + 0 * stride]);
+        r04 = Load<Align>(&data[start2 + i + 1 * stride]);
+        Store<Align>(&data[start2 + i + 0 * stride], r01);
+        Store<Align>(&data[start2 + i + 1 * stride], r05);
 
-        auto a1 = Load<Align>(&data[start1 + i + 0 * stride]);
-        auto c1 = Load<Align>(&data[start1 + i + 1 * stride]);
-        Store<Align>(&data[start1 + i + 0 * stride], e0);
-        Store<Align>(&data[start1 + i + 1 * stride], f0);
+        r01 = Load<Align>(&data[start1 + i + 0 * stride]);
+        r05 = Load<Align>(&data[start1 + i + 1 * stride]);
+        Store<Align>(&data[start1 + i + 0 * stride], r02);
+        Store<Align>(&data[start1 + i + 1 * stride], r06);
 
-        auto a3 = Load<Align>(&data[start3 + i + 0 * stride]);
-        auto c3 = Load<Align>(&data[start3 + i + 1 * stride]);
-        Store<Align>(&data[start3 + i + 0 * stride], g0);
-        Store<Align>(&data[start3 + i + 1 * stride], h0);
+        r02 = Load<Align>(&data[start3 + i + 0 * stride]);
+        r06 = Load<Align>(&data[start3 + i + 1 * stride]);
+        Store<Align>(&data[start3 + i + 0 * stride], r03);
+        Store<Align>(&data[start3 + i + 1 * stride], r07);
 
 
-        auto e1 = Load<Align>(&data[start1 + i + 2 * stride]);
-        auto g1 = Load<Align>(&data[start1 + i + 3 * stride]);
-        auto b1 = Load<Align>(&data[start1 + i + 4 * stride]);
-        auto d1 = Load<Align>(&data[start1 + i + 5 * stride]);
-        auto f1 = Load<Align>(&data[start1 + i + 6 * stride]);
-        auto h1 = Load<Align>(&data[start1 + i + 7 * stride]);
+        r03 = Load<Align>(&data[start1 + i + 2 * stride]);
+        r07 = Load<Align>(&data[start1 + i + 3 * stride]);
+        r08 = Load<Align>(&data[start1 + i + 4 * stride]);
+        r09 = Load<Align>(&data[start1 + i + 5 * stride]);
+        r10 = Load<Align>(&data[start1 + i + 6 * stride]);
+        r11 = Load<Align>(&data[start1 + i + 7 * stride]);
 
-        DITComplexRadix4(a1, b1, c1, d1, e1, f1, g1, h1, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1, t0, t1, t2);
+        DITComplexRadix4(r01, r08, r05, r09, r03, r10, r07, r11, sw0r_1, sw0i_1, sw1r_1, sw1i_1, sw2r_1, sw2i_1, r12, r13, r14);
 
-        Store<Align>(&data[start0 + i + 4 * stride], a1);
-        Store<Align>(&data[start0 + i + 5 * stride], b1);
-        Store<Align>(&data[start1 + i + 4 * stride], e1);
-        Store<Align>(&data[start1 + i + 5 * stride], f1);
+        Store<Align>(&data[start0 + i + 4 * stride], r01);
+        Store<Align>(&data[start0 + i + 5 * stride], r08);
+        Store<Align>(&data[start1 + i + 4 * stride], r03);
+        Store<Align>(&data[start1 + i + 5 * stride], r10);
 
-        auto b2 = Load<Align>(&data[start2 + i + 4 * stride]);
-        auto d2 = Load<Align>(&data[start2 + i + 5 * stride]);
-        Store<Align>(&data[start2 + i + 4 * stride], c1);
-        Store<Align>(&data[start2 + i + 5 * stride], d1);
+        r01 = Load<Align>(&data[start2 + i + 4 * stride]);
+        r03 = Load<Align>(&data[start2 + i + 5 * stride]);
+        Store<Align>(&data[start2 + i + 4 * stride], r05);
+        Store<Align>(&data[start2 + i + 5 * stride], r09);
 
-        auto b3 = Load<Align>(&data[start3 + i + 4 * stride]);
-        auto d3 = Load<Align>(&data[start3 + i + 5 * stride]);
-        Store<Align>(&data[start3 + i + 4 * stride], g1);
-        Store<Align>(&data[start3 + i + 5 * stride], h1);
+        r05 = Load<Align>(&data[start3 + i + 4 * stride]);
+        r08 = Load<Align>(&data[start3 + i + 5 * stride]);
+        Store<Align>(&data[start3 + i + 4 * stride], r07);
+        Store<Align>(&data[start3 + i + 5 * stride], r11);
 
-        auto e2 = Load<Align>(&data[start2 + i + 2 * stride]);
-        auto g2 = Load<Align>(&data[start2 + i + 3 * stride]);
-        auto f2 = Load<Align>(&data[start2 + i + 6 * stride]);
-        auto h2 = Load<Align>(&data[start2 + i + 7 * stride]);
+        r07 = Load<Align>(&data[start2 + i + 2 * stride]);
+        r09 = Load<Align>(&data[start2 + i + 3 * stride]);
+        r10 = Load<Align>(&data[start2 + i + 6 * stride]);
+        r11 = Load<Align>(&data[start2 + i + 7 * stride]);
 
-        DITComplexRadix4(a2, b2, c2, d2, e2, f2, g2, h2, sw0r_2, sw0i_2, sw1r_2, sw1i_2, sw2r_2, sw2i_2, t0, t1, t2);
+        DITComplexRadix4(r00, r01, r04, r03, r07, r10, r09, r11, sw0r_2, sw0i_2, sw1r_2, sw1i_2, sw2r_2, sw2i_2, r12, r13, r14);
 
-        Store<Align>(&data[start0 + i + 2 * stride], a2);
-        Store<Align>(&data[start0 + i + 3 * stride], b2);
-        Store<Align>(&data[start1 + i + 2 * stride], e2);
-        Store<Align>(&data[start1 + i + 3 * stride], f2);
-        Store<Align>(&data[start2 + i + 2 * stride], c2);
-        Store<Align>(&data[start2 + i + 3 * stride], d2);
+        Store<Align>(&data[start0 + i + 2 * stride], r00);
+        Store<Align>(&data[start0 + i + 3 * stride], r01);
+        Store<Align>(&data[start1 + i + 2 * stride], r07);
+        Store<Align>(&data[start1 + i + 3 * stride], r10);
+        Store<Align>(&data[start2 + i + 2 * stride], r04);
+        Store<Align>(&data[start2 + i + 3 * stride], r03);
 
-        auto e3 = Load<Align>(&data[start3 + i + 2 * stride]);
-        auto g3 = Load<Align>(&data[start3 + i + 3 * stride]);
-        Store<Align>(&data[start3 + i + 2 * stride], g2);
-        Store<Align>(&data[start3 + i + 3 * stride], h2);
+        r00 = Load<Align>(&data[start3 + i + 2 * stride]);
+        r01 = Load<Align>(&data[start3 + i + 3 * stride]);
+        Store<Align>(&data[start3 + i + 2 * stride], r09);
+        Store<Align>(&data[start3 + i + 3 * stride], r11);
 
-        auto f3 = Load<Align>(&data[start3 + i + 6 * stride]);
-        auto h3 = Load<Align>(&data[start3 + i + 7 * stride]);
+        r03 = Load<Align>(&data[start3 + i + 6 * stride]);
+        r04 = Load<Align>(&data[start3 + i + 7 * stride]);
 
-        DITComplexRadix4(a3, b3, c3, d3, e3, f3, g3, h3, sw0r_3, sw0i_3, sw1r_3, sw1i_3, sw2r_3, sw2i_3, t0, t1, t2);
+        DITComplexRadix4(r02, r05, r06, r08, r00, r03, r01, r04, sw0r_3, sw0i_3, sw1r_3, sw1i_3, sw2r_3, sw2i_3, r12, r13, r14);
 
         // Transpose and store
-        Store<Align>(&data[start0 + i + 6 * stride], a3);
-        Store<Align>(&data[start0 + i + 7 * stride], b3);
-        Store<Align>(&data[start1 + i + 6 * stride], e3);
-        Store<Align>(&data[start1 + i + 7 * stride], f3);
-        Store<Align>(&data[start2 + i + 6 * stride], c3);
-        Store<Align>(&data[start2 + i + 7 * stride], d3);
-        Store<Align>(&data[start3 + i + 6 * stride], g3);
-        Store<Align>(&data[start3 + i + 7 * stride], h3);
+        Store<Align>(&data[start0 + i + 6 * stride], r02);
+        Store<Align>(&data[start0 + i + 7 * stride], r05);
+        Store<Align>(&data[start1 + i + 6 * stride], r00);
+        Store<Align>(&data[start1 + i + 7 * stride], r03);
+        Store<Align>(&data[start2 + i + 6 * stride], r06);
+        Store<Align>(&data[start2 + i + 7 * stride], r08);
+        Store<Align>(&data[start3 + i + 6 * stride], r01);
+        Store<Align>(&data[start3 + i + 7 * stride], r04);
 
         i += VecSize;
         if (i >= stride)
@@ -615,54 +615,42 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
     const auto start2 = 2_z * flipStride;
     const auto start3 = 3_z * flipStride;
 
-    auto aceg0 = Load<Align>(&data[0]);
-    auto bdfh0 = Load<Align>(&data[4]);
-    auto aceg1 = Load<Align>(&data[start1 + 0]);
-    auto bdfh1 = Load<Align>(&data[start1 + 4]);
-    auto aceg2 = Load<Align>(&data[start2 + 0]);
-    auto bdfh2 = Load<Align>(&data[start2 + 4]);
-    auto aceg3 = Load<Align>(&data[start3 + 0]);
-    auto bdfh3 = Load<Align>(&data[start3 + 4]);
+    VecType r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13;
+    r00 = Load<Align>(&data[0]);
+    r01 = Load<Align>(&data[4]);
+    r02 = Load<Align>(&data[start1 + 0]);
+    r03 = Load<Align>(&data[start1 + 4]);
+    r04 = Load<Align>(&data[start2 + 0]);
+    r05 = Load<Align>(&data[start2 + 4]);
+    r06 = Load<Align>(&data[start3 + 0]);
+    r07 = Load<Align>(&data[start3 + 4]);
 
     // swap {e0, g0} and {b0, d0} because the real butterfly needs them in this order instead.
-    VecType t1, t2;
-    SwapRealComponentsForLastDoubleFlip(aceg0, bdfh0, t1);
-    aceg0 = t1;
+    SwapRealComponentsForLastDoubleFlip(r00, r01, r08);
 
     // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler.
-    auto a = aceg0, c = aceg2, e = aceg1, g = aceg3;
-    auto b = bdfh0, d = bdfh2, f = bdfh1, h = bdfh3;
-    Transpose4(a, c, e, g, t1, t2);
-    Transpose4(b, d, f, h, t1, t2);
+    Transpose4(r08, r04, r02, r06, r00, r10);
+    Transpose4(r01, r05, r03, r07, r00, r10);
 
     // [0] angles are special-cased here because they're from a "previous" radix2 step (which hasn't been angle-
     //  reversed yet, effectively, so it's still in bit reverse order, hence the 1/sqrt(2) terms)
-    VecType w1R, w1I, w0R, w0I;
-    LoadSIMDAngleDouble(tableData, 0, flipStride, w1R, w1I, w0R, w0I);
-    FinalRealDITRealComplexRadix4(a, b, c, d, e, f, g, h, w0R, w0I, w1R, w1I, t1, t2);
+    LoadSIMDAngleDouble(tableData, 0, flipStride, r00, r11, r12, r13);
+    FinalRealDITRealComplexRadix4(r08, r01, r04, r05, r02, r03, r06, r07, r12, r13, r00, r11, r09, r10);
 
     // Re-interleave the pairs (a/b, c/d, e/f, g/h)
-    Interleave4(a, b, t1);
-    auto ab01 = t1;
-    auto ab23 = b;
-    Interleave4(c, d, t1);
-    auto cd01 = t1;
-    auto cd23 = d;
-    Interleave4(e, f, t1);
-    auto ef01 = t1;
-    auto ef23 = f;
-    Interleave4(g, h, t1);
-    auto gh01 = t1;
-    auto gh23 = h;
+    Interleave4(r08, r01, r00);
+    Interleave4(r04, r05, r08);
+    Interleave4(r02, r03, r04);
+    Interleave4(r06, r07, r02);
 
-    Store<Align>(&data[0], ab01);
-    Store<Align>(&data[4], ab23);
-    Store<Align>(&data[start1 + 0], ef01);
-    Store<Align>(&data[start1 + 4], ef23);
-    Store<Align>(&data[start2 + 0], cd01);
-    Store<Align>(&data[start2 + 4], cd23);
-    Store<Align>(&data[start3 + 0], gh01);
-    Store<Align>(&data[start3 + 4], gh23);
+    Store<Align>(&data[0], r00);
+    Store<Align>(&data[4], r01);
+    Store<Align>(&data[start1 + 0], r04);
+    Store<Align>(&data[start1 + 4], r03);
+    Store<Align>(&data[start2 + 0], r08);
+    Store<Align>(&data[start2 + 4], r05);
+    Store<Align>(&data[start3 + 0], r02);
+    Store<Align>(&data[start3 + 4], r07);
   }
 
   // Do this final scalar step
@@ -682,52 +670,42 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
     auto start3 = start0 + 3 * flipStride;
     const auto angleIndex0 = subsetIndex >> 1;
 
-    auto aceg0 = Load<Align>(&data[start0 + 0]);
-    auto bdfh0 = Load<Align>(&data[start0 + 4]);
-    auto aceg1 = Load<Align>(&data[start1 + 0]);
-    auto bdfh1 = Load<Align>(&data[start1 + 4]);
-    auto aceg2 = Load<Align>(&data[start2 + 0]);
-    auto bdfh2 = Load<Align>(&data[start2 + 4]);
-    auto aceg3 = Load<Align>(&data[start3 + 0]);
-    auto bdfh3 = Load<Align>(&data[start3 + 4]);
+    VecType r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
+
+    r00 = Load<Align>(&data[start0 + 0]);
+    r01 = Load<Align>(&data[start0 + 4]);
+    r02 = Load<Align>(&data[start1 + 0]);
+    r03 = Load<Align>(&data[start1 + 4]);
+    r04 = Load<Align>(&data[start2 + 0]);
+    r05 = Load<Align>(&data[start2 + 4]);
+    r06 = Load<Align>(&data[start3 + 0]);
+    r07 = Load<Align>(&data[start3 + 4]);
 
     // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler (and
     //  also lines the values up with the loaded angles)
 
-    auto a = aceg0, c = aceg2, e = aceg1, g = aceg3;
-    auto b = bdfh0, d = bdfh2, f = bdfh1, h = bdfh3;
-    VecType t1, t2;
-    Transpose4(a, c, e, g, t1, t2);
-    Transpose4(b, d, f, h, t1, t2);
+    Transpose4(r00, r04, r02, r06, r14, r15);
+    Transpose4(r01, r05, r03, r07, r14, r15);
 
-    VecType w0R, w0I, w1R, w1I, w2R, w2I;
-    LoadSIMDAngleDouble(tableData, angleIndex0, flipStride, w0R, w0I, w1R, w1I);
-    ComplexMultiply(w0R, w0I, w1R, w1I, w2R, w2I, t1, t2);
+    LoadSIMDAngleDouble(tableData, angleIndex0, flipStride, r08, r09, r10, r11);
+    ComplexMultiply(r08, r09, r10, r11, r12, r13, r14, r15);
 
-    DITComplexRadix4(a, b, c, d, e, f, g, h, w0R, w0I, w1R, w1I, w2R, w2I, t1, t2);
+    DITComplexRadix4(r00, r01, r04, r05, r02, r03, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15);
 
     // Reinterleave
-    Interleave4(a, b, t1);
-    auto ab01 = t1;
-    auto ab23 = b;
-    Interleave4(c, d, t1);
-    auto cd01 = t1;
-    auto cd23 = d;
-    Interleave4(e, f, t1);
-    auto ef01 = t1;
-    auto ef23 = f;
-    Interleave4(g, h, t1);
-    auto gh01 = t1;
-    auto gh23 = h;
+    Interleave4(r00, r01, r08);
+    Interleave4(r04, r05, r00);
+    Interleave4(r02, r03, r04);
+    Interleave4(r06, r07, r02);
 
-    Store<Align>(&data[start0 + 0], ab01);
-    Store<Align>(&data[start0 + 4], ab23);
-    Store<Align>(&data[start1 + 0], ef01);
-    Store<Align>(&data[start1 + 4], ef23);
-    Store<Align>(&data[start2 + 0], cd01);
-    Store<Align>(&data[start2 + 4], cd23);
-    Store<Align>(&data[start3 + 0], gh01);
-    Store<Align>(&data[start3 + 4], gh23);
+    Store<Align>(&data[start0 + 0], r08);
+    Store<Align>(&data[start0 + 4], r01);
+    Store<Align>(&data[start1 + 0], r04);
+    Store<Align>(&data[start1 + 4], r03);
+    Store<Align>(&data[start2 + 0], r00);
+    Store<Align>(&data[start2 + 4], r05);
+    Store<Align>(&data[start3 + 0], r02);
+    Store<Align>(&data[start3 + 4], r07);
   }
 }
 
