@@ -87,19 +87,6 @@ namespace FFT20XX::SSE2
       { return _mm_move_sd(value, newFirst); }
   }
 
-  [[nodiscard]] FORCE_INLINE auto InsertTopHalf(auto lo, auto hi)
-  {
-    return _mm_shuffle_pd(lo, hi, 0b11'10'01'00);
-  }
-
-  // Takes the first two elements of aceg0 and bdfh0 and puts them in t, then the second two elements from each into bdfh0.
-  FORCE_INLINE void SwapRealComponentsForLastDoubleFlip(auto aceg0, auto &bdfh0, auto &t)
-  {
-    t = _mm_shuffle_ps(aceg0, bdfh0, 0b01'00'01'00);
-    bdfh0 = _mm_shuffle_ps(aceg0, bdfh0, 0b11'10'11'10);
-  }
-
-
   FORCE_INLINE void Transpose2(auto a, auto &b, auto &aOut)
   {
     aOut = _mm_shuffle_pd(a, b, 0b00);

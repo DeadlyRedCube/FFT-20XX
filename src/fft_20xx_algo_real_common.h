@@ -611,7 +611,7 @@ FORCE_INLINE void FirstRealDITRealComplexRadix4Inv(
 }
 
 
-template <Alignment A, TangleType Type, uint32_t VV = VecSize>
+template <Alignment A, TangleType Type, uint32_t VV = VecSize, typename VT = VecType>
 void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subLength)
 {
   // For example in this routine, going to use a 32-pair (64-element) example of ABCDEFGHIJKLMNOPQponmlkjihgfedcb as
@@ -697,13 +697,13 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
     static_assert(VV == 4);
 
     // Load AB CD (as prevTopA and B) and second-to-last vector `ed` as prevTopB
-    VecType prevTopA, prevTopB;
+    VT prevTopA, prevTopB;
     LoadStridedSets<A>(input, 4, prevTopA, prevTopB);
     auto prevLowA = Load<A>(input + subLength - 8);
 
     // This first section gets us into the condition where the loop expects
     {
-      VecType r03, r04, r05, r06, r07;
+      VT r03, r04, r05, r06, r07;
       // Load the last value in the array as r03 (it's `cb`)
       //  that write to the beginning of the output.
       r03 = Load<A>(input + subLength - 4);
@@ -768,7 +768,7 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
     for (auto i = size_t(16);;)
     {
       // Load the next starting values in from the left (IJ|KL on the first loop)
-      VecType r03, r04, r05, r06, r07, r08;
+      VT r03, r04, r05, r06, r07, r08;
       LoadStridedSets<A>(input + i, 4, r03, r04);
 
       if constexpr (Type == TangleType::InverseLargest)
@@ -888,7 +888,7 @@ void Copy4Pairs(const ElementType *input, ElementType *output)
 
 
 
-template <Alignment Align, TangleType Type, uint32_t VV = VecSize>
+template <Alignment Align, TangleType Type, uint32_t VV = VecSize, typename VT = VecType>
 void TangleFinal4Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardLargest)
@@ -896,14 +896,14 @@ void TangleFinal4Pairs(const ElementType *input, ElementType *output)
     //  AbBa -> AaBb
     if constexpr (VV == 2)
     {
-      VecType A, b, B, a;
+      VT A, b, B, a;
       LoadStridedSets<Align>(input, 2, A, b, B, a);
       StoreStridedSets<Align>(output, 2, A, a, B, b);
     }
     else
     {
       static_assert(VV == 4);
-      VecType Ab, Ba;
+      VT Ab, Ba;
       LoadStridedSets<Align>(input, 4, Ab, Ba);
       auto Aa = InsertTopHalf(Ab, Ba);
       auto Bb = InsertTopHalf(Ba, Ab);
@@ -917,14 +917,14 @@ void TangleFinal4Pairs(const ElementType *input, ElementType *output)
 
     if constexpr (VV == 2)
     {
-      VecType A, a, B, b;
+      VT A, a, B, b;
       LoadStridedSets<Align>(input, 2, A, a, B, b);
       StoreStridedSets<Align>(output, 2, A, b, B, a);
     }
     else
     {
       static_assert(VV == 4);
-      VecType Aa, Bb;
+      VT Aa, Bb;
       LoadStridedSets<Align>(input, 4, Aa, Bb);
       auto Ab = InsertTopHalf(Aa, Bb);
       auto Ba = InsertTopHalf(Bb, Aa);
@@ -935,7 +935,7 @@ void TangleFinal4Pairs(const ElementType *input, ElementType *output)
 
 
 
-template <Alignment Align, TangleType Type, uint32_t VV = VecSize>
+template <Alignment Align, TangleType Type, uint32_t VV = VecSize, typename VT = VecType>
 void Tangle8Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardInner)
@@ -943,14 +943,14 @@ void Tangle8Pairs(const ElementType *input, ElementType *output)
     // AcDdCaBb -> AaBbCcDd
     if constexpr (VV == 2)
     {
-      VecType A, a, B, b, C, c, D, d;
+      VT A, a, B, b, C, c, D, d;
       LoadStridedSets<Align>(input, 2, A, c, D, d, C, a, B, b);
       StoreStridedSets<Align>(output, 2, A, a, B, b, C, c, D, d);
     }
     else
     {
       static_assert(VV == 4);
-      VecType Ac, Dd, Ca, Bb;
+      VT Ac, Dd, Ca, Bb;
       LoadStridedSets<Align>(input, 8, Ac, Ca);
       auto Aa = InsertTopHalf(Ac, Ca);
       auto Cc = InsertTopHalf(Ca, Ac);
@@ -963,14 +963,14 @@ void Tangle8Pairs(const ElementType *input, ElementType *output)
     // AdDcCaBb -> AaBbCcDd
     if constexpr (VV == 2)
     {
-      VecType A, a, B, b, C, c, D, d;
+      VT A, a, B, b, C, c, D, d;
       LoadStridedSets<Align>(input, 2, A, d, D, c, C, a, B, b);
       StoreStridedSets<Align>(output, 2, A, a, B, b, C, c, D, d);
     }
     else
     {
       static_assert(VV == 4);
-      VecType Ad, Dc, Ca, Bb;
+      VT Ad, Dc, Ca, Bb;
       LoadStridedSets<Align>(input, 4, Ad, Dc, Ca, Bb);
       auto Aa = InsertTopHalf(Ad, Ca);
       auto Dd = InsertTopHalf(Dc, Ad);
@@ -983,14 +983,14 @@ void Tangle8Pairs(const ElementType *input, ElementType *output)
     // AaBbCcDd -> AcDdCaBb
     if constexpr (VV == 2)
     {
-      VecType A, a, B, b, C, c, D, d;
+      VT A, a, B, b, C, c, D, d;
       LoadStridedSets<Align>(input, 2, A, a, B, b, C, c, D, d);
       StoreStridedSets<Align>(output, 2, A, c, D, d, C, a, B, b);
     }
     else
     {
       static_assert(VV == 4);
-      VecType Aa, Bb, Cc, Dd;
+      VT Aa, Bb, Cc, Dd;
       LoadStridedSets<Align>(input, 4, Aa, Bb, Cc, Dd);
       auto Ac = InsertTopHalf(Aa, Cc);
       auto Ca = InsertTopHalf(Cc, Aa);
@@ -1004,14 +1004,14 @@ void Tangle8Pairs(const ElementType *input, ElementType *output)
 
     if constexpr (VV == 2)
     {
-      VecType A, a, B, b, C, c, D, d;
+      VT A, a, B, b, C, c, D, d;
       LoadStridedSets<Align>(input, 2, A, a, B, b, C, c, D, d);
       StoreStridedSets<Align>(output, 2, A, d, D, c, C, a, B, b);
     }
     else
     {
       static_assert(VV == 4);
-      VecType Aa, Bb, Cc, Dd;
+      VT Aa, Bb, Cc, Dd;
       LoadStridedSets<Align>(input, 4, Aa, Bb, Cc, Dd);
       auto Ad = InsertTopHalf(Aa, Dd);
       auto Dc = InsertTopHalf(Dd, Cc);
@@ -1023,7 +1023,7 @@ void Tangle8Pairs(const ElementType *input, ElementType *output)
 
 
 
-template <Alignment Align, TangleType Type, uint32_t VV = VecSize>
+template <Alignment Align, TangleType Type, uint32_t VV = VecSize, typename VT = VecType>
 void Tangle16Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardInner)
@@ -1031,54 +1031,14 @@ void Tangle16Pairs(const ElementType *input, ElementType *output)
     // AgHhGeFfEaBbCcDd -> AaBbCcDdEeFfGgHh
     if constexpr (VV == 2)
     {
-      // With this one, every pair is a whole vector so this is easy to just move things around.
-      VecType r00, r01, r02, r03, r04, r05, r06, r07;
-      r00 = Load<Align>(input + 0);
-      Store<Align>(output + 0, r00);
-
-      r00 = Load<Align>(input + 2);
-      r01 = Load<Align>(input + 18);
-      Store<Align>(output + 2, r01);
-
-      r01 = Load<Align>(input + 4);
-      r02 = Load<Align>(input + 20);
-      Store<Align>(output + 4, r02);
-
-      r02 = Load<Align>(input + 6);
-      r03 = Load<Align>(input + 22);
-      Store<Align>(output + 6, r03);
-
-      r03 = Load<Align>(input + 8);
-      r04 = Load<Align>(input + 24);
-      Store<Align>(output + 8, r04);
-
-      r04 = Load<Align>(input + 10);
-      r05 = Load<Align>(input + 26);
-      Store<Align>(output + 10, r05);
-
-      r05 = Load<Align>(input + 12);
-      r06 = Load<Align>(input + 28);
-      Store<Align>(output + 12, r06);
-
-      r06 = Load<Align>(input + 14);
-      r07 = Load<Align>(input + 30);
-      Store<Align>(output + 14, r07);
-
-      r07 = Load<Align>(input + 16);
-      Store<Align>(output + 16, r07);
-
-      Store<Align>(output + 18, r04);
-      Store<Align>(output + 20, r05);
-      Store<Align>(output + 22, r06);
-      Store<Align>(output + 24, r03);
-      Store<Align>(output + 26, r00);
-      Store<Align>(output + 28, r01);
-      Store<Align>(output + 30, r02);
+      VT A, a, B, b, C, c, D, d, E, e, F, f, G, g, H, h;
+      LoadStridedSets<Align>(input, 2, A, g, H, h, G, e, F, f, E, a, B, b, C, c, D, d);
+      StoreStridedSets<Align>(output, 2, A, a, B, b, C, c, D, d, E, e, F, f, G, g, H, h);
     }
     else
     {
       static_assert(VV == 4);
-      VecType r00, r01, r02, r03, r04, r05, r06, r07;
+      VT r00, r01, r02, r03, r04, r05, r06, r07;
       LoadStridedSets<Align>(input, 4, r00, r01, r02);
       r03 = InsertTopHalf(r02, r00);
       LoadStridedSets<Align>(input + 12, 4, r04, r05);
@@ -1093,52 +1053,14 @@ void Tangle16Pairs(const ElementType *input, ElementType *output)
     // AhHgGeFfEaBbCdDc -> AaBbCcDdEeFfGgHh
     if constexpr (VV == 2)
     {
-      VecType r00, r01, r02, r03, r04, r05, r06, r07;
-      r00 = Load<Align>(input + 0);
-      Store<Align>(output + 0, r00);
-
-      r00 = Load<Align>(input + 2);
-      r01 = Load<Align>(input + 18);
-      Store<Align>(output + 2, r01);
-
-      r01 = Load<Align>(input + 4);
-      r02 = Load<Align>(input + 20);
-      Store<Align>(output + 4, r02);
-
-      r02 = Load<Align>(input + 6);
-      r03 = Load<Align>(input + 22);
-      Store<Align>(output + 6, r03);
-
-      r03 = Load<Align>(input + 8);
-      r04 = Load<Align>(input + 24);
-      Store<Align>(output + 8, r04);
-
-      r04 = Load<Align>(input + 10);
-      r05 = Load<Align>(input + 30);
-      Store<Align>(output + 10, r05);
-
-      r05 = Load<Align>(input + 12);
-      r06 = Load<Align>(input + 28);
-      Store<Align>(output + 12, r06);
-
-      r06 = Load<Align>(input + 14);
-      r07 = Load<Align>(input + 26);
-      Store<Align>(output + 14, r07);
-
-      r07 = Load<Align>(input + 16);
-      Store<Align>(output + 16, r07);
-      Store<Align>(output + 18, r04);
-      Store<Align>(output + 20, r05);
-      Store<Align>(output + 22, r06);
-      Store<Align>(output + 24, r03);
-      Store<Align>(output + 26, r02);
-      Store<Align>(output + 28, r01);
-      Store<Align>(output + 30, r00);
+      VT A, a, B, b, C, c, D, d, E, e, F, f, G, g, H, h;
+      LoadStridedSets<Align>(input, 2, A, h, H, g, G, e, F, f, E, a, B, b, C, d, D, c);
+      StoreStridedSets<Align>(output, 2, A, a, B, b, C, c, D, d, E, e, F, f, G, g, H, h);
     }
     else
     {
       static_assert(VV == 4);
-      VecType r00, r01, r02, r03, r04, r05, r06, r07, r08;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08;
       LoadStridedSets<Align>(input, 4, r00, r01, r02);
       r03 = InsertTopHalf(r01, r00);
       r01 = InsertTopHalf(r02, r01);
@@ -1156,43 +1078,13 @@ void Tangle16Pairs(const ElementType *input, ElementType *output)
     // AaBbCcDdEeFfGgHh -> AgHhGeFfEaBbCcDd
     if constexpr (VV == 2)
     {
-      auto A = Load<Align>(input + 0);
-      auto a = Load<Align>(input + 2);
-      auto B = Load<Align>(input + 4);
-      auto b = Load<Align>(input + 6);
-      auto C = Load<Align>(input + 8);
-      auto c = Load<Align>(input + 10);
-      auto D = Load<Align>(input + 12);
-      auto d = Load<Align>(input + 14);
-      auto E = Load<Align>(input + 16);
-      auto e = Load<Align>(input + 18);
-      auto F = Load<Align>(input + 20);
-      auto f = Load<Align>(input + 22);
-      auto G = Load<Align>(input + 24);
-      auto g = Load<Align>(input + 26);
-      auto H = Load<Align>(input + 28);
-      auto h = Load<Align>(input + 30);
-
-      Store<Align>(output + 0, A);
-      Store<Align>(output + 2, g);
-      Store<Align>(output + 4, H);
-      Store<Align>(output + 6, h);
-      Store<Align>(output + 8, G);
-      Store<Align>(output + 10, e);
-      Store<Align>(output + 12, F);
-      Store<Align>(output + 14, f);
-      Store<Align>(output + 16, E);
-      Store<Align>(output + 18, a);
-      Store<Align>(output + 20, B);
-      Store<Align>(output + 22, b);
-      Store<Align>(output + 24, C);
-      Store<Align>(output + 26, c);
-      Store<Align>(output + 28, D);
-      Store<Align>(output + 30, d);
+      VT A, a, B, b, C, c, D, d, E, e, F, f, G, g, H, h;
+      LoadStridedSets<Align>(input, 2, A, a, B, b, C, c, D, d, E, e, F, f, G, g, H, h);
+      StoreStridedSets<Align>(output, 2, A, g, H, h, G, e, F, f, E, a, B, b, C, c, D, d);
     }
     else
     {
-      VecType r00, r01, r02, r03, r04, r05, r06, r07, r08;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08;
       LoadStridedSets<Align>(input, 4, r00, r01, r02, r03, r04, r05, r06, r07);
       r08 = InsertTopHalf(r00, r06);
       r06 = InsertTopHalf(r06, r04);
@@ -1205,43 +1097,13 @@ void Tangle16Pairs(const ElementType *input, ElementType *output)
     // AaBbCcDdEeFfGgHh -> AhHgGeFfEaBbCdDc
     if constexpr (VV == 2)
     {
-      auto A = Load<Align>(input + 0);
-      auto a = Load<Align>(input + 2);
-      auto B = Load<Align>(input + 4);
-      auto b = Load<Align>(input + 6);
-      auto C = Load<Align>(input + 8);
-      auto c = Load<Align>(input + 10);
-      auto D = Load<Align>(input + 12);
-      auto d = Load<Align>(input + 14);
-      auto E = Load<Align>(input + 16);
-      auto e = Load<Align>(input + 18);
-      auto F = Load<Align>(input + 20);
-      auto f = Load<Align>(input + 22);
-      auto G = Load<Align>(input + 24);
-      auto g = Load<Align>(input + 26);
-      auto H = Load<Align>(input + 28);
-      auto h = Load<Align>(input + 30);
-
-      Store<Align>(output + 0, A);
-      Store<Align>(output + 2, h);
-      Store<Align>(output + 4, H);
-      Store<Align>(output + 6, g);
-      Store<Align>(output + 8, G);
-      Store<Align>(output + 10, e);
-      Store<Align>(output + 12, F);
-      Store<Align>(output + 14, f);
-      Store<Align>(output + 16, E);
-      Store<Align>(output + 18, a);
-      Store<Align>(output + 20, B);
-      Store<Align>(output + 22, b);
-      Store<Align>(output + 24, C);
-      Store<Align>(output + 26, d);
-      Store<Align>(output + 28, D);
-      Store<Align>(output + 30, c);
+      VT A, a, B, b, C, c, D, d, E, e, F, f, G, g, H, h;
+      LoadStridedSets<Align>(input, 2, A, a, B, b, C, c, D, d, E, e, F, f, G, g, H, h);
+      StoreStridedSets<Align>(output, 2, A, h, H, g, G, e, F, f, E, a, B, b, C, d, D, c);
     }
     else
     {
-      VecType r00, r01, r02, r03, r04, r05, r06, r07, r08;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08;
       LoadStridedSets<Align>(input, 4, r00, r01, r02, r03, r04, r05, r06, r07);
       r08 = InsertTopHalf(r00, r07);
       r07 = InsertTopHalf(r07, r06);
@@ -1257,7 +1119,7 @@ void Tangle16Pairs(const ElementType *input, ElementType *output)
 
 
 // Swaps 64 elements (32 pairs)
-template <Alignment Align, TangleType Type, uint32_t VV = VecSize>
+template <Alignment Align, TangleType Type, uint32_t VV = VecSize, typename VT = VecType>
 void Tangle32Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardInner)
@@ -1265,78 +1127,63 @@ void Tangle32Pairs(const ElementType *input, ElementType *output)
     // AoPpOmNnMiJjKkLlIaBbCcDdEgHhGeFf -> AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPp
     if constexpr (VV == 2)
     {
-      auto A = Load<Align>(input + 0);
-      auto o = Load<Align>(input + 2);
-      auto P = Load<Align>(input + 4);
-      auto p = Load<Align>(input + 6);
-      auto O = Load<Align>(input + 8);
-      auto m = Load<Align>(input + 10);
-      auto N = Load<Align>(input + 12);
-      auto n = Load<Align>(input + 14);
-      auto M = Load<Align>(input + 16);
-      auto i = Load<Align>(input + 18);
-      auto J = Load<Align>(input + 20);
-      auto j = Load<Align>(input + 22);
-      auto K = Load<Align>(input + 24);
-      auto k = Load<Align>(input + 26);
-      auto L = Load<Align>(input + 28);
-      auto l = Load<Align>(input + 30);
-      auto I = Load<Align>(input + 32);
-      auto a = Load<Align>(input + 34);
-      auto B = Load<Align>(input + 36);
-      auto b = Load<Align>(input + 38);
-      auto C = Load<Align>(input + 40);
-      auto c = Load<Align>(input + 42);
-      auto D = Load<Align>(input + 44);
-      auto d = Load<Align>(input + 46);
-      auto E = Load<Align>(input + 48);
-      auto g = Load<Align>(input + 50);
-      auto H = Load<Align>(input + 52);
-      auto h = Load<Align>(input + 54);
-      auto G = Load<Align>(input + 56);
-      auto e = Load<Align>(input + 58);
-      auto F = Load<Align>(input + 60);
-      auto f = Load<Align>(input + 62);
-
-      Store<Align>(output + 0, A);
-      Store<Align>(output + 2, a);
-      Store<Align>(output + 4, B);
-      Store<Align>(output + 6, b);
-      Store<Align>(output + 8, C);
-      Store<Align>(output + 10, c);
-      Store<Align>(output + 12, D);
-      Store<Align>(output + 14, d);
-      Store<Align>(output + 16, E);
-      Store<Align>(output + 18, e);
-      Store<Align>(output + 20, F);
-      Store<Align>(output + 22, f);
-      Store<Align>(output + 24, G);
-      Store<Align>(output + 26, g);
-      Store<Align>(output + 28, H);
-      Store<Align>(output + 30, h);
-      Store<Align>(output + 32, I);
-      Store<Align>(output + 34, i);
-      Store<Align>(output + 36, J);
-      Store<Align>(output + 38, j);
-      Store<Align>(output + 40, K);
-      Store<Align>(output + 42, k);
-      Store<Align>(output + 44, L);
-      Store<Align>(output + 46, l);
-      Store<Align>(output + 48, M);
-      Store<Align>(output + 50, m);
-      Store<Align>(output + 52, N);
-      Store<Align>(output + 54, n);
-      Store<Align>(output + 56, O);
-      Store<Align>(output + 58, o);
-      Store<Align>(output + 60, P);
-      Store<Align>(output + 62, p);
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
+      r00 = Load<Align>(input + 0);
+      Store<Align>(output + 0, r00);
+      r00 = Load<Align>(input + 2);
+      r01 = Load<Align>(input + 34);
+      Store<Align>(output + 2, r01);
+      r01 = Load<Align>(input + 4);
+      r02 = Load<Align>(input + 36);
+      Store<Align>(output + 4, r02);
+      r02 = Load<Align>(input + 6);
+      r03 = Load<Align>(input + 38);
+      Store<Align>(output + 6, r03);
+      r03 = Load<Align>(input + 8);
+      r04 = Load<Align>(input + 40);
+      Store<Align>(output + 8, r04);
+      r04 = Load<Align>(input + 10);
+      r05 = Load<Align>(input + 42);
+      Store<Align>(output + 10, r05);
+      r05 = Load<Align>(input + 12);
+      r06 = Load<Align>(input + 44);
+      Store<Align>(output + 12, r06);
+      r06 = Load<Align>(input + 14);
+      r07 = Load<Align>(input + 46);
+      Store<Align>(output + 14, r07);
+      r07 = Load<Align>(input + 16);
+      r08 = Load<Align>(input + 48);
+      Store<Align>(output + 16, r08);
+      r08 = Load<Align>(input + 18);
+      r09 = Load<Align>(input + 58);
+      Store<Align>(output + 18, r09);
+      r09 = Load<Align>(input + 20);
+      r10 = Load<Align>(input + 60);
+      Store<Align>(output + 20, r10);
+      r10 = Load<Align>(input + 22);
+      r11 = Load<Align>(input + 62);
+      Store<Align>(output + 22, r11);
+      r11 = Load<Align>(input + 24);
+      r12 = Load<Align>(input + 56);
+      Store<Align>(output + 24, r12);
+      r12 = Load<Align>(input + 26);
+      r13 = Load<Align>(input + 50);
+      Store<Align>(output + 26, r13);
+      r13 = Load<Align>(input + 28);
+      r14 = Load<Align>(input + 52);
+      Store<Align>(output + 28, r14);
+      r14 = Load<Align>(input + 30);
+      r15 = Load<Align>(input + 54);
+      Store<Align>(output + 30, r15);
+      r15 = Load<Align>(input + 32);
+      StoreStridedSets<Align>(output + 32, 2, r15, r08, r09, r10, r11, r12, r13, r14, r07, r04, r05, r06, r03, r00, r01, r02);
     }
     else
     {
       static_assert(VV == 4);
 
       // Conveniently with the loads and shuffles ordered as such, we fit within the x64 register space.
-      VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
+      VT r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
       LoadStridedSets<Align>(input, 4, r0, r1, r2, r3, r4);
       r5 = InsertTopHalf(r2, r0);
       r2 = InsertTopHalf(r4, r2);
@@ -1357,76 +1204,61 @@ void Tangle32Pairs(const ElementType *input, ElementType *output)
     //  (note that pPo, lLk, dDc, and hHg are reversed from the above)
     if constexpr (VV == 2)
     {
-      auto A = Load<Align>(input + 0);
-      auto p = Load<Align>(input + 2);
-      auto P = Load<Align>(input + 4);
-      auto o = Load<Align>(input + 6);
-      auto O = Load<Align>(input + 8);
-      auto m = Load<Align>(input + 10);
-      auto N = Load<Align>(input + 12);
-      auto n = Load<Align>(input + 14);
-      auto M = Load<Align>(input + 16);
-      auto i = Load<Align>(input + 18);
-      auto J = Load<Align>(input + 20);
-      auto j = Load<Align>(input + 22);
-      auto K = Load<Align>(input + 24);
-      auto l = Load<Align>(input + 26);
-      auto L = Load<Align>(input + 28);
-      auto k = Load<Align>(input + 30);
-      auto I = Load<Align>(input + 32);
-      auto a = Load<Align>(input + 34);
-      auto B = Load<Align>(input + 36);
-      auto b = Load<Align>(input + 38);
-      auto C = Load<Align>(input + 40);
-      auto d = Load<Align>(input + 42);
-      auto D = Load<Align>(input + 44);
-      auto c = Load<Align>(input + 46);
-      auto E = Load<Align>(input + 48);
-      auto h = Load<Align>(input + 50);
-      auto H = Load<Align>(input + 52);
-      auto g = Load<Align>(input + 54);
-      auto G = Load<Align>(input + 56);
-      auto e = Load<Align>(input + 58);
-      auto F = Load<Align>(input + 60);
-      auto f = Load<Align>(input + 62);
-
-      Store<Align>(output + 0, A);
-      Store<Align>(output + 2, a);
-      Store<Align>(output + 4, B);
-      Store<Align>(output + 6, b);
-      Store<Align>(output + 8, C);
-      Store<Align>(output + 10, c);
-      Store<Align>(output + 12, D);
-      Store<Align>(output + 14, d);
-      Store<Align>(output + 16, E);
-      Store<Align>(output + 18, e);
-      Store<Align>(output + 20, F);
-      Store<Align>(output + 22, f);
-      Store<Align>(output + 24, G);
-      Store<Align>(output + 26, g);
-      Store<Align>(output + 28, H);
-      Store<Align>(output + 30, h);
-      Store<Align>(output + 32, I);
-      Store<Align>(output + 34, i);
-      Store<Align>(output + 36, J);
-      Store<Align>(output + 38, j);
-      Store<Align>(output + 40, K);
-      Store<Align>(output + 42, k);
-      Store<Align>(output + 44, L);
-      Store<Align>(output + 46, l);
-      Store<Align>(output + 48, M);
-      Store<Align>(output + 50, m);
-      Store<Align>(output + 52, N);
-      Store<Align>(output + 54, n);
-      Store<Align>(output + 56, O);
-      Store<Align>(output + 58, o);
-      Store<Align>(output + 60, P);
-      Store<Align>(output + 62, p);
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
+      r00 = Load<Align>(input + 0);
+      Store<Align>(output + 0, r00);
+      r00 = Load<Align>(input + 2);
+      r01 = Load<Align>(input + 34);
+      Store<Align>(output + 2, r01);
+      r01 = Load<Align>(input + 4);
+      r02 = Load<Align>(input + 36);
+      Store<Align>(output + 4, r02);
+      r02 = Load<Align>(input + 6);
+      r03 = Load<Align>(input + 38);
+      Store<Align>(output + 6, r03);
+      r03 = Load<Align>(input + 8);
+      r04 = Load<Align>(input + 40);
+      Store<Align>(output + 8, r04);
+      r04 = Load<Align>(input + 10);
+      r05 = Load<Align>(input + 46);
+      Store<Align>(output + 10, r05);
+      r05 = Load<Align>(input + 12);
+      r06 = Load<Align>(input + 44);
+      Store<Align>(output + 12, r06);
+      r06 = Load<Align>(input + 14);
+      r07 = Load<Align>(input + 42);
+      Store<Align>(output + 14, r07);
+      r07 = Load<Align>(input + 16);
+      r08 = Load<Align>(input + 48);
+      Store<Align>(output + 16, r08);
+      r08 = Load<Align>(input + 18);
+      r09 = Load<Align>(input + 58);
+      Store<Align>(output + 18, r09);
+      r09 = Load<Align>(input + 20);
+      r10 = Load<Align>(input + 60);
+      Store<Align>(output + 20, r10);
+      r10 = Load<Align>(input + 22);
+      r11 = Load<Align>(input + 62);
+      Store<Align>(output + 22, r11);
+      r11 = Load<Align>(input + 24);
+      r12 = Load<Align>(input + 56);
+      Store<Align>(output + 24, r12);
+      r12 = Load<Align>(input + 26);
+      r13 = Load<Align>(input + 54);
+      Store<Align>(output + 26, r13);
+      r13 = Load<Align>(input + 28);
+      r14 = Load<Align>(input + 52);
+      Store<Align>(output + 28, r14);
+      r14 = Load<Align>(input + 30);
+      r15 = Load<Align>(input + 50);
+      Store<Align>(output + 30, r15);
+      r15 = Load<Align>(input + 32);
+      StoreStridedSets<Align>(output + 32, 2, r15, r08, r09, r10, r11, r14, r13, r12, r07, r04, r05, r06, r03, r02, r01, r00);
     }
     else
     {
       static_assert(VV == 4);
-      VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
+      VT r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
       LoadStridedSets<Align>(input, 4, r0, r1, r2, r3, r4);
       r5 = InsertTopHalf(r2, r1);
       r1 = InsertTopHalf(r1, r0);
@@ -1453,76 +1285,61 @@ void Tangle32Pairs(const ElementType *input, ElementType *output)
     // AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPp -> AoPpOmNnMiJjKkLlIaBbCcDdEgHhGeFf
     if constexpr (VV == 2)
     {
-      auto A = Load<Align>(input + 0);
-      auto a = Load<Align>(input + 2);
-      auto B = Load<Align>(input + 4);
-      auto b = Load<Align>(input + 6);
-      auto C = Load<Align>(input + 8);
-      auto c = Load<Align>(input + 10);
-      auto D = Load<Align>(input + 12);
-      auto d = Load<Align>(input + 14);
-      auto E = Load<Align>(input + 16);
-      auto e = Load<Align>(input + 18);
-      auto F = Load<Align>(input + 20);
-      auto f = Load<Align>(input + 22);
-      auto G = Load<Align>(input + 24);
-      auto g = Load<Align>(input + 26);
-      auto H = Load<Align>(input + 28);
-      auto h = Load<Align>(input + 30);
-      auto I = Load<Align>(input + 32);
-      auto i = Load<Align>(input + 34);
-      auto J = Load<Align>(input + 36);
-      auto j = Load<Align>(input + 38);
-      auto K = Load<Align>(input + 40);
-      auto k = Load<Align>(input + 42);
-      auto L = Load<Align>(input + 44);
-      auto l = Load<Align>(input + 46);
-      auto M = Load<Align>(input + 48);
-      auto m = Load<Align>(input + 50);
-      auto N = Load<Align>(input + 52);
-      auto n = Load<Align>(input + 54);
-      auto O = Load<Align>(input + 56);
-      auto o = Load<Align>(input + 58);
-      auto P = Load<Align>(input + 60);
-      auto p = Load<Align>(input + 62);
-
-      Store<Align>(output + 0, A);
-      Store<Align>(output + 2, o);
-      Store<Align>(output + 4, P);
-      Store<Align>(output + 6, p);
-      Store<Align>(output + 8, O);
-      Store<Align>(output + 10, m);
-      Store<Align>(output + 12, N);
-      Store<Align>(output + 14, n);
-      Store<Align>(output + 16, M);
-      Store<Align>(output + 18, i);
-      Store<Align>(output + 20, J);
-      Store<Align>(output + 22, j);
-      Store<Align>(output + 24, K);
-      Store<Align>(output + 26, k);
-      Store<Align>(output + 28, L);
-      Store<Align>(output + 30, l);
-      Store<Align>(output + 32, I);
-      Store<Align>(output + 34, a);
-      Store<Align>(output + 36, B);
-      Store<Align>(output + 38, b);
-      Store<Align>(output + 40, C);
-      Store<Align>(output + 42, c);
-      Store<Align>(output + 44, D);
-      Store<Align>(output + 46, d);
-      Store<Align>(output + 48, E);
-      Store<Align>(output + 50, g);
-      Store<Align>(output + 52, H);
-      Store<Align>(output + 54, h);
-      Store<Align>(output + 56, G);
-      Store<Align>(output + 58, e);
-      Store<Align>(output + 60, F);
-      Store<Align>(output + 62, f);
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
+      r00 = Load<Align>(input + 0);
+      Store<Align>(output + 0, r00);
+      r00 = Load<Align>(input + 2);
+      r01 = Load<Align>(input + 58);
+      Store<Align>(output + 2, r01);
+      r01 = Load<Align>(input + 4);
+      r15 = Load<Align>(input + 60);
+      Store<Align>(output + 4, r15);
+      r02 = Load<Align>(input + 6);
+      r15 = Load<Align>(input + 62);
+      Store<Align>(output + 6, r15);
+      r03 = Load<Align>(input + 8);
+      r15 = Load<Align>(input + 56);
+      Store<Align>(output + 8, r15);
+      r04 = Load<Align>(input + 10);
+      r15 = Load<Align>(input + 50);
+      Store<Align>(output + 10, r15);
+      r05 = Load<Align>(input + 12);
+      r15 = Load<Align>(input + 52);
+      Store<Align>(output + 12, r15);
+      r06 = Load<Align>(input + 14);
+      r15 = Load<Align>(input + 54);
+      Store<Align>(output + 14, r15);
+      r07 = Load<Align>(input + 16);
+      r15 = Load<Align>(input + 48);
+      Store<Align>(output + 16, r15);
+      r08 = Load<Align>(input + 18);
+      r15 = Load<Align>(input + 34);
+      Store<Align>(output + 18, r15);
+      r09 = Load<Align>(input + 20);
+      r15 = Load<Align>(input + 36);
+      Store<Align>(output + 20, r15);
+      r10 = Load<Align>(input + 22);
+      r15 = Load<Align>(input + 38);
+      Store<Align>(output + 22, r15);
+      r11 = Load<Align>(input + 24);
+      r15 = Load<Align>(input + 40);
+      Store<Align>(output + 24, r15);
+      r12 = Load<Align>(input + 26);
+      r15 = Load<Align>(input + 42);
+      Store<Align>(output + 26, r15);
+      r13 = Load<Align>(input + 28);
+      r15 = Load<Align>(input + 44);
+      Store<Align>(output + 28, r15);
+      r14 = Load<Align>(input + 30);
+      r15 = Load<Align>(input + 46);
+      Store<Align>(output + 30, r15);
+      r15 = Load<Align>(input + 32);
+      StoreStridedSets<Align>(output + 32, 2, r15, r00, r01, r02, r03, r04, r05, r06, r07, r12, r13, r14, r11, r08, r09, r10);
     }
     else
     {
       static_assert(VV == 4);
-      VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
+      VT r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
       LoadStridedSets<Align>(input, 4, r0, r1, r2, r3, r4, r5, r6);
       r7 = InsertTopHalf(r6, r4);
       r4 = InsertTopHalf(r4, r6);
@@ -1542,76 +1359,61 @@ void Tangle32Pairs(const ElementType *input, ElementType *output)
     // AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPp -> ApPoOmNnMiJjKlLkIaBbCdDcEhHgGeFf
     if constexpr (VV == 2)
     {
-      auto A = Load<Align>(input + 0);
-      auto a = Load<Align>(input + 2);
-      auto B = Load<Align>(input + 4);
-      auto b = Load<Align>(input + 6);
-      auto C = Load<Align>(input + 8);
-      auto c = Load<Align>(input + 10);
-      auto D = Load<Align>(input + 12);
-      auto d = Load<Align>(input + 14);
-      auto E = Load<Align>(input + 16);
-      auto e = Load<Align>(input + 18);
-      auto F = Load<Align>(input + 20);
-      auto f = Load<Align>(input + 22);
-      auto G = Load<Align>(input + 24);
-      auto g = Load<Align>(input + 26);
-      auto H = Load<Align>(input + 28);
-      auto h = Load<Align>(input + 30);
-      auto I = Load<Align>(input + 32);
-      auto i = Load<Align>(input + 34);
-      auto J = Load<Align>(input + 36);
-      auto j = Load<Align>(input + 38);
-      auto K = Load<Align>(input + 40);
-      auto k = Load<Align>(input + 42);
-      auto L = Load<Align>(input + 44);
-      auto l = Load<Align>(input + 46);
-      auto M = Load<Align>(input + 48);
-      auto m = Load<Align>(input + 50);
-      auto N = Load<Align>(input + 52);
-      auto n = Load<Align>(input + 54);
-      auto O = Load<Align>(input + 56);
-      auto o = Load<Align>(input + 58);
-      auto P = Load<Align>(input + 60);
-      auto p = Load<Align>(input + 62);
-
-      Store<Align>(output + 0, A);
-      Store<Align>(output + 2, p);
-      Store<Align>(output + 4, P);
-      Store<Align>(output + 6, o);
-      Store<Align>(output + 8, O);
-      Store<Align>(output + 10, m);
-      Store<Align>(output + 12, N);
-      Store<Align>(output + 14, n);
-      Store<Align>(output + 16, M);
-      Store<Align>(output + 18, i);
-      Store<Align>(output + 20, J);
-      Store<Align>(output + 22, j);
-      Store<Align>(output + 24, K);
-      Store<Align>(output + 26, l);
-      Store<Align>(output + 28, L);
-      Store<Align>(output + 30, k);
-      Store<Align>(output + 32, I);
-      Store<Align>(output + 34, a);
-      Store<Align>(output + 36, B);
-      Store<Align>(output + 38, b);
-      Store<Align>(output + 40, C);
-      Store<Align>(output + 42, d);
-      Store<Align>(output + 44, D);
-      Store<Align>(output + 46, c);
-      Store<Align>(output + 48, E);
-      Store<Align>(output + 50, h);
-      Store<Align>(output + 52, H);
-      Store<Align>(output + 54, g);
-      Store<Align>(output + 56, G);
-      Store<Align>(output + 58, e);
-      Store<Align>(output + 60, F);
-      Store<Align>(output + 62, f);
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
+      r15 = Load<Align>(input + 0);
+      Store<Align>(output + 0, r15);
+      r00 = Load<Align>(input + 2);
+      r15 = Load<Align>(input + 62);
+      Store<Align>(output + 2, r15);
+      r01 = Load<Align>(input + 4);
+      r15 = Load<Align>(input + 60);
+      Store<Align>(output + 4, r15);
+      r02 = Load<Align>(input + 6);
+      r15 = Load<Align>(input + 58);
+      Store<Align>(output + 6, r15);
+      r03 = Load<Align>(input + 8);
+      r15 = Load<Align>(input + 56);
+      Store<Align>(output + 8, r15);
+      r04 = Load<Align>(input + 10);
+      r15 = Load<Align>(input + 50);
+      Store<Align>(output + 10, r15);
+      r05 = Load<Align>(input + 12);
+      r15 = Load<Align>(input + 52);
+      Store<Align>(output + 12, r15);
+      r06 = Load<Align>(input + 14);
+      r15 = Load<Align>(input + 54);
+      Store<Align>(output + 14, r15);
+      r07 = Load<Align>(input + 16);
+      r15 = Load<Align>(input + 48);
+      Store<Align>(output + 16, r15);
+      r08 = Load<Align>(input + 18);
+      r15 = Load<Align>(input + 34);
+      Store<Align>(output + 18, r15);
+      r09 = Load<Align>(input + 20);
+      r15 = Load<Align>(input + 36);
+      Store<Align>(output + 20, r15);
+      r10 = Load<Align>(input + 22);
+      r15 = Load<Align>(input + 38);
+      Store<Align>(output + 22, r15);
+      r11 = Load<Align>(input + 24);
+      r15 = Load<Align>(input + 40);
+      Store<Align>(output + 24, r15);
+      r12 = Load<Align>(input + 26);
+      r15 = Load<Align>(input + 46);
+      Store<Align>(output + 26, r15);
+      r13 = Load<Align>(input + 28);
+      r15 = Load<Align>(input + 44);
+      Store<Align>(output + 28, r15);
+      r14 = Load<Align>(input + 30);
+      r15 = Load<Align>(input + 42);
+      Store<Align>(output + 30, r15);
+      r15 = Load<Align>(input + 32);
+      StoreStridedSets<Align>(output + 32, 2, r15, r00, r01, r02, r03, r06, r05, r04, r07, r14, r13, r12, r11, r08, r09, r10);
     }
     else
     {
       static_assert(VV == 4);
-      VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
+      VT r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
       LoadStridedSets<Align>(input, 4, r0, r1, r2, r3);
       r4 = InsertTopHalf(r2, r3);
       r2 = InsertTopHalf(r3, r2);
