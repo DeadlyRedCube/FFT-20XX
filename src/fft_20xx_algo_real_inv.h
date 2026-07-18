@@ -1,7 +1,7 @@
 #include "fft_20xx_algo_real_common.h"
 
-  template <Alignment Align, std::floating_point F, uint32_t VV = VecSize, typename VT = VecType>
-  void FirstDoubleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length)
+  template <Alignment Align, uint32_t VV = VecSize, typename VT = VecType>
+  void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType *data, size_t length)
   {
     // Start with the scalar step
     {
@@ -228,8 +228,8 @@
   }
 
 
-  template <Alignment Align, std::floating_point F>
-  void DoubleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, size_t subLength)
+  template <Alignment Align>
+  void DoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType *data, size_t length, size_t subLength)
   {
     const auto flipStride = length / subLength * 2;
     const auto flipGroupLength = flipStride * 4;
@@ -268,7 +268,7 @@
         r06 = Load<Align>(&data[start3 + i + 0 * stride]);
         r07 = Load<Align>(&data[start3 + i + 1 * stride]);
 
-        r12 = Set1(InvSqrt2<F>);
+        r12 = Set1(InvSqrt2<ElementType>);
         DIFRealOutputRadix4PairInv(r00, r01, r02, r03, r04, r05, r06, r07, r12, r08);
 
         Store<Align>(&data[start0 + i + 0 * stride], r00);
@@ -478,8 +478,8 @@
   //  special pass in the middle that does a single bit flip instead of the usual 2-bit-flips-per-radix-4 approach.
   //  The behavior of this pass differs based on whether or not the length is a power of 4 or not (it changes the
   //  pattern of transposition in memory)
-  template <Alignment Align, std::floating_point F>
-  void SingleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, size_t subLength)
+  template <Alignment Align>
+  void SingleFlipRadix4PassRealInv(const ElementType *tableData, ElementType *data, size_t length, size_t subLength)
   {
     if (IsPowerOfFourAssumingIsPowerOfTwo(length))
     {
@@ -514,7 +514,7 @@
           r13 = Load<Align>(&data[i + subLength + 5 * stride]);
 
           // Unfortunately we're one register shy on x64 of being able to keep this resident like the other angles.
-          r14 = Set1(InvSqrt2<F>);
+          r14 = Set1(InvSqrt2<ElementType>);
           DIFRealOutputRadix4PairInv(r06, r07, r10, r11, r08, r09, r12, r13, r14, r15);
 
           Store<Align>(data + i + 0 * stride, r06);
@@ -622,7 +622,7 @@
       // Do the reals (subset 0)
       const auto stride = subLength / 8;
       {
-        const auto z = Set1(InvSqrt2<F>);
+        const auto z = Set1(InvSqrt2<ElementType>);
 
         for (auto i = 0u; i < subLength / 8; i += VecSize)
         {
@@ -658,8 +658,8 @@
   }
 
 
-  template <Alignment Align, std::floating_point F>
-  void NoFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, size_t subLength)
+  template <Alignment Align>
+  void NoFlipRadix4PassRealInv(const ElementType *tableData, ElementType *data, size_t length, size_t subLength)
   {
     const auto angleCount = 2 * length / subLength;
 
@@ -667,7 +667,7 @@
 
     // Do the reals (subset 0)
     {
-      const auto z = Set1(InvSqrt2<F>);
+      const auto z = Set1(InvSqrt2<ElementType>);
 
       for (auto i = 0u; i < stride; i += VecSize)
       {
@@ -702,8 +702,8 @@
   }
 
 
-  template <Alignment Align, std::floating_point F>
-  void Radix2InvPass(F *data, size_t length)
+  template <Alignment Align>
+  void Radix2InvPass(ElementType *data, size_t length)
   {
     // If the real count is a power of 4, then we have an odd radix2 pass.
 
@@ -729,8 +729,8 @@
     }
 
     // Now do the complex values
-    const F swRs[3] = { InvSqrt2<F>, CosPiOver8<F>, SinPiOver8<F> };
-    const F swIs[3] = { -InvSqrt2<F>, -SinPiOver8<F>, -CosPiOver8<F> };
+    const ElementType swRs[3] = { InvSqrt2<ElementType>, CosPiOver8<ElementType>, SinPiOver8<ElementType> };
+    const ElementType swIs[3] = { -InvSqrt2<ElementType>, -SinPiOver8<ElementType>, -CosPiOver8<ElementType> };
 
     for (auto complexSubset = 0u; complexSubset < 3; complexSubset++)
     {
@@ -758,12 +758,12 @@
 
   // The very first pass does either an effective radix 4 or 8 pass, depending on whether the real FFT length is a
   //  power of 4 or not.
-  template <Alignment Align, std::floating_point F>
-  void Radix4FinalStepRealInv(F *data, size_t length)
+  template <Alignment Align>
+  void Radix4FinalStepRealInv(ElementType *data, size_t length)
   {
     // Divide by length/2 to get into the correct space
-    const auto scale = Set1(F(2.0) / F(length));
-    const auto z = Set1(InvSqrt2<F>);
+    const auto scale = Set1(ElementType(2.0) / ElementType(length));
+    const auto z = Set1(InvSqrt2<ElementType>);
     const auto stride = length / 8;
     for (auto i = 0u; i < stride; i += VecSize)
     {
@@ -785,8 +785,8 @@
   }
 
 
-  template <Alignment Align, std::floating_point F>
-  void RealInverseFFT(const F *tableData, const F *input, F *output, size_t length)
+  template <Alignment Align>
+  void RealInverseFFT(const ElementType *tableData, const ElementType *input, ElementType *output, size_t length)
   {
     if (length < MinimumRealFFTLength)
     {

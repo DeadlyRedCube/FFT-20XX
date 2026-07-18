@@ -40,15 +40,15 @@ FORCE_INLINE void DoRadix4FirstRotation(V &a, V &b, V &c, V &d)
   AddSubRot135<D>(c, d);
 }
 
-template <Dir D, Alignment Align, std::floating_point F>
-void Radix4Or8InitialStep(const F *input, F *output, const size_t length)
+template <Dir D, Alignment Align>
+void Radix4Or8InitialStep(const ElementType *input, ElementType *output, const size_t length)
 {
   if (!IsPowerOfFourAssumingIsPowerOfTwo(length))
   {
     // Double the stride to skip over complex pairs.
     const auto doubleStride = length / 4;
 
-    for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
+    for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
     {
       // load with deinterleave
       auto a = LoadPackedComplex<Align>(&input[doubleStride * 0 + i]);
@@ -106,7 +106,7 @@ void Radix4Or8InitialStep(const F *input, F *output, const size_t length)
   else
   {
     const auto doubleStride = length / 2;
-    for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
+    for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
     {
       auto a = LoadPackedComplex<Align>(&input[doubleStride * 0 + i]);
       auto b = LoadPackedComplex<Align>(&input[doubleStride * 1 + i]);
@@ -147,10 +147,9 @@ FORCE_INLINE void DoRadix4(V &a, V &b, V &c, V &d, A angles)
   }
 }
 
-template <std::floating_point F>
-auto LoadSingleAngle(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<Complex<F>>
+auto LoadSingleAngle(const ElementType *tableData, size_t angleIndex, size_t angleCount) -> Angles<Complex<ElementType>>
 {
-  static_assert(requires (Angles<F> a) { a.w0; a.w1; });
+  static_assert(requires (Angles<ElementType> a) { a.w0; a.w1; });
   auto i1 = angleCount * 4;
   auto r1 = (angleCount == 4) ? 8 : (angleCount * 3);
 
@@ -163,7 +162,7 @@ auto LoadSingleAngle(const F *tableData, size_t angleIndex, size_t angleCount) -
   auto w1 = Complex{ tableData[r0 + angleIndex], tableData[i0 + angleIndex] };
   auto w2 = Complex{ tableData[r1 + angleIndex], tableData[i1 + angleIndex] };
 
-  if constexpr (requires(Angles<F> a) { a.w2; })
+  if constexpr (requires(Angles<ElementType> a) { a.w2; })
   {
     return { w2, w1, w1 * w2 };
   }
@@ -173,8 +172,7 @@ auto LoadSingleAngle(const F *tableData, size_t angleIndex, size_t angleCount) -
   }
 }
 
-template <std::floating_point F>
-auto LoadSingleAngleSet(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<Vec<F>>>
+auto LoadSingleAngleSet(const ElementType *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<VecType>>
 {
   auto angles = LoadSingleAngle(tableData, angleIndex, angleCount);
   if constexpr (requires (decltype(angles) a) { a.w2; })
@@ -196,14 +194,14 @@ auto LoadSingleAngleSet(const F *tableData, size_t angleIndex, size_t angleCount
    }
 }
 
-template <Dir D, Alignment Align, std::floating_point F>
-void NoFlipRadix4Pass(const F *tableData, F *data, const size_t length, const size_t radix4Stride)
+template <Dir D, Alignment Align>
+void NoFlipRadix4Pass(const ElementType *tableData, ElementType *data, const size_t length, const size_t radix4Stride)
 {
   const auto doubleStride = radix4Stride * 2;
 
   // The first set of stride works with no rotations (besides the 90)
   {
-    for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
+    for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
     {
       auto a = LoadUnpackedComplex<Align>(&data[doubleStride*0 + i]);
       auto b = LoadUnpackedComplex<Align>(&data[doubleStride*1 + i]);
@@ -223,7 +221,7 @@ void NoFlipRadix4Pass(const F *tableData, F *data, const size_t length, const si
   {
     const auto sectionStart = data + (radix4Stride * 4) * 2;
 
-    for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
+    for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
     {
       auto a = LoadUnpackedComplex<Align>(&sectionStart[doubleStride*0 + i]);
       auto b = LoadUnpackedComplex<Align>(&sectionStart[doubleStride*1 + i]);
@@ -250,7 +248,7 @@ void NoFlipRadix4Pass(const F *tableData, F *data, const size_t length, const si
 
     const auto sectionStart = data + (sectionIndex * radix4Stride * 4) * 2;
 
-    for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
+    for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
     {
       auto a = LoadUnpackedComplex<Align>(&sectionStart[doubleStride*0 + i]);
       auto b = LoadUnpackedComplex<Align>(&sectionStart[doubleStride*1 + i]);
@@ -268,8 +266,8 @@ void NoFlipRadix4Pass(const F *tableData, F *data, const size_t length, const si
 }
 
 
-template <Dir D, Alignment Align, std::floating_point F>
-void SingleFlipRadix4Pass(const F *tableData, F *data, const size_t length, const size_t radix4Stride)
+template <Dir D, Alignment Align>
+void SingleFlipRadix4Pass(const ElementType *tableData, ElementType *data, const size_t length, const size_t radix4Stride)
 {
     // There's a different flip pattern for power of 2 and power of 4 single flips
   const auto doubleStride = radix4Stride * 2;
@@ -280,7 +278,7 @@ void SingleFlipRadix4Pass(const F *tableData, F *data, const size_t length, cons
 
     // The first set of stride works with no rotations (besides the 90)
     {
-      for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
+      for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
       {
         auto a = LoadUnpackedComplex<Align>(&data[doubleStride*0 + i]);
         auto b = LoadUnpackedComplex<Align>(&data[doubleStride*1 + i]);
@@ -301,7 +299,7 @@ void SingleFlipRadix4Pass(const F *tableData, F *data, const size_t length, cons
     {
       const auto sectionStart = data + (radix4Stride * 4) * 2;
 
-      for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
+      for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
       {
         auto a = LoadUnpackedComplex<Align>(&sectionStart[doubleStride*0 + i]);
         auto b = LoadUnpackedComplex<Align>(&sectionStart[doubleStride*1 + i]);
@@ -325,7 +323,7 @@ void SingleFlipRadix4Pass(const F *tableData, F *data, const size_t length, cons
 
       const auto sectionStart = data + (sectionIndex * radix4Stride * 4) * 2;
 
-      for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
+      for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
       {
         auto a = LoadUnpackedComplex<Align>(&sectionStart[doubleStride*0 + i]);
         auto b = LoadUnpackedComplex<Align>(&sectionStart[doubleStride*1 + i]);
@@ -354,7 +352,7 @@ void SingleFlipRadix4Pass(const F *tableData, F *data, const size_t length, cons
       const auto sectionStart0 = data;
       const auto sectionStart1 = sectionStart0 + (radix4Stride * 4) * 2;
 
-      for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
+      for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
       {
         auto a = LoadUnpackedComplex<Align>(&sectionStart0[doubleStride*0 + i]);
         auto b = LoadUnpackedComplex<Align>(&sectionStart0[doubleStride*1 + i]);
@@ -401,7 +399,7 @@ void SingleFlipRadix4Pass(const F *tableData, F *data, const size_t length, cons
       const auto sectionStart0 = data + (sectionIndex * radix4Stride * 4) * 2;
       const auto sectionStart1 = sectionStart0 + (radix4Stride * 4) * 2;
 
-      for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
+      for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
       {
         auto a = LoadUnpackedComplex<Align>(&sectionStart0[doubleStride*0 + i]);
         auto b = LoadUnpackedComplex<Align>(&sectionStart0[doubleStride*1 + i]);
@@ -436,10 +434,10 @@ void SingleFlipRadix4Pass(const F *tableData, F *data, const size_t length, cons
   }
 }
 
-template <Dir D, Alignment Align, std::floating_point F>
+template <Dir D, Alignment Align>
 void DoubleFlipRadix4Pass(
-  const F *tableData,
-  F *data,
+  const ElementType *tableData,
+  ElementType *data,
   const size_t length,
   const size_t radix4Stride)
 {
@@ -465,7 +463,7 @@ void DoubleFlipRadix4Pass(
       const auto angles3 = LoadSingleAngle(tableData, angleIndex3, sectionCount);
 
       // Use the partially-bit-reversed "groupStartIndex + butterflySetStartIndex" to get the angle
-      for (auto butterflyStartIndex = 0_z; butterflyStartIndex < radix4Stride; butterflyStartIndex += VecSize<F>)
+      for (auto butterflyStartIndex = 0_z; butterflyStartIndex < radix4Stride; butterflyStartIndex += VecSize)
       {
         auto i = groupStartIndex + butterflySetStartIndex + butterflyStartIndex;
 
@@ -537,8 +535,7 @@ void DoubleFlipRadix4Pass(
   }
 }
 
-template <std::floating_point F>
-auto LoadFinalAngles(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<Vec<F>>>
+auto LoadFinalAngles(const ElementType *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<VecType>>
 {
   auto i1 = angleCount * 4;
   auto r1 = (angleCount == 4) ? 8 : (angleCount * 3);
@@ -562,7 +559,7 @@ auto LoadFinalAngles(const F *tableData, size_t angleIndex, size_t angleCount) -
     };
 
 
-  if constexpr (requires (Angles<ComplexVec<Vec<F>>> a) { a.w2; })
+  if constexpr (requires (Angles<ComplexVec<VecType>> a) { a.w2; })
   {
     return {w2, w1, ComplexMultiply(w1, w2)};
   }
@@ -573,14 +570,14 @@ auto LoadFinalAngles(const F *tableData, size_t angleIndex, size_t angleCount) -
 }
 
 
-template <Dir D, Alignment Align, std::floating_point F>
-void LastDoubleFlipRadix4Pass(const F *tableData, F *data, const size_t length)
+template <Dir D, Alignment Align>
+void LastDoubleFlipRadix4Pass(const ElementType *tableData, ElementType *data, const size_t length)
 {
   const auto flipStride = length / 4;
 
-  if constexpr (VecSize<F> >= 4u)
+  if constexpr (VecSize >= 4u)
   {
-    for (auto butterflySetStartIndex = 0_z; butterflySetStartIndex < flipStride; butterflySetStartIndex += VecSize<F>)
+    for (auto butterflySetStartIndex = 0_z; butterflySetStartIndex < flipStride; butterflySetStartIndex += VecSize)
     {
       // Use the partially-bit-reversed "groupStartIndex + butterflySetStartIndex" to get the angle
 
@@ -598,7 +595,7 @@ void LastDoubleFlipRadix4Pass(const F *tableData, F *data, const size_t length)
 
       if constexpr (D == Dir::Inverse)
       {
-        const auto scale = Set1(F(1) / F(length));
+        const auto scale = Set1(ElementType(1) / ElementType(length));
         a = ScalarMultiply(a, scale);
         b = ScalarMultiply(b, scale);
         c = ScalarMultiply(c, scale);
@@ -611,9 +608,9 @@ void LastDoubleFlipRadix4Pass(const F *tableData, F *data, const size_t length)
       StorePackedComplex<Align>(&data[2 * (i + flipStride * 3)], d);
     }
   }
-  else if constexpr (VecSize<F> == 2u)
+  else if constexpr (VecSize == 2u)
   {
-    for (auto butterflySetStartIndex = 0_z; butterflySetStartIndex < flipStride; butterflySetStartIndex += 2 * VecSize<F>)
+    for (auto butterflySetStartIndex = 0_z; butterflySetStartIndex < flipStride; butterflySetStartIndex += 2 * VecSize)
     {
       // Use the partially-bit-reversed "groupStartIndex + butterflySetStartIndex" to get the angle
 
@@ -633,7 +630,7 @@ void LastDoubleFlipRadix4Pass(const F *tableData, F *data, const size_t length)
       DoRadix4<D>(a01, b01, c01, d01, angles);
       if constexpr (D == Dir::Inverse)
       {
-        const auto scale = Set1(F(1) / F(length));
+        const auto scale = Set1(ElementType(1) / ElementType(length));
         a01 = ScalarMultiply(a01, scale);
         b01 = ScalarMultiply(b01, scale);
         c01 = ScalarMultiply(c01, scale);
@@ -656,7 +653,7 @@ void LastDoubleFlipRadix4Pass(const F *tableData, F *data, const size_t length)
       DoRadix4<D>(a23, b23, c23, d23, angles);
       if constexpr (D == Dir::Inverse)
       {
-        const auto scale = Set1(F(1) / F(length));
+        const auto scale = Set1(ElementType(1) / ElementType(length));
         a23 = ScalarMultiply(a23, scale);
         b23 = ScalarMultiply(b23, scale);
         c23 = ScalarMultiply(c23, scale);
@@ -672,7 +669,7 @@ void LastDoubleFlipRadix4Pass(const F *tableData, F *data, const size_t length)
   else
   {
     // !!! Scalar
-    static_assert(VecSize<F> == 1u);
+    static_assert(VecSize == 1u);
   }
 }
 
@@ -680,7 +677,8 @@ void LastDoubleFlipRadix4Pass(const F *tableData, F *data, const size_t length)
 
 constexpr auto SIMDSetSize = 4u;
 
-template <Dir D, Alignment Align, std::floating_point F>
+// This function is templated on F = ElementType so that the `RunSmallComplex` check works
+template <Dir D, Alignment Align, std::floating_point F = ElementType>
 void RunComplex(
   const F *tableData,
   const F *input,
@@ -740,90 +738,3 @@ void RunComplex(
   //  The final flip (Which has to transpose within a SIMD set)
   LastDoubleFlipRadix4Pass<D, Align>(tableData, output, length);
 }
-
-
-
-// Real FFT ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if 0
-template <Alignment Align, std::floating_point F>
-void RunForwardRealPostprocess(F *data, size_t fftLength)
-{
-  // Real-input-valued FFTs ultimately get calculated as a half-length FFT of complex values. FFTs are linear (i.e.
-  //  FFT(inputA) + FFT(inputB) == FFT(elementwiseAddition(inputA + inputB)), so treating the input (real-valued) data
-  //  as if it were actually alternating real/imaginary components (that is, for input reals [a, b, c, d ...] we just
-  //  pretend it's [(a + b*i), (c + d*i), ...] and run it as a complex FFT that's half the length), then what we end
-  //  up with an FFT that is equivalent to FFT(data[0, 2, 4, 6, ...]) + FFT(i * data[1, 3, 5, 7, ...]).
-  //
-  // Once we've done that we have the FFTs of the evens and the odds summed together. If we pull them apart, we can
-  //  then do one final radix 2 decimation-in-time pass to get the final result.
-  // Every Real FFT's output has two real values and N - 2 complex values, where the latter half of the values are
-  //  mirrored complex conjugates of the first half, like so (where A* is the conjugate of A):
-  //   RealFFT(8Elements) = DC[real] A B C Nyquist[real] C* B* A*
-  // We know that the result of each of the above even- and odd-indexed FFTs, since both had real-valued inputs, will
-  //  be conjugates of each other, and we can use that information to pull the two FFTs apart. If you look at our
-  //  data (which has already been run as a complex data before reaching this function), it basically has the following
-  //   values:
-  //  (DC0 + i*DC1) (A0 + i*A1) (B0 + i*B1) (C0 + i*C1) (Nyq0 + i*Nyq1) (C0* + i*C1*) (B0* + i*B1*) (A0* + i*A1*)
-  //
-  //  DC0 and DC1 are both real (by nature of real FFT results), so those components are already fine as-is. Ditto for
-  //   Nyq0 and Nyq1. These represent the DC and nyquist values for the even and odd indices of the original real data.
-  //
-  //  To get the complex values, we can take advantage of the conjugate nature of the even/odd outputs and solve.
-  //  Using A0/A1 as an example, pulling apart the following values into their imaginary components (Xr and Xi):
-  //   (A0 + i*A1) == { A0r - A1i , A0i + A1r }
-  //   (A0* + i*A1*) == { A0r + A1i, -A0i + A1r }
-  // We can use those values to solve for A0r and A0i:
-  //   A0r = [(A0r - A1i) + (A0r + A1i)] / 2
-  //   A0i = [(A0i + A1r) - (-A0i + A1r)] / 2
-  // (Solving for A1r and A1i are similar)
-  //
-  // That gives us the original even (DC0 A0 B0 C0 Nyq0) and odd (DC1 A1 B1 C1 Nyq1) values (conjugate values are
-  //  implied). We can then run those values through a standard radix 2 DIT to get the final values.
-  //
-  // However, there's still the matter of storage! The above example did two interleaved 8-element FFTs using the even
-  //  and odd inputs of a larger 16-element FFT. The output of that should *technically* have 16 elements. But, as
-  //  stated, there's conjugate mirroring so we only need to actually output 9 values (DC, A, B, C, D, E, F, G, Nyq).
-  //  That would require 18 float values (for 9 complex pairs), but because DC and Nyquist are both guaranteed to be
-  //  real values, we'll pack them both into data[0] and data[1], so they together take up one "complex value", then
-  //  the remaining 14 floats can store the 7 non-conjugate complex values.
-  //
-  // That was a lot of comment! But I wanted to be able to remember how this works later!
-
-  const auto complexFFTLength = fftLength / 2;
-  auto cplxData = reinterpret_cast<Complex<F> *>(data);
-
-  constexpr auto ImaginaryComponentOffset = VecSize<F>;
-
-  auto x0r = data[0];
-  auto x0i = data[ImaginaryComponentOffset];
-
-  // The radix2 butterfly dc and nyquist results use these first two components.
-  auto dc = x0r + x0i;
-  auto nyquist = x0r - x0i;
-
-  // The very middle complex element is also real values, so a + Rot90(b) == a - b*i.
-  auto middle = Complex { output[complexFFTLength], -output[complexFFTLength + ImaginaryComponentOffset] };
-
-  for (auto k = 1u; k < complexFFTLength / 2; k++)
-  {
-    auto x0 = cplxData[k];
-    auto x1Conjugate = Conjugate(cplxData[complexFFTLength - k]);
-    auto even = (x0 + x1Conjugate) * F(0.5);
-    auto odd = Rot90<Dir::Forward>((x0 - x1Conjugate) * F(0.5));
-
-    auto angle =
-      Complex<F>
-      {
-        tableData[angleCount * 3 / 2 + k],
-        tableData[angleCount * 3 / 2 + k + angleCount / 2],
-      };
-    auto oddRotated = Rot<Dir::Forward>(odd, angle);
-    cplxData[k] = even + oddRotated;
-    cplxData[complexFFTLength - k] = Conjugate(even - oddRotated);
-  }
-
-  cplxOut[0] = { dc, nyquist };
-  cplxOut[complexFFTLength / 2] = middle;
-}
-#endif

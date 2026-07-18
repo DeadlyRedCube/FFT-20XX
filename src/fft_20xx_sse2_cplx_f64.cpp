@@ -18,9 +18,9 @@ using namespace FFT20XX;
 
 namespace FFT20XX::SSE2
 {
-  template <typename T> concept simd_vec = std::same_as<std::remove_cvref_t<T>, __m128> || std::same_as<std::remove_cvref_t<T>, __m128d>;
-  template <typename T> using Vec = __m128d;
-  template <typename> constexpr uint32_t VecSize = 2u;
+  constexpr uint32_t VecSize = 2u;
+  using VecType = __m128d;
+  using ElementType = double;
 
   template <typename T>
   struct Angles
@@ -31,21 +31,19 @@ namespace FFT20XX::SSE2
   };
 
 
-  template <std::floating_point F>
-  bool IsSIMDAligned(const F *ptr)
+  bool IsSIMDAligned(const double *ptr)
     { return (uintptr_t(ptr) & (sizeof(__m128) - 1)) == 0; }
 
 
-  template <std::floating_point F>
-  FORCE_INLINE auto Set1(F f) -> Vec<F>
+  FORCE_INLINE auto Set1(double f) -> VecType
   {
     return _mm_set1_pd(f);
   }
 
 
 
-  template <Alignment Align, std::floating_point F>
-  FORCE_INLINE auto Load(const F *ptr) -> Vec<F>
+  template <Alignment Align>
+  FORCE_INLINE auto Load(const double *ptr) -> VecType
   {
     if constexpr (Align == Alignment::Aligned)
       { return _mm_load_pd(ptr); }
@@ -53,8 +51,8 @@ namespace FFT20XX::SSE2
       { return _mm_loadu_pd(ptr); }
   }
 
-  template <Alignment Align, std::floating_point F>
-  FORCE_INLINE void Store(F *ptr, Vec<F> v)
+  template <Alignment Align>
+  FORCE_INLINE void Store(double *ptr, VecType v)
   {
     if constexpr (Align == Alignment::Aligned)
       { return _mm_store_pd(ptr, v); }
@@ -64,32 +62,32 @@ namespace FFT20XX::SSE2
 
 
 
-  template <Alignment Align, std::floating_point F>
-  FORCE_INLINE auto LoadUnpackedComplex(const F *ptr) -> ComplexVec<Vec<F>>
-    { return { Load<Align>(ptr), Load<Align>(ptr + VecSize<F>) }; }
+  template <Alignment Align>
+  FORCE_INLINE auto LoadUnpackedComplex(const double *ptr) -> ComplexVec<VecType>
+    { return { Load<Align>(ptr), Load<Align>(ptr + VecSize) }; }
 
 
-  template <Alignment Align, std::floating_point F>
-  FORCE_INLINE void StoreUnpackedComplex(F *ptr, ComplexVec<Vec<F>> v)
+  template <Alignment Align>
+  FORCE_INLINE void StoreUnpackedComplex(double *ptr, ComplexVec<VecType> v)
   {
     Store<Align>(ptr, v.r);
-    Store<Align>(ptr + VecSize<F>, v.i);
+    Store<Align>(ptr + VecSize, v.i);
   }
 
 
 
-  template <Alignment Align, std::floating_point F>
-  FORCE_INLINE auto LoadPackedComplex(const F *ptr) -> ComplexVec<Vec<F>>
+  template <Alignment Align>
+  FORCE_INLINE auto LoadPackedComplex(const double *ptr) -> ComplexVec<VecType>
   {
     auto t0 = Load<Align>(ptr);
-    auto t1 = Load<Align>(ptr + VecSize<F>);
+    auto t1 = Load<Align>(ptr + VecSize);
     return { _mm_shuffle_pd(t0, t1, _MM_SHUFFLE2(0, 0)), _mm_shuffle_pd(t0, t1, _MM_SHUFFLE2(1, 1)) };
   }
 
 
 
-  template <Alignment Align, std::floating_point F>
-  FORCE_INLINE void StorePackedComplex(F *ptr, ComplexVec<Vec<F>> v)
+  template <Alignment Align>
+  FORCE_INLINE void StorePackedComplex(double *ptr, ComplexVec<VecType> v)
   {
     auto aa = _mm_shuffle_pd(v.r, v.i, _MM_SHUFFLE2(0, 0));
     auto bb = _mm_shuffle_pd(v.r, v.i, _MM_SHUFFLE2(1, 1));
@@ -99,8 +97,7 @@ namespace FFT20XX::SSE2
 
 
 
-  template <simd_vec V>
-  FORCE_INLINE void AddSub(ComplexVec<V> &a, ComplexVec<V> &b)
+  FORCE_INLINE void AddSub(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
   {
     auto t = _mm_add_pd(a.r, b.r);
     b.r = _mm_sub_pd(a.r, b.r);
@@ -112,8 +109,8 @@ namespace FFT20XX::SSE2
 
 
 
-  template <Dir D, simd_vec V>
-  FORCE_INLINE void AddSubRot45(ComplexVec<V> &a, ComplexVec<V> &b)
+  template <Dir D>
+  FORCE_INLINE void AddSubRot45(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
   {
     const auto s = _mm_set1_pd(InvSqrt2<double>);
     if constexpr (D == Dir::Forward)
@@ -141,8 +138,8 @@ namespace FFT20XX::SSE2
 
 
 
-  template <Dir D, simd_vec V>
-  FORCE_INLINE void AddSubRot90(ComplexVec<V> &a, ComplexVec<V> &b)
+  template <Dir D>
+  FORCE_INLINE void AddSubRot90(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
   {
     if constexpr (D == Dir::Forward)
     {
@@ -167,8 +164,8 @@ namespace FFT20XX::SSE2
 
 
 
-  template <Dir D, simd_vec V>
-  FORCE_INLINE void AddSubRot135(ComplexVec<V> &a, ComplexVec<V> &b)
+  template <Dir D>
+  FORCE_INLINE void AddSubRot135(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
   {
     const auto s = _mm_set1_pd(InvSqrt2<double>);
     if constexpr (D == Dir::Forward)
@@ -202,8 +199,7 @@ namespace FFT20XX::SSE2
   }
 
 
-  template <simd_vec V>
-  [[nodiscard]] FORCE_INLINE auto ComplexMultiply(ComplexVec<V> a, ComplexVec<V> b) -> ComplexVec<V>
+  [[nodiscard]] FORCE_INLINE auto ComplexMultiply(ComplexVec<VecType> a, ComplexVec<VecType> b) -> ComplexVec<VecType>
   {
     auto t = _mm_sub_pd(_mm_mul_pd(a.r, b.r), _mm_mul_pd(a.i, b.i));
     a.i = _mm_add_pd(_mm_mul_pd(a.r, b.i), _mm_mul_pd(a.i, b.r));
@@ -211,14 +207,13 @@ namespace FFT20XX::SSE2
     return a;
   }
 
-  template <simd_vec V>
-  [[nodiscard]] FORCE_INLINE auto ScalarMultiply(ComplexVec<V> a, V b) -> ComplexVec<V>
+  [[nodiscard]] FORCE_INLINE auto ScalarMultiply(ComplexVec<VecType> a, VecType b) -> ComplexVec<VecType>
   {
     return { _mm_mul_pd(a.r, b), _mm_mul_pd(a.i, b) };
   }
 
-  template <Dir D, simd_vec V>
-  FORCE_INLINE void Rotate(ComplexVec<V> &a, ComplexVec<V> w)
+  template <Dir D>
+  FORCE_INLINE void Rotate(ComplexVec<VecType> &a, ComplexVec<VecType> w)
   {
     if constexpr (D == Dir::Forward)
     {
@@ -235,8 +230,8 @@ namespace FFT20XX::SSE2
   }
 
 
-  template <Dir D, simd_vec V, std::floating_point F>
-  FORCE_INLINE void Rotate(ComplexVec<V> &a, Complex<F> w)
+  template <Dir D, std::floating_point F>
+  FORCE_INLINE void Rotate(ComplexVec<VecType> &a, Complex<F> w)
   {
     auto wR = _mm_set1_pd(w.r);
     auto wI = _mm_set1_pd(w.i);
@@ -257,8 +252,8 @@ namespace FFT20XX::SSE2
 
 
   FORCE_INLINE void Transpose2x2(
-    ComplexVec<__m128d> &a,
-    ComplexVec<__m128d> &b)
+    ComplexVec<VecType> &a,
+    ComplexVec<VecType> &b)
   {
     auto t = _mm_shuffle_pd(a.r, b.r, _MM_SHUFFLE2(0, 0));
     b.r = _mm_shuffle_pd(a.r, b.r, _MM_SHUFFLE2(1, 1));
