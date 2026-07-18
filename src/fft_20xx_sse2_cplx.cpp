@@ -970,14 +970,6 @@ extern "C"
   }
 
   // !!! move these out as they get implemented
-
-  void fft_real_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
-    COMMON_ASSERTS();
-    SSE2::RunRealFwdFFT(t->Data(), input, output, fftLength);
-  }
-
   void ifft_real_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);

@@ -18,83 +18,79 @@ namespace FFT20XX::SSE2
 {
   template <std::floating_point F>
   bool IsSIMDAligned(const F *ptr)
-    { return (uintptr_t(ptr) & (sizeof(__m128) - 1)) == 0; }
+    { return (uintptr_t(ptr) & (sizeof(__m128d) - 1)) == 0; }
 
   constexpr auto MinimumRealFFTLength = 32;
 
-  constexpr auto VecSize = 4u;
-  using VecType = __m128;
+  constexpr auto VecSize = 2u;
+  using VecType = __m128d;
+  using ElementType = double;
 
   template <Alignment A>
-  [[nodiscard]] FORCE_INLINE auto Load(const float *p)
+  [[nodiscard]] FORCE_INLINE auto Load(const double *p)
   {
     if constexpr (A == Alignment::Aligned)
-      { return _mm_load_ps(p); }
+      { return _mm_load_pd(p); }
     else
-      { return _mm_loadu_ps(p); }
+      { return _mm_loadu_pd(p); }
   }
 
 
 
   template <Alignment A>
-  FORCE_INLINE void Store(float *p, __m128 v)
+  FORCE_INLINE void Store(double *p, __m128d v)
   {
     if constexpr (A == Alignment::Aligned)
-      { _mm_store_ps(p, v); }
+      { _mm_store_pd(p, v); }
     else
-      { _mm_storeu_ps(p, v); }
+      { _mm_storeu_pd(p, v); }
   }
 
 
 
-  [[nodiscard]] FORCE_INLINE auto Set1(float v)
+  [[nodiscard]] FORCE_INLINE auto Set1(double v)
   {
-    return _mm_set1_ps(v);
+    return _mm_set1_pd(v);
   }
 
 
   [[nodiscard]] FORCE_INLINE auto Add(auto a, auto b)
   {
-    return _mm_add_ps(a, b);
+    return _mm_add_pd(a, b);
   }
 
   [[nodiscard]] FORCE_INLINE auto Sub(auto a, auto b)
   {
-    return _mm_sub_ps(a, b);
+    return _mm_sub_pd(a, b);
   }
 
   [[nodiscard]] FORCE_INLINE auto Mul(auto a, auto b)
   {
-    return _mm_mul_ps(a, b);
+    return _mm_mul_pd(a, b);
   }
 
   [[nodiscard]] FORCE_INLINE auto ReplaceFirstOf(auto value, auto newFirst)
   {
+    // NOTE: For AVX the best version I've found is
+    // _mm256_blend_pd(a, _mm256_castpd128_pd256(_mm_set_sd(d)), 0b0001);
     if constexpr (std::floating_point<decltype(newFirst)>)
-      { return _mm_move_ss(value, _mm_set_ss(newFirst)); } // Will compile to a single instruction
+    {
+      #if COMPILER_MSVC
+        // Like with 32-bit SSE, the intrinsics don't optimize well so do it directly
+        value.m128d_f64[0] = newFirst;
+        return value;
+      #else
+        return _mm_move_sd(value, _mm_set_sd(newFirst)); // Will compile to a single instruction
+      #endif
+    }
     else
-      { return _mm_move_ss(value, newFirst); }
+      { return _mm_move_sd(value, newFirst); }
   }
 
   [[nodiscard]] FORCE_INLINE auto InsertTopHalf(auto lo, auto hi)
   {
-    return _mm_shuffle_ps(lo, hi, 0b11'10'01'00);
+    return _mm_shuffle_pd(lo, hi, 0b11'10'01'00);
   }
-
-  FORCE_INLINE void Transpose4(auto &a, auto &b, auto &c, auto &d, auto &t0, auto &t1)
-  {
-    t0 = _mm_shuffle_ps(a, b, 0xEE);
-    a = _mm_shuffle_ps(a, b, 0x44);
-    t1 = _mm_shuffle_ps(c, d, 0x44);
-    d = _mm_shuffle_ps(c, d, 0xEE);
-
-    b = _mm_shuffle_ps(a, t1, 0xDD);
-    a = _mm_shuffle_ps(a, t1, 0x88);
-    c = _mm_shuffle_ps(t0, d, 0x88);
-    d = _mm_shuffle_ps(t0, d, 0xDD);
-  }
-
-
 
   // Takes the first two elements of aceg0 and bdfh0 and puts them in t, then the second two elements from each into bdfh0.
   FORCE_INLINE void SwapRealComponentsForLastDoubleFlip(auto aceg0, auto &bdfh0, auto &t)
@@ -104,22 +100,11 @@ namespace FFT20XX::SSE2
   }
 
 
-
-  FORCE_INLINE void Deinterleave4(auto a, auto &b, auto &aOut)
+  FORCE_INLINE void Transpose2(auto a, auto &b, auto &aOut)
   {
-    aOut = _mm_shuffle_ps(a, b, 0b10'00'10'00);
-    b = _mm_shuffle_ps(a, b, 0b11'01'11'01);
+    aOut = _mm_shuffle_pd(a, b, 0b00);
+    b = _mm_shuffle_pd(a, b, 0b11);
   }
-
-
-
-  FORCE_INLINE void Interleave4(auto a, auto &b, auto &aOut)
-  {
-    aOut = _mm_unpacklo_ps(a, b);
-    b = _mm_unpackhi_ps(a, b);
-  }
-
-
 
   #include "fft_20xx_algo_real_fwd.h"
   #include "fft_20xx_algo_real_inv.h"
@@ -130,19 +115,19 @@ using namespace FFT20XX;
 using namespace fft_20xx::c;
 extern "C"
 {
-  void fft_real_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     SSE2::RealForwardFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
   }
 
 
 
-  void ifft_real_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  /*void ifft_real_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     SSE2::RealInverseFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
-  }
+  }*/
 }

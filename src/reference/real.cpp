@@ -122,7 +122,7 @@ namespace FFT20XX
       return (i - (mask & 1)) ^ mask;
     }
 
-    void DoFullyRealDIFRadix4(double &a, double &b, double &c, double &d, double &e, double &f, double &g, double &h)
+    void DoFullyRealDITRadix4(double &a, double &b, double &c, double &d, double &e, double &f, double &g, double &h)
     {
       constexpr auto InvSqrt2 = 0.7071067811865475244;
       constexpr auto angle = std::complex{InvSqrt2, -InvSqrt2};
@@ -272,7 +272,7 @@ namespace FFT20XX
       for (auto i = 0u; i < length / 8; i++)
       {
         auto [a, b, c, d, e, f, g, h] = Load8(input, i, length / 8);
-        DoFullyRealDIFRadix4(a, b, c, d, e, f, g, h);
+        DoFullyRealDITRadix4(a, b, c, d, e, f, g, h);
         Store8(output, i, length / 8, a, b, c, d, e, f, g, h);
       }
 
@@ -338,7 +338,7 @@ namespace FFT20XX
         {
           auto [a, b, c, d, e, f, g, h] = Load8(data, subsetStartIndex + i, subLength / 8);
           if (subsetStartIndex == 0)
-            { DoFullyRealDIFRadix4(a, b, c, d, e, f, g, h); }
+            { DoFullyRealDITRadix4(a, b, c, d, e, f, g, h); }
           else
             { DoComplexRealDITRadix4(a, b, c, d, e, f, g, h, angle0, angle1); }
           Store8(data, subsetStartIndex + i, subLength / 8, a, b, c, d, e, f, g, h);
@@ -377,7 +377,7 @@ namespace FFT20XX
             auto [a0, b0, c0, d0, e0, f0, g0, h0] = Load8(data, subsetStartIndex + i, subLength / 8);
             auto [a1, b1, c1, d1, e1, f1, g1, h1] = Load8(data, subsetStartIndex + i + subLength, subLength / 8);
             if (subsetStartIndex == 0)
-              { DoFullyRealDIFRadix4(a0, b0, c0, d0, e0, f0, g0, h0); }
+              { DoFullyRealDITRadix4(a0, b0, c0, d0, e0, f0, g0, h0); }
             else
               { DoComplexRealDITRadix4(a0, b0, c0, d0, e0, f0, g0, h0, angle0_0, angle1_0); }
             DoComplexRealDITRadix4(a1, b1, c1, d1, e1, f1, g1, h1, angle0_1, angle1_1);
@@ -405,7 +405,7 @@ namespace FFT20XX
           {
             auto [a, b, c, d, e, f, g, h] = Load8(data, subsetStartIndex + i, subLength / 8);
             if (subsetStartIndex == 0)
-              { DoFullyRealDIFRadix4(a, b, c, d, e, f, g, h); }
+              { DoFullyRealDITRadix4(a, b, c, d, e, f, g, h); }
             else
               { DoComplexRealDITRadix4(a, b, c, d, e, f, g, h, angle0, angle1); }
 
@@ -466,7 +466,7 @@ namespace FFT20XX
             auto [a3, b3, c3, d3, e3, f3, g3, h3] = Load8(data, start3 + i, subLength / 8);
 
             if (start0 == 0)
-              { DoFullyRealDIFRadix4(a0, b0, c0, d0, e0, f0, g0, h0); }
+              { DoFullyRealDITRadix4(a0, b0, c0, d0, e0, f0, g0, h0); }
             else
               { DoComplexRealDITRadix4(a0, b0, c0, d0, e0, f0, g0, h0, angle0_0, angle1_0); }
 

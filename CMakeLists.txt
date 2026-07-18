@@ -60,14 +60,16 @@ if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
 
       PRIVATE
         "src/fft_20xx_sse2_cplx.cpp"
-        "src/fft_20xx_sse2_real_fwd.cpp"
+        "src/fft_20xx_sse2_real_f32.cpp"
+        "src/fft_20xx_sse2_real_f64.cpp"
         "src/fft_20xx_avx.cpp"
         "src/fft_20xx_fma.cpp"
   )
 
   if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     set_source_files_properties("src/fft_20xx_sse2_cplx.cpp" PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
-    set_source_files_properties("src/fft_20xx_sse2_real_fwd.cpp" PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
+    set_source_files_properties("src/fft_20xx_sse2_real_f32.cpp" PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
+    set_source_files_properties("src/fft_20xx_sse2_real_f64.cpp" PROPERTIES COMPILE_OPTIONS "/arch:SSE2")
     set_source_files_properties("src/fft_20xx_avx.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX")
     set_source_files_properties("src/fft_20xx_fma.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
   else()

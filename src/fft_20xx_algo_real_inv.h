@@ -1,6 +1,6 @@
 #include "fft_20xx_algo_real_common.h"
 
-  template <Alignment Align, std::floating_point F>
+  template <Alignment Align, std::floating_point F, uint32_t VV = VecSize, typename VT = VecType>
   void FirstDoubleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length)
   {
     const auto flipStride = length / 4;
@@ -18,7 +18,7 @@
       const auto start2 = 2_z * flipStride;
       const auto start3 = 3_z * flipStride;
 
-      VecType r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13;
       r00 = Load<Align>(&data[0]);
       r01 = Load<Align>(&data[4]);
       r02 = Load<Align>(&data[start1 + 0]);
@@ -65,7 +65,7 @@
       const auto angleIndex0 = subsetIndex >> 1;
 
       // "Give me ALL the registers that you have"
-      VecType r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
       r00 = Load<Align>(&data[start0 + 0]);
       r01 = Load<Align>(&data[start0 + 4]);
       r02 = Load<Align>(&data[start1 + 0]);

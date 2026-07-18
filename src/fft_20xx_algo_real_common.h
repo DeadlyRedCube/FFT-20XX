@@ -11,8 +11,8 @@ FORCE_INLINE void ComplexMultiply(auto aR, auto aI, auto bR, auto bI, auto &cR, 
 }
 
 
-template <Alignment A, typename...V>
-FORCE_INLINE void LoadStridedSets(const float *base, size_t stride, V &... vs)
+template <Alignment A, std::floating_point F, typename...V>
+FORCE_INLINE void LoadStridedSets(const F *base, size_t stride, V &... vs)
 {
   size_t offset = 0;
   ((vs = Load<A>(base + offset), offset += stride), ...);
@@ -20,8 +20,8 @@ FORCE_INLINE void LoadStridedSets(const float *base, size_t stride, V &... vs)
 
 
 
-template <Alignment A, typename...V>
-FORCE_INLINE void StoreStridedSets(float *base, size_t stride, V...v)
+template <Alignment A, std::floating_point F, typename...V>
+FORCE_INLINE void StoreStridedSets(F *base, size_t stride, V...v)
 {
   size_t offset = 0;
   ((Store<A>(base + offset, v), offset += stride), ...);
@@ -507,8 +507,8 @@ FORCE_INLINE void FinalRealDITRealComplexRadix4(
   w0I = Mul(d, w1I);
   c = Mul(c, w1I);
   d = Mul(d, w1R);
-  w1R = ReplaceFirstOf(w1R, InvSqrt2<float>);
-  w1I = ReplaceFirstOf(w1I, -InvSqrt2<float>);
+  w1R = ReplaceFirstOf(w1R, InvSqrt2<ElementType>);
+  w1I = ReplaceFirstOf(w1I, -InvSqrt2<ElementType>);
 
   t1 = Add(c, d);
   c = Sub(w0R, w0I);
@@ -572,8 +572,8 @@ FORCE_INLINE void FirstRealDITRealComplexRadix4Inv(
 
   // For the inverse of the final real DIT we need a second w1 angle that is just 0.707, -0.707 (but the complex w1
   //  values remain the same)
-  w1R = ReplaceFirstOf(w1R, InvSqrt2<float>);
-  w1I = ReplaceFirstOf(w1I, -InvSqrt2<float>);
+  w1R = ReplaceFirstOf(w1R, InvSqrt2<ElementType>);
+  w1I = ReplaceFirstOf(w1I, -InvSqrt2<ElementType>);
 
   t1 = Mul(g, w1R);
   w1R = Mul(t0, w1R);
@@ -611,321 +611,645 @@ FORCE_INLINE void FirstRealDITRealComplexRadix4Inv(
 }
 
 
-template <Alignment A, TangleType Type>
-void LargeTanglePairs(const float *input, float *output, size_t subLength)
+template <Alignment A, TangleType Type, uint32_t VV = VecSize>
+void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subLength)
 {
   // For example in this routine, going to use a 32-pair (64-element) example of ABCDEFGHIJKLMNOPQponmlkjihgfedcb as
-  //  the inputs
+  //  the inputs, and reverse them in blocks of 4, with ForwardLargest and InverseLargest flipping the last 3 elements
+  //  in every other quad of pairs (i.e. ABCD -> ADCB). InverseLargest will reverse the first, third, fifth, etc. quads,
+  //  and ForwardLargest will reverse the second, fourth, sixth, etc. quads.
+  // There are 3 possible results:
+  //  - For ForwardLargest we result in: Adcb|efgh|ilkj|mnop|QNOP|MLKJ|IFGH|EDCB
+  //  - For InverseLargest:              abcd|ehgf|ijkl|mpon|QPON|MJKL|IHGF|EBCD
+  //  - Otherwise (no 3-reverses):        Adcb|ehgf|ilkj|mpon|QNOP|MJKL|IFGH|EBCD
 
-  // Load AB CD (as prevTopA and B) and second-to-last vector `ed` as prevTopB
-  VecType prevTopA, prevTopB;
-  LoadStridedSets<A>(input, 4, prevTopA, prevTopB);
-  auto prevLowA = Load<A>(input + subLength - 8);
-
-  // This first section gets us into the condition where the loop expects
+  if constexpr (VV == 2)
   {
-    VecType r03, r04, r05, r06, r07;
-    // Load the last value in the array as r03 (it's `cb`)
-    //  that write to the beginning of the output.
-    r03 = Load<A>(input + subLength - 4);
-    if constexpr (Type == TangleType::InverseLargest)
+    // The 2-element case is simpler than the others
     {
-      // In this case, we do an extra flip so we get the first elements (r04|r03) as Ab|cd
-      r04 = InsertTopHalf(prevTopA, r03);
-      r03 = InsertTopHalf(r03, prevLowA);
-    }
-    else
-    {
-      // No extra rotation so keep `dcb` in order (leaving r03 unchanged) to make the first elements Ad|cb.
-      r04 = InsertTopHalf(prevTopA, prevLowA);
+      // Start by loading the first 4 elements and last 3 elements
+      VecType t0, t1, t2, t3, l1, l2, l3;
+      LoadStridedSets<A>(input, 2, t0, t1, t2, t3);
+      LoadStridedSets<A>(input + subLength - 6, 2, l1, l2, l3);
+
+      // The first element doesn't move (but input might not be the same pointer as output)
+      Store<A>(output, t0);
+
+      // The elements loaded from the end write out right after (reversed for InverseLargest)
+      if constexpr (Type == TangleType::InverseLargest)
+        { StoreStridedSets<A>(output + 2, 2, l3, l2, l1); }
+      else
+        { StoreStridedSets<A>(output + 2, 2, l1, l2, l3); }
+
+      // Elements 1-3 write out at the end
+      if constexpr (Type == TangleType::ForwardLargest)
+        { StoreStridedSets<A>(output + subLength - 6, 2, t3, t2, t1); }
+      else
+        { StoreStridedSets<A>(output + subLength - 6, 2, t1, t2, t3); }
     }
 
-    // Write these values out
-    StoreStridedSets<A>(output, 4, r04, r03);
-
-    // Load the next value in from the left (EF), and proceed to calculate the values that go at the very end of
-    //  our array.
-    r05 = Load<A>(input + 8);
-
-    if constexpr (Type == TangleType::ForwardLargest)
+    for (auto i = 8u;;)
     {
-      // Do an extra swap of the three values here to make r05|prevTopB ED|CB
-      r04 = InsertTopHalf(r05, prevTopB);
-      prevTopB = InsertTopHalf(prevTopB, prevTopA);
-    }
-    else
-    {
-      // Leave the bottom 3 values in order and make EB|CD
-      r04 = InsertTopHalf(r05, prevTopA);
+      const auto bottom = subLength - i - 14;
+
+      // We have 16 registers so load all of the next 8 pairs from the top and from the bottom.
+      VecType t0, t1, t2, t3, t4, t5, t6, t7, l0, l1, l2, l3, l4, l5, l6, l7;
+      LoadStridedSets<A>(input + i, 2, t0, t1, t2, t3, t4, t5, t6, t7);
+      LoadStridedSets<A>(input + bottom, 2, l0, l1, l2, l3, l4, l5, l6, l7);
+
+      // These store in different orders depending on the type
+      if constexpr (Type == TangleType::ForwardLargest)
+      {
+        StoreStridedSets<A>(output + i, 2, l7, l6, l5, l4, l3, l0, l1, l2);
+        StoreStridedSets<A>(output + bottom, 2, t7, t6, t5, t4, t1, t2, t3, t0);
+      }
+      else if constexpr(Type == TangleType::InverseLargest)
+      {
+        StoreStridedSets<A>(output + i, 2, l7, l4, l5, l6, l3, l2, l1, l0);
+        StoreStridedSets<A>(output + bottom, 2, t5, t6, t7, t4, t3, t2, t1, t0);
+      }
+      else
+      {
+        StoreStridedSets<A>(output + i, 2, l7, l4, l5, l6, l3, l0, l1, l2);
+        StoreStridedSets<A>(output + bottom, 2, t5, t6, t7, t4, t1, t2, t3, t0);
+      }
+
+      i += 16;
+      if (i >= subLength / 2 - 8)
+        { break; }
     }
 
-    // Store the very end values of our array.
-    assert((output + subLength - 8) != (input + 12));
-    StoreStridedSets<A>(output + subLength - 8, 4, r04, prevTopB);
-
-    // We're going to do one more set! Load the next one in from the left (GH) and the next two in from the right
-    //  (`ih` and `gf`) and write the next values at the start
-    prevTopB = Load<A>(input + 12);
-    LoadStridedSets<A>(input + subLength - 16, 4, r06, r07);
-    if constexpr (Type == TangleType::ForwardLargest)
+    // The last middle section just needs to deal with 9 values
     {
-      // Prep `ef|gh` to write out
-      r04 = InsertTopHalf(prevLowA, r07);
-      r07 = InsertTopHalf(r07, r06);
+      const auto offset = subLength / 2 - 8;
+      VecType t0, t1, t2, t3, m, l0, l1, l2, l3;
+      LoadStridedSets<A>(input + offset, 2, t0, t1, t2, t3, m, l0, l1, l2, l3);
+      if constexpr (Type == TangleType::ForwardLargest)
+        { StoreStridedSets<A>(output + offset, 2, l3, l2, l1, l0, m, t1, t2, t3, t0); }
+      else if constexpr (Type == TangleType::InverseLargest)
+        { StoreStridedSets<A>(output + offset, 2, l3, l0, l1, l2, m, t3, t2, t1, t0); }
+      else
+        { StoreStridedSets<A>(output + offset, 2, l3, l0, l1, l2, m, t1, t2, t3, t0); }
     }
-    else
-    {
-      // We'll write `eh|gf`
-      r04 = InsertTopHalf(prevLowA, r06);
-    }
-    StoreStridedSets<A>(output + 8, 4, r04, r07);
-    prevTopA = r05; // This is now EF, to start the loop
-    // prevTopB here is now GH
-    prevLowA = r06; // This is now `ih` to start the loop
   }
-
-  // Step by 16s through (doing 2 sets of 4 pairs at a time, half of which flip in
-  //  Shuffle mode and half of which don't)
-  for (auto i = size_t(16);;)
+  else
   {
-    // Load the next starting values in from the left (IJ|KL on the first loop)
-    VecType r03, r04, r05, r06, r07, r08;
-    LoadStridedSets<A>(input + i, 4, r03, r04);
+    static_assert(VV == 4);
 
-    if constexpr (Type == TangleType::InverseLargest)
+    // Load AB CD (as prevTopA and B) and second-to-last vector `ed` as prevTopB
+    VecType prevTopA, prevTopB;
+    LoadStridedSets<A>(input, 4, prevTopA, prevTopB);
+    auto prevLowA = Load<A>(input + subLength - 8);
+
+    // This first section gets us into the condition where the loop expects
     {
-      // Prep IH|GF to write out on first loop
-      r05 = InsertTopHalf(r03, prevTopB);
-      prevTopB = InsertTopHalf(prevTopB, prevTopA);
-    }
-    else
-    {
-      // Prep IF|GH to write out on first loop
-      r05 = InsertTopHalf(r03, prevTopA);
-    }
+      VecType r03, r04, r05, r06, r07;
+      // Load the last value in the array as r03 (it's `cb`)
+      //  that write to the beginning of the output.
+      r03 = Load<A>(input + subLength - 4);
+      if constexpr (Type == TangleType::InverseLargest)
+      {
+        // In this case, we do an extra flip so we get the first elements (r04|r03) as Ab|cd
+        r04 = InsertTopHalf(prevTopA, r03);
+        r03 = InsertTopHalf(r03, prevLowA);
+      }
+      else
+      {
+        // No extra rotation so keep `dcb` in order (leaving r03 unchanged) to make the first elements Ad|cb.
+        r04 = InsertTopHalf(prevTopA, prevLowA);
+      }
 
-    StoreStridedSets<A>(output + subLength - i, 4, r05, prevTopB);
+      // Write these values out
+      StoreStridedSets<A>(output, 4, r04, r03);
 
-    // Load the next values in from the bottom (`ml|kj` on first loop)
-    LoadStridedSets<A>(input + subLength - i - 8, 4, r06, r07);
+      // Load the next value in from the left (EF), and proceed to calculate the values that go at the very end of
+      //  our array.
+      r05 = Load<A>(input + 8);
 
-    if constexpr (Type == TangleType::InverseLargest)
-    {
-      // prep `ij|kl`
-      r08 = InsertTopHalf(prevLowA, r07);
-      r07 = InsertTopHalf(r07, r06);
-    }
-    else
-    {
-      // prep `il|kj`
-      r08 = InsertTopHalf(prevLowA, r06);
-    }
-    StoreStridedSets<A>(output + i, 4, r08, r07);
+      if constexpr (Type == TangleType::ForwardLargest)
+      {
+        // Do an extra swap of the three values here to make r05|prevTopB ED|CB
+        r04 = InsertTopHalf(r05, prevTopB);
+        prevTopB = InsertTopHalf(prevTopB, prevTopA);
+      }
+      else
+      {
+        // Leave the bottom 3 values in order and make EB|CD
+        r04 = InsertTopHalf(r05, prevTopA);
+      }
 
-    // Next ones in from the start again (MN|OP)
-    LoadStridedSets<A>(input + i + 8, 4, prevTopA, prevTopB);
+      // Store the very end values of our array.
+      assert((output + subLength - 8) != (input + 12));
+      StoreStridedSets<A>(output + subLength - 8, 4, r04, prevTopB);
 
-    if constexpr (Type == TangleType::ForwardLargest)
-    {
-      // Prep ML|KJ to write out
-      r05 = InsertTopHalf(prevTopA, r04);
-      r04 = InsertTopHalf(r04, r03);
-    }
-    else
-    {
-      // Prep MJ|KL
-      r05 = InsertTopHalf(prevTopA, r03);
-    }
-
-    StoreStridedSets<A>(output + subLength - i - 8, 4, r05, r04);
-
-    // One last section on this loop, load the next values in from the bottom (`Qp|on`)
-    prevLowA = Load<A>(input + subLength - i - 16);
-    r07 = Load<A>(input + subLength - i - 12);
-
-    if constexpr (Type == TangleType::ForwardLargest)
-    {
-      // Prep `mn|op`
-      r08 = InsertTopHalf(r06, r07);
-      r07 = InsertTopHalf(r07, prevLowA);
-    }
-    else
-    {
-      // Prep `mp|on`
-      r08 = InsertTopHalf(r06, prevLowA);
-    }
-
-    StoreStridedSets<A>(output + i + 8, 4, r08, r07);
-
-    // At the end of the first (and only) loop in our example data, we have:
-    //  prevTopA == MN (and `M` has already been used)
-    //  prevTopB == OP
-    //  prevLowA == Qp (and `Q` has already been used)
-    i += 16;
-    if (i >= subLength / 2)
-      { break; }
-  }
-
-  // The very middle value needs to be written now.
-  {
-    VecType finalA, finalB;
-    if constexpr (Type == TangleType::InverseLargest)
-    {
-      // In our example data, this makes QP|ON
-      finalA = InsertTopHalf(prevLowA, prevTopB);
-      finalB = InsertTopHalf(prevTopB, prevTopA);
-    }
-    else
-    {
-      // In our example data, this makes QN|OP
-      finalA = InsertTopHalf(prevLowA, prevTopA);
-      finalB = prevTopB;
+      // We're going to do one more set! Load the next one in from the left (GH) and the next two in from the right
+      //  (`ih` and `gf`) and write the next values at the start
+      prevTopB = Load<A>(input + 12);
+      LoadStridedSets<A>(input + subLength - 16, 4, r06, r07);
+      if constexpr (Type == TangleType::ForwardLargest)
+      {
+        // Prep `ef|gh` to write out
+        r04 = InsertTopHalf(prevLowA, r07);
+        r07 = InsertTopHalf(r07, r06);
+      }
+      else
+      {
+        // We'll write `eh|gf`
+        r04 = InsertTopHalf(prevLowA, r06);
+      }
+      StoreStridedSets<A>(output + 8, 4, r04, r07);
+      prevTopA = r05; // This is now EF, to start the loop
+      // prevTopB here is now GH
+      prevLowA = r06; // This is now `ih` to start the loop
     }
 
-    StoreStridedSets<A>(output + subLength / 2, 4, finalA, finalB);
+    // Step by 16s through (doing 2 sets of 4 pairs at a time, half of which flip in
+    //  Shuffle mode and half of which don't)
+    for (auto i = size_t(16);;)
+    {
+      // Load the next starting values in from the left (IJ|KL on the first loop)
+      VecType r03, r04, r05, r06, r07, r08;
+      LoadStridedSets<A>(input + i, 4, r03, r04);
+
+      if constexpr (Type == TangleType::InverseLargest)
+      {
+        // Prep IH|GF to write out on first loop
+        r05 = InsertTopHalf(r03, prevTopB);
+        prevTopB = InsertTopHalf(prevTopB, prevTopA);
+      }
+      else
+      {
+        // Prep IF|GH to write out on first loop
+        r05 = InsertTopHalf(r03, prevTopA);
+      }
+
+      StoreStridedSets<A>(output + subLength - i, 4, r05, prevTopB);
+
+      // Load the next values in from the bottom (`ml|kj` on first loop)
+      LoadStridedSets<A>(input + subLength - i - 8, 4, r06, r07);
+
+      if constexpr (Type == TangleType::InverseLargest)
+      {
+        // prep `ij|kl`
+        r08 = InsertTopHalf(prevLowA, r07);
+        r07 = InsertTopHalf(r07, r06);
+      }
+      else
+      {
+        // prep `il|kj`
+        r08 = InsertTopHalf(prevLowA, r06);
+      }
+      StoreStridedSets<A>(output + i, 4, r08, r07);
+
+      // Next ones in from the start again (MN|OP)
+      LoadStridedSets<A>(input + i + 8, 4, prevTopA, prevTopB);
+
+      if constexpr (Type == TangleType::ForwardLargest)
+      {
+        // Prep ML|KJ to write out
+        r05 = InsertTopHalf(prevTopA, r04);
+        r04 = InsertTopHalf(r04, r03);
+      }
+      else
+      {
+        // Prep MJ|KL
+        r05 = InsertTopHalf(prevTopA, r03);
+      }
+
+      StoreStridedSets<A>(output + subLength - i - 8, 4, r05, r04);
+
+      // One last section on this loop, load the next values in from the bottom (`Qp|on`)
+      prevLowA = Load<A>(input + subLength - i - 16);
+      r07 = Load<A>(input + subLength - i - 12);
+
+      if constexpr (Type == TangleType::ForwardLargest)
+      {
+        // Prep `mn|op`
+        r08 = InsertTopHalf(r06, r07);
+        r07 = InsertTopHalf(r07, prevLowA);
+      }
+      else
+      {
+        // Prep `mp|on`
+        r08 = InsertTopHalf(r06, prevLowA);
+      }
+
+      StoreStridedSets<A>(output + i + 8, 4, r08, r07);
+
+      // At the end of the first (and only) loop in our example data, we have:
+      //  prevTopA == MN (and `M` has already been used)
+      //  prevTopB == OP
+      //  prevLowA == Qp (and `Q` has already been used)
+      i += 16;
+      if (i >= subLength / 2)
+        { break; }
+    }
+
+    // The very middle value needs to be written now.
+    {
+      VecType finalA, finalB;
+      if constexpr (Type == TangleType::InverseLargest)
+      {
+        // In our example data, this makes QP|ON
+        finalA = InsertTopHalf(prevLowA, prevTopB);
+        finalB = InsertTopHalf(prevTopB, prevTopA);
+      }
+      else
+      {
+        // In our example data, this makes QN|OP
+        finalA = InsertTopHalf(prevLowA, prevTopA);
+        finalB = prevTopB;
+      }
+
+      StoreStridedSets<A>(output + subLength / 2, 4, finalA, finalB);
+    }
   }
 }
 
 
 
-template <Alignment A>
-void Copy4Pairs(const float *input, float *output)
+template <Alignment Align, uint32_t VV = VecSize>
+void Copy4Pairs(const ElementType *input, ElementType *output)
 {
-  VecType Aa, Bb;
-  LoadStridedSets<A>(input, 4, Aa, Bb);
-  StoreStridedSets<A>(output, 4, Aa, Bb);
+  if constexpr (VV == 2)
+  {
+    VecType r0, r1, r2, r3;
+    LoadStridedSets<Align>(input, 2, r0, r1, r2, r3);
+    StoreStridedSets<Align>(output, 2, r0, r1, r2, r3);
+  }
+  else
+  {
+    static_assert(VV == 4);
+    VecType Aa, Bb;
+    LoadStridedSets<Align>(input, 4, Aa, Bb);
+    StoreStridedSets<Align>(output, 4, Aa, Bb);
+  }
 }
 
 
 
-template <Alignment A, TangleType Type>
-void TangleFinal4Pairs(const float *input, float *output)
+template <Alignment Align, TangleType Type, uint32_t VV = VecSize>
+void TangleFinal4Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardLargest)
   {
     //  AbBa -> AaBb
-    VecType Ab, Ba;
-    LoadStridedSets<A>(input, 4, Ab, Ba);
-    auto Aa = InsertTopHalf(Ab, Ba);
-    auto Bb = InsertTopHalf(Ba, Ab);
-    StoreStridedSets<A>(output, 4, Aa, Bb);
+    if constexpr (VV == 2)
+    {
+      VecType A, b, B, a;
+      LoadStridedSets<Align>(input, 2, A, b, B, a);
+      StoreStridedSets<Align>(output, 2, A, a, B, b);
+    }
+    else
+    {
+      static_assert(VV == 4);
+      VecType Ab, Ba;
+      LoadStridedSets<Align>(input, 4, Ab, Ba);
+      auto Aa = InsertTopHalf(Ab, Ba);
+      auto Bb = InsertTopHalf(Ba, Ab);
+      StoreStridedSets<Align>(output, 4, Aa, Bb);
+    }
   }
   else
   {
-    static_assert(Type == TangleType::InverseLargest);
     // AaBb -> AbBa
-    VecType Aa, Bb;
-    LoadStridedSets<A>(input, 4, Aa, Bb);
-    auto Ab = InsertTopHalf(Aa, Bb);
-    auto Ba = InsertTopHalf(Bb, Aa);
-    StoreStridedSets<A>(output, 4, Ab, Ba);
+    static_assert(Type == TangleType::InverseLargest);
+
+    if constexpr (VV == 2)
+    {
+      VecType A, a, B, b;
+      LoadStridedSets<Align>(input, 2, A, a, B, b);
+      StoreStridedSets<Align>(output, 2, A, b, B, a);
+    }
+    else
+    {
+      static_assert(VV == 4);
+      VecType Aa, Bb;
+      LoadStridedSets<Align>(input, 4, Aa, Bb);
+      auto Ab = InsertTopHalf(Aa, Bb);
+      auto Ba = InsertTopHalf(Bb, Aa);
+      StoreStridedSets<Align>(output, 4, Ab, Ba);
+    }
   }
 }
 
 
 
-template <Alignment A, TangleType Type>
-void Tangle8Pairs(const float *input, float *output)
+template <Alignment Align, TangleType Type, uint32_t VV = VecSize>
+void Tangle8Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardInner)
   {
     // AcDdCaBb -> AaBbCcDd
-    VecType Ac, Dd, Ca, Bb;
-    LoadStridedSets<A>(input, 8, Ac, Ca);
-    auto Aa = InsertTopHalf(Ac, Ca);
-    auto Cc = InsertTopHalf(Ca, Ac);
-    LoadStridedSets<A>(input + 4, 8, Dd, Bb);
-    StoreStridedSets<A>(output, 4, Aa, Bb, Cc, Dd);
+    if constexpr (VV == 2)
+    {
+      VecType A, a, B, b, C, c, D, d;
+      LoadStridedSets<Align>(input, 2, A, c, D, d, C, a, B, b);
+      StoreStridedSets<Align>(output, 2, A, a, B, b, C, c, D, d);
+    }
+    else
+    {
+      static_assert(VV == 4);
+      VecType Ac, Dd, Ca, Bb;
+      LoadStridedSets<Align>(input, 8, Ac, Ca);
+      auto Aa = InsertTopHalf(Ac, Ca);
+      auto Cc = InsertTopHalf(Ca, Ac);
+      LoadStridedSets<Align>(input + 4, 8, Dd, Bb);
+      StoreStridedSets<Align>(output, 4, Aa, Bb, Cc, Dd);
+    }
   }
   else if constexpr (Type == TangleType::ForwardLargest)
   {
     // AdDcCaBb -> AaBbCcDd
-    VecType Ad, Dc, Ca, Bb;
-    LoadStridedSets<A>(input, 4, Ad, Dc, Ca, Bb);
-    auto Aa = InsertTopHalf(Ad, Ca);
-    auto Dd = InsertTopHalf(Dc, Ad);
-    auto Cc = InsertTopHalf(Ca, Dc);
-    StoreStridedSets<A>(output, 4, Aa, Bb, Cc, Dd);
-  }
-  else
-  {
-    VecType Aa, Bb, Cc, Dd;
-    LoadStridedSets<A>(input, 4, Aa, Bb, Cc, Dd);
-
-    if constexpr (Type == TangleType::InverseInner)
+    if constexpr (VV == 2)
     {
-      // AaBbCcDd -> AcDdCaBb
-      auto Ac = InsertTopHalf(Aa, Cc);
-      auto Ca = InsertTopHalf(Cc, Aa);
-      StoreStridedSets<A>(output, 4, Ac, Dd, Ca, Bb);
+      VecType A, a, B, b, C, c, D, d;
+      LoadStridedSets<Align>(input, 2, A, d, D, c, C, a, B, b);
+      StoreStridedSets<Align>(output, 2, A, a, B, b, C, c, D, d);
     }
     else
     {
-      // AaBbCcDd -> AdDcCaBb
-      static_assert(Type == TangleType::InverseLargest);
+      static_assert(VV == 4);
+      VecType Ad, Dc, Ca, Bb;
+      LoadStridedSets<Align>(input, 4, Ad, Dc, Ca, Bb);
+      auto Aa = InsertTopHalf(Ad, Ca);
+      auto Dd = InsertTopHalf(Dc, Ad);
+      auto Cc = InsertTopHalf(Ca, Dc);
+      StoreStridedSets<Align>(output, 4, Aa, Bb, Cc, Dd);
+    }
+  }
+  else if constexpr (Type == TangleType::InverseInner)
+  {
+    // AaBbCcDd -> AcDdCaBb
+    if constexpr (VV == 2)
+    {
+      VecType A, a, B, b, C, c, D, d;
+      LoadStridedSets<Align>(input, 2, A, a, B, b, C, c, D, d);
+      StoreStridedSets<Align>(output, 2, A, c, D, d, C, a, B, b);
+    }
+    else
+    {
+      static_assert(VV == 4);
+      VecType Aa, Bb, Cc, Dd;
+      LoadStridedSets<Align>(input, 4, Aa, Bb, Cc, Dd);
+      auto Ac = InsertTopHalf(Aa, Cc);
+      auto Ca = InsertTopHalf(Cc, Aa);
+      StoreStridedSets<Align>(output, 4, Ac, Dd, Ca, Bb);
+    }
+  }
+  else
+  {
+    // AaBbCcDd -> AdDcCaBb
+    static_assert(Type == TangleType::InverseLargest);
+
+    if constexpr (VV == 2)
+    {
+      VecType A, a, B, b, C, c, D, d;
+      LoadStridedSets<Align>(input, 2, A, a, B, b, C, c, D, d);
+      StoreStridedSets<Align>(output, 2, A, d, D, c, C, a, B, b);
+    }
+    else
+    {
+      static_assert(VV == 4);
+      VecType Aa, Bb, Cc, Dd;
+      LoadStridedSets<Align>(input, 4, Aa, Bb, Cc, Dd);
       auto Ad = InsertTopHalf(Aa, Dd);
       auto Dc = InsertTopHalf(Dd, Cc);
       auto Ca = InsertTopHalf(Cc, Aa);
-      StoreStridedSets<A>(output, 4, Ad, Dc, Ca, Bb);
+      StoreStridedSets<Align>(output, 4, Ad, Dc, Ca, Bb);
     }
   }
 }
 
 
 
-template <Alignment A, TangleType Type>
-void Tangle16Pairs(const float *input, float *output)
+template <Alignment Align, TangleType Type, uint32_t VV = VecSize>
+void Tangle16Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardInner)
   {
     // AgHhGeFfEaBbCcDd -> AaBbCcDdEeFfGgHh
-    VecType r00, r01, r02, r03, r04, r05, r06, r07;
-    LoadStridedSets<A>(input, 4, r00, r01, r02);
-    r03 = InsertTopHalf(r02, r00);
-    LoadStridedSets<A>(input + 12, 4, r04, r05);
-    r00 = InsertTopHalf(r00, r05);
-    r02 = InsertTopHalf(r05, r02);
-    LoadStridedSets<A>(input + 20, 4, r05, r06, r07);
-    StoreStridedSets<A>(output, 4, r00, r05, r06, r07, r02, r04, r03, r01);
+    if constexpr (VV == 2)
+    {
+      // With this one, every pair is a whole vector so this is easy to just move things around.
+      VecType r00, r01, r02, r03, r04, r05, r06, r07;
+      r00 = Load<Align>(input + 0);
+      Store<Align>(output + 0, r00);
+
+      r00 = Load<Align>(input + 2);
+      r01 = Load<Align>(input + 18);
+      Store<Align>(output + 2, r01);
+
+      r01 = Load<Align>(input + 4);
+      r02 = Load<Align>(input + 20);
+      Store<Align>(output + 4, r02);
+
+      r02 = Load<Align>(input + 6);
+      r03 = Load<Align>(input + 22);
+      Store<Align>(output + 6, r03);
+
+      r03 = Load<Align>(input + 8);
+      r04 = Load<Align>(input + 24);
+      Store<Align>(output + 8, r04);
+
+      r04 = Load<Align>(input + 10);
+      r05 = Load<Align>(input + 26);
+      Store<Align>(output + 10, r05);
+
+      r05 = Load<Align>(input + 12);
+      r06 = Load<Align>(input + 28);
+      Store<Align>(output + 12, r06);
+
+      r06 = Load<Align>(input + 14);
+      r07 = Load<Align>(input + 30);
+      Store<Align>(output + 14, r07);
+
+      r07 = Load<Align>(input + 16);
+      Store<Align>(output + 16, r07);
+
+      Store<Align>(output + 18, r04);
+      Store<Align>(output + 20, r05);
+      Store<Align>(output + 22, r06);
+      Store<Align>(output + 24, r03);
+      Store<Align>(output + 26, r00);
+      Store<Align>(output + 28, r01);
+      Store<Align>(output + 30, r02);
+    }
+    else
+    {
+      static_assert(VV == 4);
+      VecType r00, r01, r02, r03, r04, r05, r06, r07;
+      LoadStridedSets<Align>(input, 4, r00, r01, r02);
+      r03 = InsertTopHalf(r02, r00);
+      LoadStridedSets<Align>(input + 12, 4, r04, r05);
+      r00 = InsertTopHalf(r00, r05);
+      r02 = InsertTopHalf(r05, r02);
+      LoadStridedSets<Align>(input + 20, 4, r05, r06, r07);
+      StoreStridedSets<Align>(output, 4, r00, r05, r06, r07, r02, r04, r03, r01);
+    }
   }
   else if constexpr (Type == TangleType::ForwardLargest)
   {
     // AhHgGeFfEaBbCdDc -> AaBbCcDdEeFfGgHh
-    VecType r00, r01, r02, r03, r04, r05, r06, r07, r08;
-    LoadStridedSets<A>(input, 4, r00, r01, r02);
-    r03 = InsertTopHalf(r01, r00);
-    r01 = InsertTopHalf(r02, r01);
-    LoadStridedSets<A>(input + 12, 4, r04, r05);
-    r02 = InsertTopHalf(r05, r02);
-    r00 = InsertTopHalf(r00, r05);
-    LoadStridedSets<A>(input + 20, 4, r05, r06, r07);
-    r08 = InsertTopHalf(r06, r07);
-    r06 = InsertTopHalf(r07, r06);
-    StoreStridedSets<A>(output, 4, r00, r05, r08, r06, r02, r04, r01, r03);
-  }
-  else
-  {
-    VecType r00, r01, r02, r03, r04, r05, r06, r07, r08;
-    LoadStridedSets<A>(input, 4, r00, r01, r02, r03, r04, r05, r06, r07);
-
-    if constexpr (Type == TangleType::InverseInner)
+    if constexpr (VV == 2)
     {
-      // AaBbCcDdEeFfGgHh -> AgHhGeFfEaBbCcDd
-      r08 = InsertTopHalf(r00, r06);
-      r06 = InsertTopHalf(r06, r04);
-      r00 = InsertTopHalf(r04, r00);
-      StoreStridedSets<A>(output, 4, r08, r07, r06, r05, r00, r01, r02, r03);
+      VecType r00, r01, r02, r03, r04, r05, r06, r07;
+      r00 = Load<Align>(input + 0);
+      Store<Align>(output + 0, r00);
+
+      r00 = Load<Align>(input + 2);
+      r01 = Load<Align>(input + 18);
+      Store<Align>(output + 2, r01);
+
+      r01 = Load<Align>(input + 4);
+      r02 = Load<Align>(input + 20);
+      Store<Align>(output + 4, r02);
+
+      r02 = Load<Align>(input + 6);
+      r03 = Load<Align>(input + 22);
+      Store<Align>(output + 6, r03);
+
+      r03 = Load<Align>(input + 8);
+      r04 = Load<Align>(input + 24);
+      Store<Align>(output + 8, r04);
+
+      r04 = Load<Align>(input + 10);
+      r05 = Load<Align>(input + 30);
+      Store<Align>(output + 10, r05);
+
+      r05 = Load<Align>(input + 12);
+      r06 = Load<Align>(input + 28);
+      Store<Align>(output + 12, r06);
+
+      r06 = Load<Align>(input + 14);
+      r07 = Load<Align>(input + 26);
+      Store<Align>(output + 14, r07);
+
+      r07 = Load<Align>(input + 16);
+      Store<Align>(output + 16, r07);
+      Store<Align>(output + 18, r04);
+      Store<Align>(output + 20, r05);
+      Store<Align>(output + 22, r06);
+      Store<Align>(output + 24, r03);
+      Store<Align>(output + 26, r02);
+      Store<Align>(output + 28, r01);
+      Store<Align>(output + 30, r00);
     }
     else
     {
-      // AaBbCcDdEeFfGgHh -> AhHgGeFfEaBbCdDc
+      static_assert(VV == 4);
+      VecType r00, r01, r02, r03, r04, r05, r06, r07, r08;
+      LoadStridedSets<Align>(input, 4, r00, r01, r02);
+      r03 = InsertTopHalf(r01, r00);
+      r01 = InsertTopHalf(r02, r01);
+      LoadStridedSets<Align>(input + 12, 4, r04, r05);
+      r02 = InsertTopHalf(r05, r02);
+      r00 = InsertTopHalf(r00, r05);
+      LoadStridedSets<Align>(input + 20, 4, r05, r06, r07);
+      r08 = InsertTopHalf(r06, r07);
+      r06 = InsertTopHalf(r07, r06);
+      StoreStridedSets<Align>(output, 4, r00, r05, r08, r06, r02, r04, r01, r03);
+    }
+  }
+  else if constexpr (Type == TangleType::InverseInner)
+  {
+    // AaBbCcDdEeFfGgHh -> AgHhGeFfEaBbCcDd
+    if constexpr (VV == 2)
+    {
+      auto A = Load<Align>(input + 0);
+      auto a = Load<Align>(input + 2);
+      auto B = Load<Align>(input + 4);
+      auto b = Load<Align>(input + 6);
+      auto C = Load<Align>(input + 8);
+      auto c = Load<Align>(input + 10);
+      auto D = Load<Align>(input + 12);
+      auto d = Load<Align>(input + 14);
+      auto E = Load<Align>(input + 16);
+      auto e = Load<Align>(input + 18);
+      auto F = Load<Align>(input + 20);
+      auto f = Load<Align>(input + 22);
+      auto G = Load<Align>(input + 24);
+      auto g = Load<Align>(input + 26);
+      auto H = Load<Align>(input + 28);
+      auto h = Load<Align>(input + 30);
+
+      Store<Align>(output + 0, A);
+      Store<Align>(output + 2, g);
+      Store<Align>(output + 4, H);
+      Store<Align>(output + 6, h);
+      Store<Align>(output + 8, G);
+      Store<Align>(output + 10, e);
+      Store<Align>(output + 12, F);
+      Store<Align>(output + 14, f);
+      Store<Align>(output + 16, E);
+      Store<Align>(output + 18, a);
+      Store<Align>(output + 20, B);
+      Store<Align>(output + 22, b);
+      Store<Align>(output + 24, C);
+      Store<Align>(output + 26, c);
+      Store<Align>(output + 28, D);
+      Store<Align>(output + 30, d);
+    }
+    else
+    {
+      VecType r00, r01, r02, r03, r04, r05, r06, r07, r08;
+      LoadStridedSets<Align>(input, 4, r00, r01, r02, r03, r04, r05, r06, r07);
+      r08 = InsertTopHalf(r00, r06);
+      r06 = InsertTopHalf(r06, r04);
+      r00 = InsertTopHalf(r04, r00);
+      StoreStridedSets<Align>(output, 4, r08, r07, r06, r05, r00, r01, r02, r03);
+    }
+  }
+  else
+  {
+    // AaBbCcDdEeFfGgHh -> AhHgGeFfEaBbCdDc
+    if constexpr (VV == 2)
+    {
+      auto A = Load<Align>(input + 0);
+      auto a = Load<Align>(input + 2);
+      auto B = Load<Align>(input + 4);
+      auto b = Load<Align>(input + 6);
+      auto C = Load<Align>(input + 8);
+      auto c = Load<Align>(input + 10);
+      auto D = Load<Align>(input + 12);
+      auto d = Load<Align>(input + 14);
+      auto E = Load<Align>(input + 16);
+      auto e = Load<Align>(input + 18);
+      auto F = Load<Align>(input + 20);
+      auto f = Load<Align>(input + 22);
+      auto G = Load<Align>(input + 24);
+      auto g = Load<Align>(input + 26);
+      auto H = Load<Align>(input + 28);
+      auto h = Load<Align>(input + 30);
+
+      Store<Align>(output + 0, A);
+      Store<Align>(output + 2, h);
+      Store<Align>(output + 4, H);
+      Store<Align>(output + 6, g);
+      Store<Align>(output + 8, G);
+      Store<Align>(output + 10, e);
+      Store<Align>(output + 12, F);
+      Store<Align>(output + 14, f);
+      Store<Align>(output + 16, E);
+      Store<Align>(output + 18, a);
+      Store<Align>(output + 20, B);
+      Store<Align>(output + 22, b);
+      Store<Align>(output + 24, C);
+      Store<Align>(output + 26, d);
+      Store<Align>(output + 28, D);
+      Store<Align>(output + 30, c);
+    }
+    else
+    {
+      VecType r00, r01, r02, r03, r04, r05, r06, r07, r08;
+      LoadStridedSets<Align>(input, 4, r00, r01, r02, r03, r04, r05, r06, r07);
       r08 = InsertTopHalf(r00, r07);
       r07 = InsertTopHalf(r07, r06);
       r06 = InsertTopHalf(r06, r04);
       r00 = InsertTopHalf(r04, r00);
       auto r09 = InsertTopHalf(r02, r03);
       r02 = InsertTopHalf(r03, r02);
-      StoreStridedSets<A>(output, 4, r08, r07, r06, r05, r00, r01, r09, r02);
+      StoreStridedSets<Align>(output, 4, r08, r07, r06, r05, r00, r01, r09, r02);
     }
   }
 }
@@ -933,93 +1257,382 @@ void Tangle16Pairs(const float *input, float *output)
 
 
 // Swaps 64 elements (32 pairs)
-template <Alignment A, TangleType Type>
-void Tangle32Pairs(const float *input, float *output)
+template <Alignment Align, TangleType Type, uint32_t VV = VecSize>
+void Tangle32Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardInner)
   {
     // AoPpOmNnMiJjKkLlIaBbCcDdEgHhGeFf -> AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPp
-    // Conveniently with the loads and shuffles ordered as such, we fit within the x64 register space.
-    VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
-    LoadStridedSets<A>(input, 4, r0, r1, r2, r3, r4);
-    r5 = InsertTopHalf(r2, r0);
-    r2 = InsertTopHalf(r4, r2);
-    LoadStridedSets<A>(input + 20, 4, r6, r7, r8, r9);
-    r0 = InsertTopHalf(r0, r9);
-    r4 = InsertTopHalf(r9, r4);
-    r9 = Load<A>(input + 36);
-    LoadStridedSets<A>(input + 40, 4, r10, r11, r12, r13, r14);
-    r15 = InsertTopHalf(r14, r12);
-    r12 = InsertTopHalf(r12, r14);
-    r14 = Load<A>(input + 60);
-    StoreStridedSets<A>(output, 4, r0, r9, r10, r11, r12, r14, r15, r13, r4, r6, r7, r8, r2, r3, r5, r1);
+    if constexpr (VV == 2)
+    {
+      auto A = Load<Align>(input + 0);
+      auto o = Load<Align>(input + 2);
+      auto P = Load<Align>(input + 4);
+      auto p = Load<Align>(input + 6);
+      auto O = Load<Align>(input + 8);
+      auto m = Load<Align>(input + 10);
+      auto N = Load<Align>(input + 12);
+      auto n = Load<Align>(input + 14);
+      auto M = Load<Align>(input + 16);
+      auto i = Load<Align>(input + 18);
+      auto J = Load<Align>(input + 20);
+      auto j = Load<Align>(input + 22);
+      auto K = Load<Align>(input + 24);
+      auto k = Load<Align>(input + 26);
+      auto L = Load<Align>(input + 28);
+      auto l = Load<Align>(input + 30);
+      auto I = Load<Align>(input + 32);
+      auto a = Load<Align>(input + 34);
+      auto B = Load<Align>(input + 36);
+      auto b = Load<Align>(input + 38);
+      auto C = Load<Align>(input + 40);
+      auto c = Load<Align>(input + 42);
+      auto D = Load<Align>(input + 44);
+      auto d = Load<Align>(input + 46);
+      auto E = Load<Align>(input + 48);
+      auto g = Load<Align>(input + 50);
+      auto H = Load<Align>(input + 52);
+      auto h = Load<Align>(input + 54);
+      auto G = Load<Align>(input + 56);
+      auto e = Load<Align>(input + 58);
+      auto F = Load<Align>(input + 60);
+      auto f = Load<Align>(input + 62);
+
+      Store<Align>(output + 0, A);
+      Store<Align>(output + 2, a);
+      Store<Align>(output + 4, B);
+      Store<Align>(output + 6, b);
+      Store<Align>(output + 8, C);
+      Store<Align>(output + 10, c);
+      Store<Align>(output + 12, D);
+      Store<Align>(output + 14, d);
+      Store<Align>(output + 16, E);
+      Store<Align>(output + 18, e);
+      Store<Align>(output + 20, F);
+      Store<Align>(output + 22, f);
+      Store<Align>(output + 24, G);
+      Store<Align>(output + 26, g);
+      Store<Align>(output + 28, H);
+      Store<Align>(output + 30, h);
+      Store<Align>(output + 32, I);
+      Store<Align>(output + 34, i);
+      Store<Align>(output + 36, J);
+      Store<Align>(output + 38, j);
+      Store<Align>(output + 40, K);
+      Store<Align>(output + 42, k);
+      Store<Align>(output + 44, L);
+      Store<Align>(output + 46, l);
+      Store<Align>(output + 48, M);
+      Store<Align>(output + 50, m);
+      Store<Align>(output + 52, N);
+      Store<Align>(output + 54, n);
+      Store<Align>(output + 56, O);
+      Store<Align>(output + 58, o);
+      Store<Align>(output + 60, P);
+      Store<Align>(output + 62, p);
+    }
+    else
+    {
+      static_assert(VV == 4);
+
+      // Conveniently with the loads and shuffles ordered as such, we fit within the x64 register space.
+      VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
+      LoadStridedSets<Align>(input, 4, r0, r1, r2, r3, r4);
+      r5 = InsertTopHalf(r2, r0);
+      r2 = InsertTopHalf(r4, r2);
+      LoadStridedSets<Align>(input + 20, 4, r6, r7, r8, r9);
+      r0 = InsertTopHalf(r0, r9);
+      r4 = InsertTopHalf(r9, r4);
+      r9 = Load<Align>(input + 36);
+      LoadStridedSets<Align>(input + 40, 4, r10, r11, r12, r13, r14);
+      r15 = InsertTopHalf(r14, r12);
+      r12 = InsertTopHalf(r12, r14);
+      r14 = Load<Align>(input + 60);
+      StoreStridedSets<Align>(output, 4, r0, r9, r10, r11, r12, r14, r15, r13, r4, r6, r7, r8, r2, r3, r5, r1);
+    }
   }
   else if constexpr (Type == TangleType::ForwardLargest)
   {
     // ApPoOmNnMiJjKlLkIaBbCdDcEhHgGeFf -> AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPp
     //  (note that pPo, lLk, dDc, and hHg are reversed from the above)
-    VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
-    LoadStridedSets<A>(input, 4, r0, r1, r2, r3, r4);
-    r5 = InsertTopHalf(r2, r1);
-    r1 = InsertTopHalf(r1, r0);
-    r2 = InsertTopHalf(r4, r2);
-    LoadStridedSets<A>(input + 20, 4, r6, r7, r8);
-    r9 = InsertTopHalf(r7, r8);
-    r7 = InsertTopHalf(r8, r7);
-    r8 = Load<A>(input + 32);
-    r0 = InsertTopHalf(r0, r8);
-    r4 = InsertTopHalf(r8, r4);
-    LoadStridedSets<A>(input + 36, 4, r10, r11, r12);
-    r8 = InsertTopHalf(r11, r12);
-    r11 = InsertTopHalf(r12, r11);
-    LoadStridedSets<A>(input + 48, 4, r13, r14, r15);
-    r12 = InsertTopHalf(r14, r13);
-    r14 = InsertTopHalf(r15, r14);
-    r13 = InsertTopHalf(r13, r15);
-    r15 = Load<A>(input + 60);
-    StoreStridedSets<A>(output, 4, r0, r10, r8, r11, r13, r15, r14, r12, r4, r6, r9, r7, r2, r3, r5, r1);
+    if constexpr (VV == 2)
+    {
+      auto A = Load<Align>(input + 0);
+      auto p = Load<Align>(input + 2);
+      auto P = Load<Align>(input + 4);
+      auto o = Load<Align>(input + 6);
+      auto O = Load<Align>(input + 8);
+      auto m = Load<Align>(input + 10);
+      auto N = Load<Align>(input + 12);
+      auto n = Load<Align>(input + 14);
+      auto M = Load<Align>(input + 16);
+      auto i = Load<Align>(input + 18);
+      auto J = Load<Align>(input + 20);
+      auto j = Load<Align>(input + 22);
+      auto K = Load<Align>(input + 24);
+      auto l = Load<Align>(input + 26);
+      auto L = Load<Align>(input + 28);
+      auto k = Load<Align>(input + 30);
+      auto I = Load<Align>(input + 32);
+      auto a = Load<Align>(input + 34);
+      auto B = Load<Align>(input + 36);
+      auto b = Load<Align>(input + 38);
+      auto C = Load<Align>(input + 40);
+      auto d = Load<Align>(input + 42);
+      auto D = Load<Align>(input + 44);
+      auto c = Load<Align>(input + 46);
+      auto E = Load<Align>(input + 48);
+      auto h = Load<Align>(input + 50);
+      auto H = Load<Align>(input + 52);
+      auto g = Load<Align>(input + 54);
+      auto G = Load<Align>(input + 56);
+      auto e = Load<Align>(input + 58);
+      auto F = Load<Align>(input + 60);
+      auto f = Load<Align>(input + 62);
+
+      Store<Align>(output + 0, A);
+      Store<Align>(output + 2, a);
+      Store<Align>(output + 4, B);
+      Store<Align>(output + 6, b);
+      Store<Align>(output + 8, C);
+      Store<Align>(output + 10, c);
+      Store<Align>(output + 12, D);
+      Store<Align>(output + 14, d);
+      Store<Align>(output + 16, E);
+      Store<Align>(output + 18, e);
+      Store<Align>(output + 20, F);
+      Store<Align>(output + 22, f);
+      Store<Align>(output + 24, G);
+      Store<Align>(output + 26, g);
+      Store<Align>(output + 28, H);
+      Store<Align>(output + 30, h);
+      Store<Align>(output + 32, I);
+      Store<Align>(output + 34, i);
+      Store<Align>(output + 36, J);
+      Store<Align>(output + 38, j);
+      Store<Align>(output + 40, K);
+      Store<Align>(output + 42, k);
+      Store<Align>(output + 44, L);
+      Store<Align>(output + 46, l);
+      Store<Align>(output + 48, M);
+      Store<Align>(output + 50, m);
+      Store<Align>(output + 52, N);
+      Store<Align>(output + 54, n);
+      Store<Align>(output + 56, O);
+      Store<Align>(output + 58, o);
+      Store<Align>(output + 60, P);
+      Store<Align>(output + 62, p);
+    }
+    else
+    {
+      static_assert(VV == 4);
+      VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
+      LoadStridedSets<Align>(input, 4, r0, r1, r2, r3, r4);
+      r5 = InsertTopHalf(r2, r1);
+      r1 = InsertTopHalf(r1, r0);
+      r2 = InsertTopHalf(r4, r2);
+      LoadStridedSets<Align>(input + 20, 4, r6, r7, r8);
+      r9 = InsertTopHalf(r7, r8);
+      r7 = InsertTopHalf(r8, r7);
+      r8 = Load<Align>(input + 32);
+      r0 = InsertTopHalf(r0, r8);
+      r4 = InsertTopHalf(r8, r4);
+      LoadStridedSets<Align>(input + 36, 4, r10, r11, r12);
+      r8 = InsertTopHalf(r11, r12);
+      r11 = InsertTopHalf(r12, r11);
+      LoadStridedSets<Align>(input + 48, 4, r13, r14, r15);
+      r12 = InsertTopHalf(r14, r13);
+      r14 = InsertTopHalf(r15, r14);
+      r13 = InsertTopHalf(r13, r15);
+      r15 = Load<Align>(input + 60);
+      StoreStridedSets<Align>(output, 4, r0, r10, r8, r11, r13, r15, r14, r12, r4, r6, r9, r7, r2, r3, r5, r1);
+    }
   }
   else if constexpr (Type == TangleType::InverseInner)
   {
     // AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPp -> AoPpOmNnMiJjKkLlIaBbCcDdEgHhGeFf
-    VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
-    LoadStridedSets<A>(input, 4, r0, r1, r2, r3, r4, r5, r6);
-    r7 = InsertTopHalf(r6, r4);
-    r4 = InsertTopHalf(r4, r6);
-    LoadStridedSets<A>(input + 28, 4, r8, r9);
-    r6 = InsertTopHalf(r9, r0);
-    LoadStridedSets<A>(input + 36, 4, r10, r11, r12, r13);
-    r9 = InsertTopHalf(r13, r9);
-    LoadStridedSets<A>(input + 52, 4, r14, r15);
-    r0 = InsertTopHalf(r0, r15);
-    r13 = InsertTopHalf(r15, r13);
-    r15 = Load<A>(input + 60);
-    StoreStridedSets<A>(output, 4, r0, r15, r13, r14, r9, r10, r11, r12, r6, r1, r2, r3, r4, r8, r7, r5);
+    if constexpr (VV == 2)
+    {
+      auto A = Load<Align>(input + 0);
+      auto a = Load<Align>(input + 2);
+      auto B = Load<Align>(input + 4);
+      auto b = Load<Align>(input + 6);
+      auto C = Load<Align>(input + 8);
+      auto c = Load<Align>(input + 10);
+      auto D = Load<Align>(input + 12);
+      auto d = Load<Align>(input + 14);
+      auto E = Load<Align>(input + 16);
+      auto e = Load<Align>(input + 18);
+      auto F = Load<Align>(input + 20);
+      auto f = Load<Align>(input + 22);
+      auto G = Load<Align>(input + 24);
+      auto g = Load<Align>(input + 26);
+      auto H = Load<Align>(input + 28);
+      auto h = Load<Align>(input + 30);
+      auto I = Load<Align>(input + 32);
+      auto i = Load<Align>(input + 34);
+      auto J = Load<Align>(input + 36);
+      auto j = Load<Align>(input + 38);
+      auto K = Load<Align>(input + 40);
+      auto k = Load<Align>(input + 42);
+      auto L = Load<Align>(input + 44);
+      auto l = Load<Align>(input + 46);
+      auto M = Load<Align>(input + 48);
+      auto m = Load<Align>(input + 50);
+      auto N = Load<Align>(input + 52);
+      auto n = Load<Align>(input + 54);
+      auto O = Load<Align>(input + 56);
+      auto o = Load<Align>(input + 58);
+      auto P = Load<Align>(input + 60);
+      auto p = Load<Align>(input + 62);
+
+      Store<Align>(output + 0, A);
+      Store<Align>(output + 2, o);
+      Store<Align>(output + 4, P);
+      Store<Align>(output + 6, p);
+      Store<Align>(output + 8, O);
+      Store<Align>(output + 10, m);
+      Store<Align>(output + 12, N);
+      Store<Align>(output + 14, n);
+      Store<Align>(output + 16, M);
+      Store<Align>(output + 18, i);
+      Store<Align>(output + 20, J);
+      Store<Align>(output + 22, j);
+      Store<Align>(output + 24, K);
+      Store<Align>(output + 26, k);
+      Store<Align>(output + 28, L);
+      Store<Align>(output + 30, l);
+      Store<Align>(output + 32, I);
+      Store<Align>(output + 34, a);
+      Store<Align>(output + 36, B);
+      Store<Align>(output + 38, b);
+      Store<Align>(output + 40, C);
+      Store<Align>(output + 42, c);
+      Store<Align>(output + 44, D);
+      Store<Align>(output + 46, d);
+      Store<Align>(output + 48, E);
+      Store<Align>(output + 50, g);
+      Store<Align>(output + 52, H);
+      Store<Align>(output + 54, h);
+      Store<Align>(output + 56, G);
+      Store<Align>(output + 58, e);
+      Store<Align>(output + 60, F);
+      Store<Align>(output + 62, f);
+    }
+    else
+    {
+      static_assert(VV == 4);
+      VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
+      LoadStridedSets<Align>(input, 4, r0, r1, r2, r3, r4, r5, r6);
+      r7 = InsertTopHalf(r6, r4);
+      r4 = InsertTopHalf(r4, r6);
+      LoadStridedSets<Align>(input + 28, 4, r8, r9);
+      r6 = InsertTopHalf(r9, r0);
+      LoadStridedSets<Align>(input + 36, 4, r10, r11, r12, r13);
+      r9 = InsertTopHalf(r13, r9);
+      LoadStridedSets<Align>(input + 52, 4, r14, r15);
+      r0 = InsertTopHalf(r0, r15);
+      r13 = InsertTopHalf(r15, r13);
+      r15 = Load<Align>(input + 60);
+      StoreStridedSets<Align>(output, 4, r0, r15, r13, r14, r9, r10, r11, r12, r6, r1, r2, r3, r4, r8, r7, r5);
+    }
   }
   else if constexpr (Type == TangleType::InverseLargest)
   {
     // AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPp -> ApPoOmNnMiJjKlLkIaBbCdDcEhHgGeFf
-    VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
-    LoadStridedSets<A>(input, 4, r0, r1, r2, r3);
-    r4 = InsertTopHalf(r2, r3);
-    r2 = InsertTopHalf(r3, r2);
-    LoadStridedSets<A>(input + 16, 4, r5, r6, r7);
-    r3 = InsertTopHalf(r7, r5);
-    r8 = Load<A>(input + 28);
-    r5 = InsertTopHalf(r5, r8);
-    r8 = InsertTopHalf(r8, r7);
-    LoadStridedSets<A>(input + 32, 4, r9, r10, r11, r12);
-    r7 = InsertTopHalf(r11, r12);
-    r11 = InsertTopHalf(r12, r11);
-    r13 = Load<A>(input + 48);
-    r12 = InsertTopHalf(r9, r0);
-    r9 = InsertTopHalf(r13, r9);
-    LoadStridedSets<A>(input + 56, 4, r14, r15);
-    r0 = InsertTopHalf(r0, r15);
-    r15 = InsertTopHalf(r15, r14);
-    r13 = InsertTopHalf(r14, r13);
-    r14 = Load<A>(input + 52);
-    StoreStridedSets<A>(output, 4, r0, r15, r13, r14, r9, r10, r7, r11, r12, r1, r4, r2, r5, r8, r3, r6);
+    if constexpr (VV == 2)
+    {
+      auto A = Load<Align>(input + 0);
+      auto a = Load<Align>(input + 2);
+      auto B = Load<Align>(input + 4);
+      auto b = Load<Align>(input + 6);
+      auto C = Load<Align>(input + 8);
+      auto c = Load<Align>(input + 10);
+      auto D = Load<Align>(input + 12);
+      auto d = Load<Align>(input + 14);
+      auto E = Load<Align>(input + 16);
+      auto e = Load<Align>(input + 18);
+      auto F = Load<Align>(input + 20);
+      auto f = Load<Align>(input + 22);
+      auto G = Load<Align>(input + 24);
+      auto g = Load<Align>(input + 26);
+      auto H = Load<Align>(input + 28);
+      auto h = Load<Align>(input + 30);
+      auto I = Load<Align>(input + 32);
+      auto i = Load<Align>(input + 34);
+      auto J = Load<Align>(input + 36);
+      auto j = Load<Align>(input + 38);
+      auto K = Load<Align>(input + 40);
+      auto k = Load<Align>(input + 42);
+      auto L = Load<Align>(input + 44);
+      auto l = Load<Align>(input + 46);
+      auto M = Load<Align>(input + 48);
+      auto m = Load<Align>(input + 50);
+      auto N = Load<Align>(input + 52);
+      auto n = Load<Align>(input + 54);
+      auto O = Load<Align>(input + 56);
+      auto o = Load<Align>(input + 58);
+      auto P = Load<Align>(input + 60);
+      auto p = Load<Align>(input + 62);
+
+      Store<Align>(output + 0, A);
+      Store<Align>(output + 2, p);
+      Store<Align>(output + 4, P);
+      Store<Align>(output + 6, o);
+      Store<Align>(output + 8, O);
+      Store<Align>(output + 10, m);
+      Store<Align>(output + 12, N);
+      Store<Align>(output + 14, n);
+      Store<Align>(output + 16, M);
+      Store<Align>(output + 18, i);
+      Store<Align>(output + 20, J);
+      Store<Align>(output + 22, j);
+      Store<Align>(output + 24, K);
+      Store<Align>(output + 26, l);
+      Store<Align>(output + 28, L);
+      Store<Align>(output + 30, k);
+      Store<Align>(output + 32, I);
+      Store<Align>(output + 34, a);
+      Store<Align>(output + 36, B);
+      Store<Align>(output + 38, b);
+      Store<Align>(output + 40, C);
+      Store<Align>(output + 42, d);
+      Store<Align>(output + 44, D);
+      Store<Align>(output + 46, c);
+      Store<Align>(output + 48, E);
+      Store<Align>(output + 50, h);
+      Store<Align>(output + 52, H);
+      Store<Align>(output + 54, g);
+      Store<Align>(output + 56, G);
+      Store<Align>(output + 58, e);
+      Store<Align>(output + 60, F);
+      Store<Align>(output + 62, f);
+    }
+    else
+    {
+      static_assert(VV == 4);
+      VecType r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15;
+      LoadStridedSets<Align>(input, 4, r0, r1, r2, r3);
+      r4 = InsertTopHalf(r2, r3);
+      r2 = InsertTopHalf(r3, r2);
+      LoadStridedSets<Align>(input + 16, 4, r5, r6, r7);
+      r3 = InsertTopHalf(r7, r5);
+      r8 = Load<Align>(input + 28);
+      r5 = InsertTopHalf(r5, r8);
+      r8 = InsertTopHalf(r8, r7);
+      LoadStridedSets<Align>(input + 32, 4, r9, r10, r11, r12);
+      r7 = InsertTopHalf(r11, r12);
+      r11 = InsertTopHalf(r12, r11);
+      r13 = Load<Align>(input + 48);
+      r12 = InsertTopHalf(r9, r0);
+      r9 = InsertTopHalf(r13, r9);
+      LoadStridedSets<Align>(input + 56, 4, r14, r15);
+      r0 = InsertTopHalf(r0, r15);
+      r15 = InsertTopHalf(r15, r14);
+      r13 = InsertTopHalf(r14, r13);
+      r14 = Load<Align>(input + 52);
+      StoreStridedSets<Align>(output, 4, r0, r15, r13, r14, r9, r10, r7, r11, r12, r1, r4, r2, r5, r8, r3, r6);
+    }
   }
 }
 
