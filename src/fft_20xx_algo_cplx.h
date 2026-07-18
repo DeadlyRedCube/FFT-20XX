@@ -147,7 +147,8 @@ FORCE_INLINE void DoRadix4(V &a, V &b, V &c, V &d, A angles)
   }
 }
 
-auto LoadSingleAngle(const ElementType *tableData, size_t angleIndex, size_t angleCount) -> Angles<Complex<ElementType>>
+template <std::floating_point F = ElementType>
+auto LoadSingleAngle(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<Complex<ElementType>>
 {
   static_assert(requires (Angles<ElementType> a) { a.w0; a.w1; });
   auto i1 = angleCount * 4;
@@ -168,11 +169,12 @@ auto LoadSingleAngle(const ElementType *tableData, size_t angleIndex, size_t ang
   }
   else
   {
-    return std::tuple{w1, w2};
+    return {w1, w2};
   }
 }
 
-auto LoadSingleAngleSet(const ElementType *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<VecType>>
+template <std::floating_point F = ElementType>
+auto LoadSingleAngleSet(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<VecType>>
 {
   auto angles = LoadSingleAngle(tableData, angleIndex, angleCount);
   if constexpr (requires (decltype(angles) a) { a.w2; })
@@ -535,7 +537,8 @@ void DoubleFlipRadix4Pass(
   }
 }
 
-auto LoadFinalAngles(const ElementType *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<VecType>>
+template <std::floating_point F>
+auto LoadFinalAngles(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<VecType>>
 {
   auto i1 = angleCount * 4;
   auto r1 = (angleCount == 4) ? 8 : (angleCount * 3);
