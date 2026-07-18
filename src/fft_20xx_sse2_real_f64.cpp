@@ -124,10 +124,10 @@ extern "C"
 
 
 
-  /*void ifft_real_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  void ifft_real_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     SSE2::RealInverseFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
-  }*/
+  }
 }

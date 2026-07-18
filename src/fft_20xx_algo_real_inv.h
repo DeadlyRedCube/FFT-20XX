@@ -3,8 +3,6 @@
   template <Alignment Align, std::floating_point F, uint32_t VV = VecSize, typename VT = VecType>
   void FirstDoubleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length)
   {
-    const auto flipStride = length / 4;
-
     // Start with the scalar step
     {
       auto a = data[0];
@@ -13,89 +11,219 @@
       data[1] = (a - b) / 2;
     }
 
+    if constexpr (VV == 2)
     {
-      const auto start1 = 1_z * flipStride;
-      const auto start2 = 2_z * flipStride;
-      const auto start3 = 3_z * flipStride;
+      const auto flipStride = length / 4;
 
-      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13;
-      r00 = Load<Align>(&data[0]);
-      r01 = Load<Align>(&data[4]);
-      r02 = Load<Align>(&data[start1 + 0]);
-      r03 = Load<Align>(&data[start1 + 4]);
-      r04 = Load<Align>(&data[start2 + 0]);
-      r05 = Load<Align>(&data[start2 + 4]);
-      r06 = Load<Align>(&data[start3 + 0]);
-      r07 = Load<Align>(&data[start3 + 4]);
+      {
+        auto start1 = 1 * flipStride;
+        auto start2 = 2 * flipStride;
+        auto start3 = 3 * flipStride;
 
-      // Re-interleave the pairs (a/b, c/d, e/f, g/h)
-      Deinterleave4(r00, r01, r08);
-      Deinterleave4(r04, r05, r00);
-      Deinterleave4(r02, r03, r04);
-      Deinterleave4(r06, r07, r02);
+        VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
+        LoadStridedSets<Align>(data, 2, r00, r01);
+        LoadStridedSets<Align>(data + start1, 2, r02, r03);
+        LoadStridedSets<Align>(data + start2, 2, r04, r05);
+        LoadStridedSets<Align>(data + start3, 2, r06, r07);
 
-      // reuse r06
-      LoadSIMDAngleDouble(tableData, 0, flipStride, r06, r09, r10, r11);
+        // Deinterleave the real/imaginary components
+        Transpose2(r00, r01, r08);
+        Transpose2(r04, r05, r00);
+        Transpose2(r02, r03, r04);
+        Transpose2(r06, r07, r02);
 
-      FirstRealDITRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, r10, r11, r06, r09, r12, r13);
+        LoadSIMDAngleDouble(tableData, 0, flipStride, r06, r09, r10, r11);
+        FirstRealDITRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, r10, r11, r06, r09, r12, r13);
 
-      // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler.
-      Transpose4(r08, r00, r04, r02, r06, r12);
-      Transpose4(r01, r05, r03, r07, r06, r12);
+        // Now do 2 quadrants of a 4x4 matrix transpose
+        Transpose2(r08, r00, r06);
+        Transpose2(r04, r02, r08);
+        Transpose2(r01, r05, r04);
+        Transpose2(r03, r07, r01);
 
-      // swap {e0, g0} and {b0, d0} because the real butterfly needs them in this order instead.
-      SwapRealComponentsForLastDoubleFlip(r08, r01, r06);
+        // Store the two quadrants that are in spots we already loaded from
+        //  (note that there's a bit of extra shuffle here for the real values vs. the fully-complex subsets below)
+        StoreStridedSets<Align>(data, 2, r06, r04);
+        StoreStridedSets<Align>(data + start2, 2, r00, r02);
 
-      Store<Align>(&data[0], r06);
-      Store<Align>(&data[4], r01);
-      Store<Align>(&data[start1 + 0], r04);
-      Store<Align>(&data[start1 + 4], r03);
-      Store<Align>(&data[start2 + 0], r00);
-      Store<Align>(&data[start2 + 4], r05);
-      Store<Align>(&data[start3 + 0], r02);
-      Store<Align>(&data[start3 + 4], r07);
+        // Now swap the two other quadrants for values in the new memory area
+        LoadStridedSets<Align>(data + 4, 2, r00, r02);
+        LoadStridedSets<Align>(data + start2 + 4, 2, r04, r06);
+        StoreStridedSets<Align>(data + 4, 2, r08, r01);
+        StoreStridedSets<Align>(data + start2 + 4, 2, r05, r07);
+
+        // Load the last 2 new quadrants
+        LoadStridedSets<Align>(data + start1 + 4, 2, r01, r03);
+        LoadStridedSets<Align>(data + start3 + 4, 2, r05, r07);
+
+        // Once again deinterleave the real/imaginary components
+        Transpose2(r00, r02, r08);
+        Transpose2(r04, r06, r00);
+        Transpose2(r01, r03, r04);
+        Transpose2(r05, r07, r01);
+
+        LoadSIMDAngleDouble(tableData, 2, flipStride, r05, r09, r10, r11);
+        ComplexMultiply(r05, r09, r10, r11, r12, r13, r14, r15);
+        DIFComplexRadix4Inv(r08, r02, r00, r06, r04, r03, r01, r07, r05, r09, r10, r11, r12, r13, r14, r15);
+
+        // The remainder of our 4x4 transpose
+        Transpose2(r08, r00, r05);
+        Transpose2(r04, r01, r08);
+        Transpose2(r02, r06, r04);
+        Transpose2(r03, r07, r02);
+        StoreStridedSets<Align>(data + start1, 2, r05, r08);
+        StoreStridedSets<Align>(data + start3, 2, r00, r01);
+        StoreStridedSets<Align>(data + start1 + 4, 2, r04, r02);
+        StoreStridedSets<Align>(data + start3 + 4, 2, r06, r07);
+      }
+
+      for (auto subsetIndex = 8_z; subsetIndex < flipStride; subsetIndex += 8)
+      {
+        const auto start0 = subsetIndex;
+        auto start1 = start0 +  1 * flipStride;
+        auto start2 = start0 +  2 * flipStride;
+        auto start3 = start0 +  3 * flipStride;
+        const auto angleIndex0 = (subsetIndex >> 1);
+
+        VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
+        LoadStridedSets<Align>(data + start0, 2, r00, r01);
+        LoadStridedSets<Align>(data + start1, 2, r02, r03);
+        LoadStridedSets<Align>(data + start2, 2, r04, r05);
+        LoadStridedSets<Align>(data + start3, 2, r06, r07);
+
+        Transpose2(r00, r01, r08);
+        Transpose2(r04, r05, r00);
+        Transpose2(r02, r03, r04);
+        Transpose2(r06, r07, r02);
+
+        LoadSIMDAngleDouble(tableData, angleIndex0, flipStride, r09, r10, r11, r12);
+        ComplexMultiply(r09, r10, r11, r12, r13, r14, r15, r06);
+        DIFComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, r09, r10, r11, r12, r13, r14, r15, r06);
+
+        Transpose2(r08, r00, r06);
+        Transpose2(r04, r02, r08);
+        Transpose2(r01, r05, r04);
+        Transpose2(r03, r07, r01);
+
+        StoreStridedSets<Align>(data + start0, 2, r06, r08);
+        StoreStridedSets<Align>(data + start2, 2, r00, r02);
+
+        LoadStridedSets<Align>(data + start0 + 4, 2, r00, r02);
+        LoadStridedSets<Align>(data + start2 + 4, 2, r06, r08);
+        StoreStridedSets<Align>(data + start0 + 4, 2, r04, r01);
+        StoreStridedSets<Align>(data + start2 + 4, 2, r05, r07);
+        LoadStridedSets<Align>(data + start1 + 4, 2, r01, r03);
+        LoadStridedSets<Align>(data + start3 + 4, 2, r04, r05);
+
+        Transpose2(r00, r02, r07);
+        Transpose2(r06, r08, r00);
+        Transpose2(r01, r03, r06);
+        Transpose2(r04, r05, r01);
+
+        LoadSIMDAngleDouble(tableData, angleIndex0 + 2, flipStride, r04, r09, r10, r11);
+        ComplexMultiply(r04, r09, r10, r11, r12, r13, r14, r15);
+        DIFComplexRadix4Inv(r07, r02, r00, r08, r06, r03, r01, r05, r04, r09, r10, r11, r12, r13, r14, r15);
+
+        Transpose2(r07, r00, r04);
+        Transpose2(r06, r01, r07);
+        Transpose2(r02, r08, r06);
+        Transpose2(r03, r05, r02);
+
+        StoreStridedSets<Align>(data + start1, 2, r04, r07);
+        StoreStridedSets<Align>(data + start3, 2, r00, r01);
+        StoreStridedSets<Align>(data + start1 + 4, 2, r06, r02);
+        StoreStridedSets<Align>(data + start3 + 4, 2, r08, r05);
+      }
     }
-
-    for (auto subsetIndex = 8_z; subsetIndex < flipStride; subsetIndex += 8)
+    else
     {
-      const auto start0 = subsetIndex;
-      auto start1 = start0 + 1 * flipStride;
-      auto start2 = start0 + 2 * flipStride;
-      auto start3 = start0 + 3 * flipStride;
-      const auto angleIndex0 = subsetIndex >> 1;
+      static_assert(VV == 4);
+      const auto flipStride = length / 4;
 
-      // "Give me ALL the registers that you have"
-      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
-      r00 = Load<Align>(&data[start0 + 0]);
-      r01 = Load<Align>(&data[start0 + 4]);
-      r02 = Load<Align>(&data[start1 + 0]);
-      r03 = Load<Align>(&data[start1 + 4]);
-      r04 = Load<Align>(&data[start2 + 0]);
-      r05 = Load<Align>(&data[start2 + 4]);
-      r06 = Load<Align>(&data[start3 + 0]);
-      r07 = Load<Align>(&data[start3 + 4]);
+      {
+        const auto start1 = 1_z * flipStride;
+        const auto start2 = 2_z * flipStride;
+        const auto start3 = 3_z * flipStride;
+
+        VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13;
+        r00 = Load<Align>(&data[0]);
+        r01 = Load<Align>(&data[4]);
+        r02 = Load<Align>(&data[start1 + 0]);
+        r03 = Load<Align>(&data[start1 + 4]);
+        r04 = Load<Align>(&data[start2 + 0]);
+        r05 = Load<Align>(&data[start2 + 4]);
+        r06 = Load<Align>(&data[start3 + 0]);
+        r07 = Load<Align>(&data[start3 + 4]);
+
+        // Re-interleave the pairs (a/b, c/d, e/f, g/h)
+        Deinterleave4(r00, r01, r08);
+        Deinterleave4(r04, r05, r00);
+        Deinterleave4(r02, r03, r04);
+        Deinterleave4(r06, r07, r02);
+
+        // reuse r06
+        LoadSIMDAngleDouble(tableData, 0, flipStride, r06, r09, r10, r11);
+
+        FirstRealDITRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, r10, r11, r06, r09, r12, r13);
+
+        // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler.
+        Transpose4(r08, r00, r04, r02, r06, r12);
+        Transpose4(r01, r05, r03, r07, r06, r12);
+
+        // swap {e0, g0} and {b0, d0} because the real butterfly needs them in this order instead.
+        SwapRealComponentsForLastDoubleFlip(r08, r01, r06);
+
+        Store<Align>(&data[0], r06);
+        Store<Align>(&data[4], r01);
+        Store<Align>(&data[start1 + 0], r04);
+        Store<Align>(&data[start1 + 4], r03);
+        Store<Align>(&data[start2 + 0], r00);
+        Store<Align>(&data[start2 + 4], r05);
+        Store<Align>(&data[start3 + 0], r02);
+        Store<Align>(&data[start3 + 4], r07);
+      }
+
+      for (auto subsetIndex = 8_z; subsetIndex < flipStride; subsetIndex += 8)
+      {
+        const auto start0 = subsetIndex;
+        auto start1 = start0 + 1 * flipStride;
+        auto start2 = start0 + 2 * flipStride;
+        auto start3 = start0 + 3 * flipStride;
+        const auto angleIndex0 = subsetIndex >> 1;
+
+        // "Give me ALL the registers that you have"
+        VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13, r14, r15;
+        r00 = Load<Align>(&data[start0 + 0]);
+        r01 = Load<Align>(&data[start0 + 4]);
+        r02 = Load<Align>(&data[start1 + 0]);
+        r03 = Load<Align>(&data[start1 + 4]);
+        r04 = Load<Align>(&data[start2 + 0]);
+        r05 = Load<Align>(&data[start2 + 4]);
+        r06 = Load<Align>(&data[start3 + 0]);
+        r07 = Load<Align>(&data[start3 + 4]);
 
 
-      Deinterleave4(r00, r01, r08);
-      Deinterleave4(r04, r05, r00);
-      Deinterleave4(r02, r03, r04);
-      Deinterleave4(r06, r07, r02);
+        Deinterleave4(r00, r01, r08);
+        Deinterleave4(r04, r05, r00);
+        Deinterleave4(r02, r03, r04);
+        Deinterleave4(r06, r07, r02);
 
-      LoadSIMDAngleDouble(tableData, angleIndex0, flipStride, r09, r10, r11, r12);
-      ComplexMultiply(r09, r10, r11, r12, r06, r13, r14, r15);
-      DIFComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, r09, r10, r11, r12, r06, r13, r14, r15);
+        LoadSIMDAngleDouble(tableData, angleIndex0, flipStride, r09, r10, r11, r12);
+        ComplexMultiply(r09, r10, r11, r12, r06, r13, r14, r15);
+        DIFComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, r09, r10, r11, r12, r06, r13, r14, r15);
 
-      Transpose4(r08, r00, r04, r02, r14, r15);
-      Transpose4(r01, r05, r03, r07, r14, r15);
+        Transpose4(r08, r00, r04, r02, r14, r15);
+        Transpose4(r01, r05, r03, r07, r14, r15);
 
-      Store<Align>(&data[start0 + 0], r08);
-      Store<Align>(&data[start0 + 4], r01);
-      Store<Align>(&data[start1 + 0], r04);
-      Store<Align>(&data[start1 + 4], r03);
-      Store<Align>(&data[start2 + 0], r00);
-      Store<Align>(&data[start2 + 4], r05);
-      Store<Align>(&data[start3 + 0], r02);
-      Store<Align>(&data[start3 + 4], r07);
+        Store<Align>(&data[start0 + 0], r08);
+        Store<Align>(&data[start0 + 4], r01);
+        Store<Align>(&data[start1 + 0], r04);
+        Store<Align>(&data[start1 + 4], r03);
+        Store<Align>(&data[start2 + 0], r00);
+        Store<Align>(&data[start2 + 4], r05);
+        Store<Align>(&data[start3 + 0], r02);
+        Store<Align>(&data[start3 + 4], r07);
+      }
     }
   }
 
