@@ -488,9 +488,9 @@ extern "C"
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     if (SSE2::IsSIMDAligned(input) && SSE2::IsSIMDAligned(output))
-      { SSE2::RunComplex<Dir::Forward, DataType::Complex, Alignment::Aligned>(t->Data(), input, output, fftLength); }
+      { SSE2::RunComplex<Dir::Forward, Alignment::Aligned>(t->Data(), input, output, fftLength); }
     else
-      { SSE2::RunComplex<Dir::Forward, DataType::Complex, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
+      { SSE2::RunComplex<Dir::Forward, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
   }
 
 
@@ -499,9 +499,9 @@ extern "C"
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     if (SSE2::IsSIMDAligned(input) && SSE2::IsSIMDAligned(output))
-      { SSE2::RunComplex<Dir::Forward, DataType::Complex, Alignment::Aligned>(t->Data(), input, output, fftLength); }
+      { SSE2::RunComplex<Dir::Forward, Alignment::Aligned>(t->Data(), input, output, fftLength); }
     else
-      { SSE2::RunComplex<Dir::Forward, DataType::Complex, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
+      { SSE2::RunComplex<Dir::Forward, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
   }
 
 
@@ -510,9 +510,9 @@ extern "C"
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
     if (SSE2::IsSIMDAligned(input) && SSE2::IsSIMDAligned(output))
-      { SSE2::RunComplex<Dir::Inverse, DataType::Complex, Alignment::Aligned>(t->Data(), input, output, fftLength); }
+      { SSE2::RunComplex<Dir::Inverse, Alignment::Aligned>(t->Data(), input, output, fftLength); }
     else
-      { SSE2::RunComplex<Dir::Inverse, DataType::Complex, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
+      { SSE2::RunComplex<Dir::Inverse, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
   }
 
 
@@ -521,8 +521,8 @@ extern "C"
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     if (SSE2::IsSIMDAligned(input) && SSE2::IsSIMDAligned(output))
-      { SSE2::RunComplex<Dir::Inverse, DataType::Complex, Alignment::Aligned>(t->Data(), input, output, fftLength); }
+      { SSE2::RunComplex<Dir::Inverse, Alignment::Aligned>(t->Data(), input, output, fftLength); }
     else
-      { SSE2::RunComplex<Dir::Inverse, DataType::Complex, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
+      { SSE2::RunComplex<Dir::Inverse, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
   }
 }

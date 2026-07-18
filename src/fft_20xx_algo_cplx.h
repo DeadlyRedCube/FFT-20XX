@@ -40,18 +40,9 @@ FORCE_INLINE void DoRadix4FirstRotation(V &a, V &b, V &c, V &d)
   AddSubRot135<D>(c, d);
 }
 
-template <Dir D, DataType Type, Alignment Align, std::floating_point F>
+template <Dir D, Alignment Align, std::floating_point F>
 void Radix4Or8InitialStep(const F *input, F *output, const size_t length)
 {
-  auto LoadComplex =
-    [](const F *inp)
-    {
-      if constexpr (D == Dir::Inverse && Type == DataType::Real)
-        { return LoadUnpackedComplex<Align>(inp); }
-      else
-        { return LoadPackedComplex<Align>(inp); }
-    };
-
   if (!IsPowerOfFourAssumingIsPowerOfTwo(length))
   {
     // Double the stride to skip over complex pairs.
@@ -60,10 +51,10 @@ void Radix4Or8InitialStep(const F *input, F *output, const size_t length)
     for (auto i = 0_z; i < doubleStride; i += 2 * VecSize<F>)
     {
       // load with deinterleave
-      auto a = LoadComplex(&input[doubleStride * 0 + i]);
-      auto c = LoadComplex(&input[doubleStride * 2 + i]);
-      auto e = LoadComplex(&input[doubleStride * 4 + i]);
-      auto g = LoadComplex(&input[doubleStride * 6 + i]);
+      auto a = LoadPackedComplex<Align>(&input[doubleStride * 0 + i]);
+      auto c = LoadPackedComplex<Align>(&input[doubleStride * 2 + i]);
+      auto e = LoadPackedComplex<Align>(&input[doubleStride * 4 + i]);
+      auto g = LoadPackedComplex<Align>(&input[doubleStride * 6 + i]);
 
       // First Radix2: A+-E, B+-F, C+-G, D+-H
       // Second Radix2: A' +- C', B' +- D', E' +- r90(G'), F' +- r90(H')
@@ -75,16 +66,16 @@ void Radix4Or8InitialStep(const F *input, F *output, const size_t length)
       AddSubRot90<D>(e, g);
 
       // Currently loaded: A'', C'', E'', G'' (8 vectors). Load b and f (12 vectors total)
-      auto b = LoadComplex(&input[doubleStride * 1 + i]);
-      auto f = LoadComplex(&input[doubleStride * 5 + i]);
+      auto b = LoadPackedComplex<Align>(&input[doubleStride * 1 + i]);
+      auto f = LoadPackedComplex<Align>(&input[doubleStride * 5 + i]);
 
       AddSub(b, f);
 
       // Okay now we finally need all 16 loaded so now we get tricky
       // This actually sucks because we need to deinterleave the vectors to load them which requires a single
       //  temporary register, which pushes us over into 17 :|
-      auto d = LoadComplex(&input[doubleStride * 3 + i]);
-      auto h = LoadComplex(&input[doubleStride * 7 + i]);
+      auto d = LoadPackedComplex<Align>(&input[doubleStride * 3 + i]);
+      auto h = LoadPackedComplex<Align>(&input[doubleStride * 7 + i]);
 
       AddSub(d, h);
       AddSub(b, d);
@@ -582,7 +573,7 @@ auto LoadFinalAngles(const F *tableData, size_t angleIndex, size_t angleCount) -
 }
 
 
-template <Dir D, DataType Type, Alignment Align, std::floating_point F>
+template <Dir D, Alignment Align, std::floating_point F>
 void LastDoubleFlipRadix4Pass(const F *tableData, F *data, const size_t length)
 {
   const auto flipStride = length / 4;
@@ -689,7 +680,7 @@ void LastDoubleFlipRadix4Pass(const F *tableData, F *data, const size_t length)
 
 constexpr auto SIMDSetSize = 4u;
 
-template <Dir D, DataType Type, Alignment Align, std::floating_point F>
+template <Dir D, Alignment Align, std::floating_point F>
 void RunComplex(
   const F *tableData,
   const F *input,
@@ -716,7 +707,7 @@ void RunComplex(
 
   // Step 0: Either a radix 4 or 8 pass (it's radix 4 for power-of-4 FFTs and radix 8 for just power-of-2 FFTs, where
   //  there would otherwise be a spare Radix 2 somewhere in there)
-  Radix4Or8InitialStep<D, Type, Align>(input, output, length);
+  Radix4Or8InitialStep<D, Align>(input, output, length);
 
   auto radix4Stride = length >> (IsPowerOfFourAssumingIsPowerOfTwo(length) ? 4 : 5);
 
@@ -747,7 +738,7 @@ void RunComplex(
 
   // Step N - 1:
   //  The final flip (Which has to transpose within a SIMD set)
-  LastDoubleFlipRadix4Pass<D, Type, Align>(tableData, output, length);
+  LastDoubleFlipRadix4Pass<D, Align>(tableData, output, length);
 }
 
 

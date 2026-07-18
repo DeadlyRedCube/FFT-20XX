@@ -175,15 +175,6 @@ namespace FFT20XX
   };
 
 
-  // !!! This should go back taway
-  enum class DataType
-  {
-    Complex,
-    Real,
-  };
-
-
-
   enum class TangleType
   {
     ForwardLargest,
