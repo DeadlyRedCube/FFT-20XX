@@ -69,6 +69,27 @@ namespace FFT20XX::AVX
     return _mm256_mul_pd(a, b);
   }
 
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m256d a, __m256d b, __m256d c) -> __m256d
+  {
+    return _mm256_add_pd(_mm256_mul_pd(a, b), c);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m256d a, __m256d b, __m256d c) -> __m256d
+  {
+    return _mm256_sub_pd(c, _mm256_mul_pd(a, b));
+  }
+
+  [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m256d a, __m256d b) -> __m256d
+  {
+    return _mm256_sub_pd(_mm256_add_pd(a, a), b);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMx2Add(__m256d a, __m256d b) -> __m256d
+  {
+    return _mm256_sub_pd(b, _mm256_add_pd(a, a));
+  }
+
+
   [[nodiscard]] FORCE_INLINE auto ReplaceFirstOf(auto value, auto newFirst)
   {
     if constexpr (std::floating_point<decltype(newFirst)>)

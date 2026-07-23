@@ -156,6 +156,47 @@ namespace FFT20XX::AVX
     return _mm_mul_ps(a, b);
   }
 
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m256 a, __m256 b, __m256 c) -> __m256
+  {
+    return _mm256_add_ps(_mm256_mul_ps(a, b), c);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m256 a, __m256 b, __m256 c) -> __m256
+  {
+    return _mm256_sub_ps(c, _mm256_mul_ps(a, b));
+  }
+
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m128 a, __m128 b, __m128 c) -> __m128
+  {
+    return _mm_add_ps(_mm_mul_ps(a, b), c);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m128 a, __m128 b, __m128 c) -> __m128
+  {
+    return _mm_sub_ps(c, _mm_mul_ps(a, b));
+  }
+
+  [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m256 a, __m256 b) -> __m256
+  {
+    return _mm256_sub_ps(_mm256_add_ps(a, a), b);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMx2Add(__m256 a, __m256 b) -> __m256
+  {
+    return _mm256_sub_ps(b, _mm256_add_ps(a, a));
+  }
+
+
+  [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m128 a, __m128 b) -> __m128
+  {
+    return _mm_sub_ps(_mm_add_ps(a, a), b);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMx2Add(__m128 a, __m128 b) -> __m128
+  {
+    return _mm_sub_ps(b, _mm_add_ps(a, a));
+  }
+
   [[nodiscard]] FORCE_INLINE auto ReplaceFirstOf(__m256 value, auto newFirst) -> __m256
   {
     // For AVX the best version I've found is:

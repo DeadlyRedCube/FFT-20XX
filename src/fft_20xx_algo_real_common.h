@@ -2,12 +2,10 @@
 
 FORCE_INLINE void ComplexMultiply(auto aR, auto aI, auto bR, auto bI, auto &cR, auto &cI, auto &tR, auto &tI)
 {
-  tR = Mul(aI, bR);
-  tI = Mul(aI, bI);
-  cR = Mul(aR, bR);
-  cI = Mul(aR, bI);
-  cR = Sub(cR, tI);
-  cI = Add(cI, tR);
+  tR = Mul(aR, bR);
+  tI = Mul(aI, bR);
+  cR = NMAdd(aI, bI, tR);
+  cI = MAdd(aR, bI, tI);
 }
 
 
@@ -58,19 +56,12 @@ FORCE_INLINE void DITRealOutputRadix2PairInv(auto &a, auto &b, auto &c, auto &d,
 
 FORCE_INLINE void DITComplexRadix2(auto &aR, auto &aI, auto &bR, auto &bI, auto wR, auto wI, auto &aROut, auto &aIOut)
 {
-  // Rotate b * w
-  aROut = Mul(bR, wR);
-  aIOut = Mul(bI, wI);
-  bR = Mul(bR, wI);
-  bI = Mul(bI, wR);
-  aROut = Sub(aROut, aIOut);
-  bI = Add(bR, bI);
-  // bR = t1;
-
-  bR = Sub(aR, aROut);
-  aROut = Add(aR, aROut);
-  aIOut = Add(aI, bI);
-  bI = Sub(bI, aI);
+  aROut = NMAdd(bI, wI, aR);
+  aROut = MAdd(bR, wR, aROut);
+  aIOut = MAdd(bR, wI, aI);
+  aIOut = MAdd(bI, wR, aIOut);
+  bR = Mx2Sub(aR, aROut);
+  bI = NMx2Add(aI, aIOut);
 }
 
 
@@ -79,16 +70,14 @@ FORCE_INLINE void DIFComplexRadix2Inv(auto &aR, auto &aI, auto &bR, auto &bI, au
 {
   aROut = Add(aR, bR);
   aIOut = Sub(aI, bI);
-  bR = Sub(aR, bR);
+  bR = Sub(bR, aR); // actually -bR
   bI = Add(aI, bI);
 
   // Rotate b * conj(w), using aR/aI as temp storage since they're no longer needed
   aR = Mul(bR, wI);
   aI = Mul(bI, wI);
-  bR = Mul(bR, wR);
-  bI = Mul(bI, wR);
-  bR = Add(bR, aI);
-  bI = Sub(bI, aR);
+  bR = NMAdd(bR, wR, aI);
+  bI = MAdd(bI, wR, aR);
 }
 
 
@@ -199,10 +188,8 @@ FORCE_INLINE void DITComplexRadix4(
   // Start by rotating c by w1
   t2 = Mul(cR, t1);
   t1 = Mul(cI, t1);
-  cR = Mul(cR, t0);
-  t0 = Mul(cI, t0);
-  cR = Sub(cR, t1);
-  cI = Add(t2, t0);
+  cR = NMAdd(cR, t0, t1); // -cR
+  cI = MAdd(cI, t0, t2);
 
   if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
   {
@@ -216,16 +203,14 @@ FORCE_INLINE void DITComplexRadix4(
   }
 
   // Start the a/c butterfly while that loads
-  t2 = Add(aR, cR);
-  cR = Sub(aR, cR);
+  t2 = Sub(aR, cR);
+  cR = Add(aR, cR);
 
   // Rotate b by w0
   aR = Mul(bR, t1);
   t1 = Mul(bI, t1);
-  bR = Mul(bR, t0);
-  t0 = Mul(bI, t0);
 
-  bR = Sub(bR, t1);
+  bR = NMAdd(bR, t0, t1); // -bR
   t1 = Add(aI, cI);
   cI = Sub(aI, cI);
   if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
@@ -236,7 +221,7 @@ FORCE_INLINE void DITComplexRadix4(
   {
     aI = Set1Half(w2i);
   }
-  bI = Add(aR, t0);
+  bI = MAdd(bI, t0, aR);
   if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
   {
     t0 = Set1(w2r);
@@ -249,18 +234,16 @@ FORCE_INLINE void DITComplexRadix4(
   // aR is unused here, angles are loaded as t0,aI
 
   // now rotate d by w0
-  aR = Mul(dR, aI);
-  aI = Mul(dI, aI);
-  dI = Mul(dI, t0);
-  t0 = Mul(dR, t0);
-  t0 = Sub(t0, aI);
-  dI = Add(aR, dI);
+  aR = Mul(dR, t0);
+  t0 = Mul(dI, t0);
+  dI = NMAdd(dI, aI, aR);
+  dR = MAdd(dR, aI, t0);
 
   // Do the last butterflies and get everything back into their proper registers
-  aR = Add(bR, t0);
-  aI = Add(bI, dI);
-  dI = Sub(bI, dI);
-  t0 = Sub(t0, bR); // actually -dR
+  aR = Sub(dI, bR);
+  t0 = Add(dI, bR); // actually -dR
+  aI = Add(bI, dR);
+  dI = Sub(bI, dR);
 
   bI = Sub(aI, t1);
   aI = Add(t1, aI);
@@ -305,46 +288,40 @@ FORCE_INLINE void DITComplexRadix4(
   // Start by rotating c by w1
   t2 = Mul(cR, t1);
   t1 = Mul(cI, t1);
-  cR = Mul(cR, t0);
-  t0 = Mul(cI, t0);
-  cR = Sub(cR, t1);
-  cI = Add(t2, t0);
+  cR = NMAdd(cR, t0, t1); // -cR
+  cI = MAdd(cI, t0, t2);
 
   t0 = Set2(w0rA, w0rB);
   t1 = Set2(w0iA, w0iB);
 
   // Start the a/c butterfly while that loads
-  t2 = Add(aR, cR);
-  cR = Sub(aR, cR);
+  t2 = Sub(aR, cR);
+  cR = Add(aR, cR);
 
   // Rotate b by w0
   aR = Mul(bR, t1);
   t1 = Mul(bI, t1);
-  bR = Mul(bR, t0);
-  t0 = Mul(bI, t0);
 
-  bR = Sub(bR, t1);
+  bR = NMAdd(bR, t0, t1); // -bR
   t1 = Add(aI, cI);
   cI = Sub(aI, cI);
   aI = Set2(w2iA, w2iB);
-  bI = Add(aR, t0);
+  bI = MAdd(bI, t0, aR);
   t0 = Set2(w2rA, w2rB);
 
   // aR is unused here, angles are loaded as t0,aI
 
   // now rotate d by w0
-  aR = Mul(dR, aI);
-  aI = Mul(dI, aI);
-  dI = Mul(dI, t0);
-  t0 = Mul(dR, t0);
-  t0 = Sub(t0, aI);
-  dI = Add(aR, dI);
+  aR = Mul(dR, t0);
+  t0 = Mul(dI, t0);
+  dI = NMAdd(dI, aI, aR);
+  dR = MAdd(dR, aI, t0);
 
   // Do the last butterflies and get everything back into their proper registers
-  aR = Add(bR, t0);
-  aI = Add(bI, dI);
-  dI = Sub(bI, dI);
-  t0 = Sub(t0, bR); // actually -dR
+  aR = Sub(dI, bR);
+  t0 = Add(dI, bR); // actually -dR
+  aI = Add(bI, dR);
+  dI = Sub(bI, dR);
 
   bI = Sub(aI, t1);
   aI = Add(t1, aI);
@@ -378,12 +355,10 @@ FORCE_INLINE void DITComplexRadix4(
   auto &t2)
 {
   // Rotate c by w1
-  t1 = Mul(cR, w1r);
-  t2 = Mul(cI, w1i);
+  t2 = Mul(cR, w1r);
   cR = Mul(cR, w1i);
-  cI = Mul(cI, w1r);
-  t1 = Sub(t1, t2);
-  cI = Add(cR, cI);
+  t1 = NMAdd(cI, w1i, t2);
+  cI = MAdd(cI, w1r, cR);
 
   // Do the a/c butterfly while that loads
   cR = Sub(aR, t1);
@@ -393,26 +368,20 @@ FORCE_INLINE void DITComplexRadix4(
 
   // use aI and t2 as temp registers
   // Rotate b by w0
-  aI = Mul(bR, w0r);
+  aI = Mul(bR, w0i);
   t2 = Mul(bI, w0i);
-  bR = Mul(bR, w0i);
-  bI = Mul(bI, w0r);
-
-    // Load w2 in the middle of this
-  bI = Add(bR, bI);
-  bR = Sub(aI, t2);
+  bI = MAdd(bI, w0r, aI);
+  bR = NMAdd(bR, w0r, t2); // actually -bR
 
   // now rotate d by w2
-  aI = Mul(dR, w2r);
-  t2 = Mul(dI, w2i);
+  t2 = Mul(dR, w2r);
   dR = Mul(dR, w2i);
-  dI = Mul(dI, w2r);
-  dI = Add(dR, dI);
-  aI = Sub(aI, t2);
+  aI = NMAdd(dI, w2i, t2); // this is rotated dR
+  dI = MAdd(dI, w2r, dR);
 
   // Do the last butterflies
-  dR = Sub(aI, bR); // actually -dR
-  bR = Add(bR, aI);
+  dR = Add(aI, bR); // actually -dR
+  bR = Sub(aI, bR);
   t2 = Sub(bI, dI);
   bI = Add(bI, dI);
 
@@ -450,56 +419,44 @@ FORCE_INLINE void DIFComplexRadix4Inv(
 {
   // This is effectively the opposite of the above Radix4.
   t0 = Add(dI, cI);
-  t2 = Sub(dR, cR);
+  t1 = Sub(dR, cR);
   cR = Add(dR, cR);
   cI = Sub(dI, cI);
 
   // This frees up dR and dI
 
   dR = Add(aR, bR);
-  bR = Sub(aR, bR);
+  bR = Sub(bR, aR); // negated
   dI = Sub(aI, bI);
   bI = Add(aI, bI);
 
   aR = Add(dR, cR);
-  cR = Sub(dR, cR);
+  cR = Sub(cR, dR); // -cR
   aI = Add(dI, cI);
   cI = Sub(dI, cI);
 
   // aR and aI are *finalized* at this point - do not use!
 
-  dR = Add(bR, t0);
-  bR = Sub(bR, t0);
+  dR = Sub(bR, t0); // -dR
+  bR = Add(t0, bR); // -bR
   if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
   {
     t0 = Set1(w1r);      // Load the angles in the middle of this to get them ready
-    t1 = Set1(w1i);
+    t2 = Set1(w1i);
   }
   else
   {
     t0 = Set1Half(w1r);
-    t1 = Set1Half(w1i);
+    t2 = Set1Half(w1i);
   }
-  dI = Sub(bI, t2);
-  bI = Add(bI, t2);
+  dI = Sub(bI, t1);
+  bI = Add(bI, t1);
 
   // Rotate c by w1
-  t2 = Mul(cR, t0);
-  cR = Mul(cR, t1);
-  t1 = Mul(cI, t1);
-  cI = Mul(cI, t0);
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    t0 = Set1(w0r);  // Preload this angle for the b rotation
-  }
-  else
-  {
-    t0 = Set1Half(w0r);
-  }
-  cI = Sub(cI, cR);
-  cR = Add(t2, t1);
+  t1 = Mul(cI, t2);
+  t2 = Mul(cR, t2);
+  cR = NMAdd(cR, t0, t1);
 
-  // Rotate b by w0
   if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
   {
     t1 = Set1(w0i);
@@ -508,10 +465,34 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   {
     t1 = Set1Half(w0i);
   }
-  t2 = Mul(bR, t0);
-  bR = Mul(bR, t1);
+
+  cI = MAdd(cI, t0, t2);
+
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(w0r);  // Preload this angle for the b rotation
+  }
+  else
+  {
+    t0 = Set1Half(w0r);
+  }
+
+  // Rotate b by w0
+  t2 = Mul(bR, t1);
   t1 = Mul(bI, t1);
-  bI = Mul(bI, t0);
+  bI = MAdd(bI, t0, t2);
+
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t2 = Set1(w2i);
+  }
+  else
+  {
+    t2 = Set1Half(w2i);
+  }
+  bR = NMAdd(bR, t0, t1);
+
+  // now rotate d by w2
   if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
   {
     t0 = Set1(w2r); // Preload this angle for the d rotation
@@ -520,25 +501,11 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   {
     t0 = Set1Half(w2r);
   }
-  bI = Sub(bI, bR);
-  bR = Add(t2, t1);
 
-  // now rotate d by w2
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    t1 = Set1(w2i);
-  }
-  else
-  {
-    t1 = Set1Half(w2i);
-  }
-
-  t2 = Mul(dR, t0);
-  dR = Mul(dR, t1);
-  t1 = Mul(dI, t1);
-  dI = Mul(dI, t0);
-  dI = Sub(dI, dR);
-  dR = Add(t2, t1);
+  t1 = Mul(dR, t2);
+  t2 = Mul(dI, t2);
+  dI = MAdd(dI, t0, t1);
+  dR = NMAdd(dR, t0, t2);
 };
 
 
@@ -552,97 +519,95 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   auto &cI,
   auto &dR,
   auto &dI,
-  std::floating_point auto w0rA,
-  std::floating_point auto w0iA,
-  std::floating_point auto w1rA,
-  std::floating_point auto w1iA,
-  std::floating_point auto w2rA,
-  std::floating_point auto w2iA,
-  std::floating_point auto w0rB,
-  std::floating_point auto w0iB,
-  std::floating_point auto w1rB,
-  std::floating_point auto w1iB,
-  std::floating_point auto w2rB,
-  std::floating_point auto w2iB,
+  std::floating_point auto &w0rA,
+  std::floating_point auto &w0iA,
+  std::floating_point auto &w1rA,
+  std::floating_point auto &w1iA,
+  std::floating_point auto &w2rA,
+  std::floating_point auto &w2iA,
+  std::floating_point auto &w0rB,
+  std::floating_point auto &w0iB,
+  std::floating_point auto &w1rB,
+  std::floating_point auto &w1iB,
+  std::floating_point auto &w2rB,
+  std::floating_point auto &w2iB,
   auto &t0,
   auto &t1,
   auto &t2)
 {
   // This is effectively the opposite of the above Radix4.
   t0 = Add(dI, cI);
-  t2 = Sub(dR, cR);
+  t1 = Sub(dR, cR);
   cR = Add(dR, cR);
   cI = Sub(dI, cI);
 
   // This frees up dR and dI
 
   dR = Add(aR, bR);
-  bR = Sub(aR, bR);
+  bR = Sub(bR, aR); // negated
   dI = Sub(aI, bI);
   bI = Add(aI, bI);
 
   aR = Add(dR, cR);
-  cR = Sub(dR, cR);
+  cR = Sub(cR, dR); // -cR
   aI = Add(dI, cI);
   cI = Sub(dI, cI);
 
   // aR and aI are *finalized* at this point - do not use!
 
-  dR = Add(bR, t0);
-  bR = Sub(bR, t0);
+  dR = Sub(bR, t0); // -dR
+  bR = Add(t0, bR); // -bR
   t0 = Set2(w1rA, w1rB);      // Load the angles in the middle of this to get them ready
-  t1 = Set2(w1iA, w1iB);
-  dI = Sub(bI, t2);
-  bI = Add(bI, t2);
+  t2 = Set2(w1iA, w1iB);
+  dI = Sub(bI, t1);
+  bI = Add(bI, t1);
 
   // Rotate c by w1
-  t2 = Mul(cR, t0);
-  cR = Mul(cR, t1);
-  t1 = Mul(cI, t1);
-  cI = Mul(cI, t0);
+  t1 = Mul(cI, t2);
+  t2 = Mul(cR, t2);
+  cR = NMAdd(cR, t0, t1);
+
+  t1 = Set2(w0iA, w0iB);
+
+  cI = MAdd(cI, t0, t2);
+
   t0 = Set2(w0rA, w0rB);  // Preload this angle for the b rotation
-  cI = Sub(cI, cR);
-  cR = Add(t2, t1);
 
   // Rotate b by w0
-  t1 = Set2(w0iA, w0iB);
-  t2 = Mul(bR, t0);
-  bR = Mul(bR, t1);
+  t2 = Mul(bR, t1);
   t1 = Mul(bI, t1);
-  bI = Mul(bI, t0);
-  t0 = Set2(w2rA, w2rB);
-  bI = Sub(bI, bR);
-  bR = Add(t2, t1);
+  bI = MAdd(bI, t0, t2);
+
+  t2 = Set2(w2iA, w2iB);
+  bR = NMAdd(bR, t0, t1);
 
   // now rotate d by w2
-  t1 = Set2(w2iA, w2iB);
-
-  t2 = Mul(dR, t0);
-  dR = Mul(dR, t1);
-  t1 = Mul(dI, t1);
-  dI = Mul(dI, t0);
-  dI = Sub(dI, dR);
-  dR = Add(t2, t1);
+  t0 = Set2(w2rA, w2rB);
+  t1 = Mul(dR, t2);
+  t2 = Mul(dI, t2);
+  dI = MAdd(dI, t0, t1);
+  dR = NMAdd(dR, t0, t2);
 };
 
 
+template <typename VT>
 FORCE_INLINE void DIFComplexRadix4Inv(
-  auto &aR,
-  auto &aI,
-  auto &bR,
-  auto &bI,
-  auto &cR,
-  auto &cI,
-  auto &dR,
-  auto &dI,
-  const auto w0r,
-  const auto w0i,
-  const auto w1r,
-  const auto w1i,
-  const auto w2r,
-  const auto w2i,
-  auto &t1,
-  auto &t2)
+  VT &aR,
+  VT &aI,
+  VT &bR,
+  VT &bI,
+  VT &cR,
+  VT &cI,
+  VT &dR,
+  VT &dI,
+  const VT &w0r,
+  const VT &w0i,
+  const VT &w1r,
+  const VT &w1i,
+  const VT &w2r,
+  const VT &w2i,
+  VT &t1,
+  VT &t2)
 {
   // This is effectively the opposite of the above Radix4.
   t1 = Add(dR, cR);
@@ -655,39 +620,32 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   cI = Add(aI, bI);
   aI = Sub(aI, bI);
 
-  bR = Sub(cR, dI);
+  bR = Sub(dI, cR); // actually -bR
   dI = Add(cR, dI);
   bI = Add(cI, dR);
   dR = Sub(cI, dR);
 
-  cR = Sub(aR, t1);
+  cR = Sub(t1, aR); // actually -cR
   aR = Add(aR, t1);
   cI = Sub(aI, t2);
   aI = Add(aI, t2);
 
   // aR/aI are finalized here do not use them as temp!
 
-  t1 = Mul(bR, w0r);
+  t1 = Mul(bR, w0i);
   t2 = Mul(bI, w0i);
-  bR = Mul(bR, w0i);
-  bI = Mul(bI, w0r);
-
-  bI = Sub(bI, bR);
-  bR = Add(t1, t2);
+  bR = NMAdd(bR, w0r, t2);
+  bI = MAdd(bI, w0r, t1);
 
   t1 = Mul(dI, w2r);
-  t2 = Mul(dR, w2i);
-  dI = Mul(dI, w2i);
-  dR = Mul(dR, w2r);
-  dI = Sub(dR, dI);
-  dR = Add(t1, t2);
+  t2 = Mul(dR, w2r);
+  dR = MAdd(dR, w2i, t1);
+  dI = NMAdd(dI, w2i, t2);
 
-  t1 = Mul(cR, w1r);
-  t2 = Mul(cI, w1i);
-  cR = Mul(cR, w1i);
-  cI = Mul(cI, w1r);
-  cI = Sub(cI, cR);
-  cR = Add(t1, t2);
+  t1 = Mul(cI, w1i);
+  t2 = Mul(cR, w1i);
+  cR = NMAdd(cR, w1r, t1);
+  cI = MAdd(cI, w1r, t2);
 };
 
 
@@ -711,60 +669,53 @@ FORCE_INLINE void FinalRealDITRealComplexRadix4(
   //  the same)
 
   // ef *= angle0;
-  t0 = Mul(e, w0R);
+  t0 = Mul(e, w0I);
   t1 = Mul(f, w0I);
-  e = Mul(e, w0I);
-  f = Mul(f, w0R);
-  f = Add(e, f);
-  e = Sub(t0, t1);
+  f = MAdd(f, w0R, t0);
+  e = NMAdd(e, w0R, t1); // -e
 
   // gh *= angle0;
   t0 = Mul(g, w0R);
-  t1 = Mul(h, w0I);
   g = Mul(g, w0I);
-  h = Mul(h, w0R);
-  w0R = Sub(t0, t1);
-  w0I = Add(g, h);
+  w0I = NMAdd(h, w0I, t0);
+  t1 = MAdd(h, w0R, g);
 
   // g, h are free here
-  t0 = Add(a, e);
-  e = Sub(a, e);
-  t1 = Add(f, b);
+  t0 = Sub(a, e);
+  e = Add(a, e);
+  w0R = Add(f, b);
   f = Sub(f, b);
 
-  g = Sub(w0R, c); // Do -g here so that we can leverage it for the 90 degree rotation later
-  c = Add(w0R, c);
-  h = Sub(w0I, d);
-  d = Add(w0I, d);
+  g = Sub(w0I, c); // Do -g here so that we can leverage it for the 90 degree rotation later
+  c = Add(w0I, c);
+  h = Sub(t1, d);
+  d = Add(t1, d);
 
   // Need to do another swap (this time of b0 and c0, again for the "real" radix's different ordering)
-  b = ReplaceFirstOf(t1, c);
-  c = ReplaceFirstOf(c, t1);
+  b = ReplaceFirstOf(w0R, c);
+  c = ReplaceFirstOf(c, w0R);
 
   // t0 is in use, but t1, w0R, w0I are not.
 
   // cd *= angle1;
-  w0R = Mul(c, w1R);
   w0I = Mul(d, w1I);
-  c = Mul(c, w1I);
   d = Mul(d, w1R);
+  t1 = MAdd(c, w1I, d);
+  c = NMAdd(c, w1R, w0I);
+
   w1R = ReplaceFirstOf(w1R, InvSqrt2<ElementType>);
   w1I = ReplaceFirstOf(w1I, -InvSqrt2<ElementType>);
 
-  t1 = Add(c, d);
-  c = Sub(w0R, w0I);
+  a = Sub(t0, c);
+  c = Add(t0, c);
 
   // gh *= {-angle1.imag(), -angle1.real()};
   //  note that this takes advantage of g being stored as -g above
   w0R = Mul(g, w1R);
-  w0I = Mul(h, w1I);
   g = Mul(g, w1I);
-  h = Mul(h, w1R);
-  w0R = Sub(w0R, w0I);
-  h = Add(g, h);
+  w0R = NMAdd(h, w1I, w0R);
+  h = MAdd(h, w1R, g);
 
-  a = Add(t0, c);
-  c = Sub(t0, c);
   d = Sub(t1, b);
   b = Add(t1, b);
 
@@ -799,29 +750,25 @@ FORCE_INLINE void FirstRealDITRealComplexRadix4Inv(
 
   h = Sub(a, c);
   a = Add(a, c);
-  t1 = Add(b, d);
+  c = Add(b, d);
   b = Sub(b, d);
 
-  // c, d are free
+  // t1, d are free
 
   d = Mul(h, w1R);
-  h = Mul(h, w1I);
-  c = Mul(t1, w1I);
-  t1 = Mul(t1, w1R);
-  c = Add(d, c);
-  d = Sub(t1, h);
+  t1 = Mul(c, w1R);
+  c = MAdd(c, w1I, d);
+  d = NMAdd(h, w1I, t1);
 
   // For the inverse of the final real DIT we need a second w1 angle that is just 0.707, -0.707 (but the complex w1
   //  values remain the same)
   w1R = ReplaceFirstOf(w1R, InvSqrt2<ElementType>);
   w1I = ReplaceFirstOf(w1I, -InvSqrt2<ElementType>);
 
-  t1 = Mul(g, w1R);
-  w1R = Mul(t0, w1R);
+  t1 = Mul(t0, w1R);
   t0 = Mul(t0, w1I);
-  w1I = Mul(g, w1I);
-  g = Add(t1, t0);
-  h = Sub(w1R, w1I);
+  h = NMAdd(g, w1I, t1);
+  g = MAdd(g, w1R, t0);
 
   t0 = ReplaceFirstOf(c, b);
   b = ReplaceFirstOf(b, c);
@@ -836,19 +783,15 @@ FORCE_INLINE void FirstRealDITRealComplexRadix4Inv(
   w1I = Add(b, f);
   b = Sub(b, f);
 
-  f = Mul(g, w0R);
   e = Mul(t1, w0I);
-  h = Mul(t1, w0R);
-  g = Mul(g, w0I);
-  h = Sub(h, g);
-  g = Add(f, e);
+  t1 = Mul(t1, w0R);
+  h = NMAdd(g, w0I, t1);
+  g = MAdd(g, w0R, e);
 
-  t0 = Mul(w1R, w0R);
   t1 = Mul(w1I, w0I);
-  w0I = Mul(w1R, w0I);
-  w0R= Mul(w1I, w0R);
-  e = Add(t0, t1);
-  f = Sub(w0R, w0I);
+  t0 = Mul(w1I, w0R);
+  e = MAdd(w1R, w0R, t1);
+  f = NMAdd(w0I, w1R, t0);
 }
 
 
