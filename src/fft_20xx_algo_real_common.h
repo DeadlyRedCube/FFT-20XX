@@ -15,7 +15,14 @@ template <Alignment A, std::floating_point F, typename...V>
 FORCE_INLINE void LoadStridedSets(const F *base, size_t stride, V &... vs)
 {
   size_t offset = 0;
-  ((vs = Load<A>(base + offset), offset += stride), ...);
+  if constexpr ((std::same_as<std::remove_reference_t<V>, VecType> && ...))
+  {
+    ((vs = Load<A>(base + offset), offset += stride), ...);
+  }
+  else
+  {
+    ((vs = LoadHalf<A>(base + offset), offset += stride), ...);
+  }
 }
 
 
@@ -178,8 +185,16 @@ FORCE_INLINE void DITComplexRadix4(
   auto &t1,
   auto &t2)
 {
-  t1 = Set1(w1i);
-  t0 = Set1(w1r);
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t1 = Set1(w1i);
+    t0 = Set1(w1r);
+  }
+  else
+  {
+    t1 = Set1Half(w1i);
+    t0 = Set1Half(w1r);
+  }
 
   // Start by rotating c by w1
   t2 = Mul(cR, t1);
@@ -189,8 +204,16 @@ FORCE_INLINE void DITComplexRadix4(
   cR = Sub(cR, t1);
   cI = Add(t2, t0);
 
-  t0 = Set1(w0r);
-  t1 = Set1(w0i);
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(w0r);
+    t1 = Set1(w0i);
+  }
+  else
+  {
+    t0 = Set1Half(w0r);
+    t1 = Set1Half(w0i);
+  }
 
   // Start the a/c butterfly while that loads
   t2 = Add(aR, cR);
@@ -205,9 +228,23 @@ FORCE_INLINE void DITComplexRadix4(
   bR = Sub(bR, t1);
   t1 = Add(aI, cI);
   cI = Sub(aI, cI);
-  aI = Set1(w2i);
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    aI = Set1(w2i);
+  }
+  else
+  {
+    aI = Set1Half(w2i);
+  }
   bI = Add(aR, t0);
-  t0 = Set1(w2r);
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(w2r);
+  }
+  else
+  {
+    t0 = Set1Half(w2r);
+  }
 
   // aR is unused here, angles are loaded as t0,aI
 
@@ -235,6 +272,91 @@ FORCE_INLINE void DITComplexRadix4(
   dI = Add(t0, cI);
   cI = Sub(t0, cI);
 };
+
+// Like the above but sets
+FORCE_INLINE void DITComplexRadix4(
+  auto &aR,
+  auto &aI,
+  auto &bR,
+  auto &bI,
+  auto &cR,
+  auto &cI,
+  auto &dR,
+  auto &dI,
+  std::floating_point auto w0rA,
+  std::floating_point auto w0iA,
+  std::floating_point auto w1rA,
+  std::floating_point auto w1iA,
+  std::floating_point auto w2rA,
+  std::floating_point auto w2iA,
+  std::floating_point auto w0rB,
+  std::floating_point auto w0iB,
+  std::floating_point auto w1rB,
+  std::floating_point auto w1iB,
+  std::floating_point auto w2rB,
+  std::floating_point auto w2iB,
+  auto &t0,
+  auto &t1,
+  auto &t2)
+{
+  t1 = Set2(w1iA, w1iB);
+  t0 = Set2(w1rA, w1rB);
+
+  // Start by rotating c by w1
+  t2 = Mul(cR, t1);
+  t1 = Mul(cI, t1);
+  cR = Mul(cR, t0);
+  t0 = Mul(cI, t0);
+  cR = Sub(cR, t1);
+  cI = Add(t2, t0);
+
+  t0 = Set2(w0rA, w0rB);
+  t1 = Set2(w0iA, w0iB);
+
+  // Start the a/c butterfly while that loads
+  t2 = Add(aR, cR);
+  cR = Sub(aR, cR);
+
+  // Rotate b by w0
+  aR = Mul(bR, t1);
+  t1 = Mul(bI, t1);
+  bR = Mul(bR, t0);
+  t0 = Mul(bI, t0);
+
+  bR = Sub(bR, t1);
+  t1 = Add(aI, cI);
+  cI = Sub(aI, cI);
+  aI = Set2(w2iA, w2iB);
+  bI = Add(aR, t0);
+  t0 = Set2(w2rA, w2rB);
+
+  // aR is unused here, angles are loaded as t0,aI
+
+  // now rotate d by w0
+  aR = Mul(dR, aI);
+  aI = Mul(dI, aI);
+  dI = Mul(dI, t0);
+  t0 = Mul(dR, t0);
+  t0 = Sub(t0, aI);
+  dI = Add(aR, dI);
+
+  // Do the last butterflies and get everything back into their proper registers
+  aR = Add(bR, t0);
+  aI = Add(bI, dI);
+  dI = Sub(bI, dI);
+  t0 = Sub(t0, bR); // actually -dR
+
+  bI = Sub(aI, t1);
+  aI = Add(t1, aI);
+  bR = Sub(t2, aR);
+  aR = Add(t2, aR);
+
+  dR = Add(cR, dI);
+  cR = Sub(cR, dI);
+  dI = Add(t0, cI);
+  cI = Sub(t0, cI);
+};
+
 
 // This function uses all 16 registers!
 FORCE_INLINE void DITComplexRadix4(
@@ -308,23 +430,23 @@ FORCE_INLINE void DITComplexRadix4(
 
 
 FORCE_INLINE void DIFComplexRadix4Inv(
-  VecType &aR,
-  VecType &aI,
-  VecType &bR,
-  VecType &bI,
-  VecType &cR,
-  VecType &cI,
-  VecType &dR,
-  VecType &dI,
+  auto &aR,
+  auto &aI,
+  auto &bR,
+  auto &bI,
+  auto &cR,
+  auto &cI,
+  auto &dR,
+  auto &dI,
   std::floating_point auto w0r,
   std::floating_point auto w0i,
   std::floating_point auto w1r,
   std::floating_point auto w1i,
   std::floating_point auto w2r,
   std::floating_point auto w2i,
-  VecType &t0,
-  VecType &t1,
-  VecType &t2)
+  auto &t0,
+  auto &t1,
+  auto &t2)
 {
   // This is effectively the opposite of the above Radix4.
   t0 = Add(dI, cI);
@@ -348,8 +470,16 @@ FORCE_INLINE void DIFComplexRadix4Inv(
 
   dR = Add(bR, t0);
   bR = Sub(bR, t0);
-  t0 = Set1(w1r);      // Load the angles in the middle of this to get them ready
-  t1 = Set1(w1i);
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(w1r);      // Load the angles in the middle of this to get them ready
+    t1 = Set1(w1i);
+  }
+  else
+  {
+    t0 = Set1Half(w1r);
+    t1 = Set1Half(w1i);
+  }
   dI = Sub(bI, t2);
   bI = Add(bI, t2);
 
@@ -358,22 +488,51 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   cR = Mul(cR, t1);
   t1 = Mul(cI, t1);
   cI = Mul(cI, t0);
-  t0 = Set1(w0r);  // Preload this angle for the b rotation
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(w0r);  // Preload this angle for the b rotation
+  }
+  else
+  {
+    t0 = Set1Half(w0r);
+  }
   cI = Sub(cI, cR);
   cR = Add(t2, t1);
 
   // Rotate b by w0
-  t1 = Set1(w0i);
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t1 = Set1(w0i);
+  }
+  else
+  {
+    t1 = Set1Half(w0i);
+  }
   t2 = Mul(bR, t0);
   bR = Mul(bR, t1);
   t1 = Mul(bI, t1);
   bI = Mul(bI, t0);
-  t0 = Set1(w2r); // Preload this angle for the d rotation
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(w2r); // Preload this angle for the d rotation
+  }
+  else
+  {
+    t0 = Set1Half(w2r);
+  }
   bI = Sub(bI, bR);
   bR = Add(t2, t1);
 
   // now rotate d by w2
-  t1  = Set1(w2i);
+  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t1 = Set1(w2i);
+  }
+  else
+  {
+    t1 = Set1Half(w2i);
+  }
+
   t2 = Mul(dR, t0);
   dR = Mul(dR, t1);
   t1 = Mul(dI, t1);
@@ -385,22 +544,105 @@ FORCE_INLINE void DIFComplexRadix4Inv(
 
 
 FORCE_INLINE void DIFComplexRadix4Inv(
-  VecType &aR,
-  VecType &aI,
-  VecType &bR,
-  VecType &bI,
-  VecType &cR,
-  VecType &cI,
-  VecType &dR,
-  VecType &dI,
-  const VecType w0r,
-  const VecType w0i,
-  const VecType w1r,
-  const VecType w1i,
-  const VecType w2r,
-  const VecType w2i,
-  VecType &t1,
-  VecType &t2)
+  auto &aR,
+  auto &aI,
+  auto &bR,
+  auto &bI,
+  auto &cR,
+  auto &cI,
+  auto &dR,
+  auto &dI,
+  std::floating_point auto w0rA,
+  std::floating_point auto w0iA,
+  std::floating_point auto w1rA,
+  std::floating_point auto w1iA,
+  std::floating_point auto w2rA,
+  std::floating_point auto w2iA,
+  std::floating_point auto w0rB,
+  std::floating_point auto w0iB,
+  std::floating_point auto w1rB,
+  std::floating_point auto w1iB,
+  std::floating_point auto w2rB,
+  std::floating_point auto w2iB,
+  auto &t0,
+  auto &t1,
+  auto &t2)
+{
+  // This is effectively the opposite of the above Radix4.
+  t0 = Add(dI, cI);
+  t2 = Sub(dR, cR);
+  cR = Add(dR, cR);
+  cI = Sub(dI, cI);
+
+  // This frees up dR and dI
+
+  dR = Add(aR, bR);
+  bR = Sub(aR, bR);
+  dI = Sub(aI, bI);
+  bI = Add(aI, bI);
+
+  aR = Add(dR, cR);
+  cR = Sub(dR, cR);
+  aI = Add(dI, cI);
+  cI = Sub(dI, cI);
+
+  // aR and aI are *finalized* at this point - do not use!
+
+  dR = Add(bR, t0);
+  bR = Sub(bR, t0);
+  t0 = Set2(w1rA, w1rB);      // Load the angles in the middle of this to get them ready
+  t1 = Set2(w1iA, w1iB);
+  dI = Sub(bI, t2);
+  bI = Add(bI, t2);
+
+  // Rotate c by w1
+  t2 = Mul(cR, t0);
+  cR = Mul(cR, t1);
+  t1 = Mul(cI, t1);
+  cI = Mul(cI, t0);
+  t0 = Set2(w0rA, w0rB);  // Preload this angle for the b rotation
+  cI = Sub(cI, cR);
+  cR = Add(t2, t1);
+
+  // Rotate b by w0
+  t1 = Set2(w0iA, w0iB);
+  t2 = Mul(bR, t0);
+  bR = Mul(bR, t1);
+  t1 = Mul(bI, t1);
+  bI = Mul(bI, t0);
+  t0 = Set2(w2rA, w2rB);
+  bI = Sub(bI, bR);
+  bR = Add(t2, t1);
+
+  // now rotate d by w2
+  t1 = Set2(w2iA, w2iB);
+
+  t2 = Mul(dR, t0);
+  dR = Mul(dR, t1);
+  t1 = Mul(dI, t1);
+  dI = Mul(dI, t0);
+  dI = Sub(dI, dR);
+  dR = Add(t2, t1);
+};
+
+
+FORCE_INLINE void DIFComplexRadix4Inv(
+  auto &aR,
+  auto &aI,
+  auto &bR,
+  auto &bI,
+  auto &cR,
+  auto &cI,
+  auto &dR,
+  auto &dI,
+  const auto w0r,
+  const auto w0i,
+  const auto w1r,
+  const auto w1i,
+  const auto w2r,
+  const auto w2i,
+  auto &t1,
+  auto &t2)
 {
   // This is effectively the opposite of the above Radix4.
   t1 = Add(dR, cR);
@@ -449,7 +691,6 @@ FORCE_INLINE void DIFComplexRadix4Inv(
 };
 
 
-// !!! register optimization
 FORCE_INLINE void FinalRealDITRealComplexRadix4(
   auto &a,
   auto &b,
@@ -611,7 +852,19 @@ FORCE_INLINE void FirstRealDITRealComplexRadix4Inv(
 }
 
 
-template <Alignment A, TangleType Type, uint32_t VV = VecSize, typename VT = VecType>
+template <Alignment A, uint32_t VS = VecSize>
+auto LoadForTangle(const ElementType *input)
+{
+  if constexpr (VS == 8)
+    { return LoadHalf<A>(input); }
+  else
+    { return Load<A>(input); }
+}
+
+using TangleVecType = decltype(LoadForTangle<Alignment::Aligned>(std::declval<const ElementType *>()));
+constexpr auto TangleVecSize = std::same_as<TangleVecType, VecType> ? VecSize : (VecSize / 2);
+
+template <Alignment A, TangleType Type, uint32_t VV = TangleVecSize, typename VT = TangleVecType>
 void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subLength)
 {
   // For example in this routine, going to use a 32-pair (64-element) example of ABCDEFGHIJKLMNOPQponmlkjihgfedcb as
@@ -628,7 +881,7 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
     // The 2-element case is simpler than the others
     {
       // Start by loading the first 4 elements and last 3 elements
-      VecType t0, t1, t2, t3, l1, l2, l3;
+      VT t0, t1, t2, t3, l1, l2, l3;
       LoadStridedSets<A>(input, 2, t0, t1, t2, t3);
       LoadStridedSets<A>(input + subLength - 6, 2, l1, l2, l3);
 
@@ -653,7 +906,7 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
       const auto bottom = subLength - i - 14;
 
       // We have 16 registers so load all of the next 8 pairs from the top and from the bottom.
-      VecType t0, t1, t2, t3, t4, t5, t6, t7, l0, l1, l2, l3, l4, l5, l6, l7;
+      VT t0, t1, t2, t3, t4, t5, t6, t7, l0, l1, l2, l3, l4, l5, l6, l7;
       LoadStridedSets<A>(input + i, 2, t0, t1, t2, t3, t4, t5, t6, t7);
       LoadStridedSets<A>(input + bottom, 2, l0, l1, l2, l3, l4, l5, l6, l7);
 
@@ -699,14 +952,14 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
     // Load AB CD (as prevTopA and B) and second-to-last vector `ed` as prevTopB
     VT prevTopA, prevTopB;
     LoadStridedSets<A>(input, 4, prevTopA, prevTopB);
-    auto prevLowA = Load<A>(input + subLength - 8);
+    auto prevLowA = LoadForTangle<A>(input + subLength - 8);
 
     // This first section gets us into the condition where the loop expects
     {
       VT r03, r04, r05, r06, r07;
       // Load the last value in the array as r03 (it's `cb`)
       //  that write to the beginning of the output.
-      r03 = Load<A>(input + subLength - 4);
+      r03 = LoadForTangle<A>(input + subLength - 4);
       if constexpr (Type == TangleType::InverseLargest)
       {
         // In this case, we do an extra flip so we get the first elements (r04|r03) as Ab|cd
@@ -724,7 +977,7 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
 
       // Load the next value in from the left (EF), and proceed to calculate the values that go at the very end of
       //  our array.
-      r05 = Load<A>(input + 8);
+      r05 = LoadForTangle<A>(input + 8);
 
       if constexpr (Type == TangleType::ForwardLargest)
       {
@@ -744,7 +997,7 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
 
       // We're going to do one more set! Load the next one in from the left (GH) and the next two in from the right
       //  (`ih` and `gf`) and write the next values at the start
-      prevTopB = Load<A>(input + 12);
+      prevTopB = LoadForTangle<A>(input + 12);
       LoadStridedSets<A>(input + subLength - 16, 4, r06, r07);
       if constexpr (Type == TangleType::ForwardLargest)
       {
@@ -819,8 +1072,8 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
       StoreStridedSets<A>(output + subLength - i - 8, 4, r05, r04);
 
       // One last section on this loop, load the next values in from the bottom (`Qp|on`)
-      prevLowA = Load<A>(input + subLength - i - 16);
-      r07 = Load<A>(input + subLength - i - 12);
+      prevLowA = LoadForTangle<A>(input + subLength - i - 16);
+      r07 = LoadForTangle<A>(input + subLength - i - 12);
 
       if constexpr (Type == TangleType::ForwardLargest)
       {
@@ -847,7 +1100,7 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
 
     // The very middle value needs to be written now.
     {
-      VecType finalA, finalB;
+      VT finalA, finalB;
       if constexpr (Type == TangleType::InverseLargest)
       {
         // In our example data, this makes QP|ON
@@ -868,7 +1121,7 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
 
 
 
-template <Alignment Align, uint32_t VV = VecSize>
+template <Alignment Align, uint32_t VV = TangleVecSize, typename VT = TangleVecType>
 void Copy4Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (VV == 2)
@@ -880,7 +1133,7 @@ void Copy4Pairs(const ElementType *input, ElementType *output)
   else
   {
     static_assert(VV == 4);
-    VecType Aa, Bb;
+    VT Aa, Bb;
     LoadStridedSets<Align>(input, 4, Aa, Bb);
     StoreStridedSets<Align>(output, 4, Aa, Bb);
   }
@@ -888,7 +1141,7 @@ void Copy4Pairs(const ElementType *input, ElementType *output)
 
 
 
-template <Alignment Align, TangleType Type, uint32_t VV = VecSize, typename VT = VecType>
+template <Alignment Align, TangleType Type, uint32_t VV = TangleVecSize, typename VT = TangleVecType>
 void TangleFinal4Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardLargest)
@@ -935,7 +1188,7 @@ void TangleFinal4Pairs(const ElementType *input, ElementType *output)
 
 
 
-template <Alignment Align, TangleType Type, uint32_t VV = VecSize, typename VT = VecType>
+template <Alignment Align, TangleType Type, uint32_t VV = TangleVecSize, typename VT = TangleVecType>
 void Tangle8Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardInner)
@@ -1023,7 +1276,7 @@ void Tangle8Pairs(const ElementType *input, ElementType *output)
 
 
 
-template <Alignment Align, TangleType Type, uint32_t VV = VecSize, typename VT = VecType>
+template <Alignment Align, TangleType Type, uint32_t VV = TangleVecSize, typename VT = TangleVecType>
 void Tangle16Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardInner)
@@ -1119,7 +1372,7 @@ void Tangle16Pairs(const ElementType *input, ElementType *output)
 
 
 // Swaps 64 elements (32 pairs)
-template <Alignment Align, TangleType Type, uint32_t VV = VecSize, typename VT = VecType>
+template <Alignment Align, TangleType Type, uint32_t VV = TangleVecSize, typename VT = TangleVecType>
 void Tangle32Pairs(const ElementType *input, ElementType *output)
 {
   if constexpr (Type == TangleType::ForwardInner)
@@ -1190,11 +1443,11 @@ void Tangle32Pairs(const ElementType *input, ElementType *output)
       LoadStridedSets<Align>(input + 20, 4, r6, r7, r8, r9);
       r0 = InsertTopHalf(r0, r9);
       r4 = InsertTopHalf(r9, r4);
-      r9 = Load<Align>(input + 36);
+      r9 = LoadForTangle<Align>(input + 36);
       LoadStridedSets<Align>(input + 40, 4, r10, r11, r12, r13, r14);
       r15 = InsertTopHalf(r14, r12);
       r12 = InsertTopHalf(r12, r14);
-      r14 = Load<Align>(input + 60);
+      r14 = LoadForTangle<Align>(input + 60);
       StoreStridedSets<Align>(output, 4, r0, r9, r10, r11, r12, r14, r15, r13, r4, r6, r7, r8, r2, r3, r5, r1);
     }
   }
@@ -1266,7 +1519,7 @@ void Tangle32Pairs(const ElementType *input, ElementType *output)
       LoadStridedSets<Align>(input + 20, 4, r6, r7, r8);
       r9 = InsertTopHalf(r7, r8);
       r7 = InsertTopHalf(r8, r7);
-      r8 = Load<Align>(input + 32);
+      r8 = LoadForTangle<Align>(input + 32);
       r0 = InsertTopHalf(r0, r8);
       r4 = InsertTopHalf(r8, r4);
       LoadStridedSets<Align>(input + 36, 4, r10, r11, r12);
@@ -1276,7 +1529,7 @@ void Tangle32Pairs(const ElementType *input, ElementType *output)
       r12 = InsertTopHalf(r14, r13);
       r14 = InsertTopHalf(r15, r14);
       r13 = InsertTopHalf(r13, r15);
-      r15 = Load<Align>(input + 60);
+      r15 = LoadForTangle<Align>(input + 60);
       StoreStridedSets<Align>(output, 4, r0, r10, r8, r11, r13, r15, r14, r12, r4, r6, r9, r7, r2, r3, r5, r1);
     }
   }
@@ -1350,7 +1603,7 @@ void Tangle32Pairs(const ElementType *input, ElementType *output)
       LoadStridedSets<Align>(input + 52, 4, r14, r15);
       r0 = InsertTopHalf(r0, r15);
       r13 = InsertTopHalf(r15, r13);
-      r15 = Load<Align>(input + 60);
+      r15 = LoadForTangle<Align>(input + 60);
       StoreStridedSets<Align>(output, 4, r0, r15, r13, r14, r9, r10, r11, r12, r6, r1, r2, r3, r4, r8, r7, r5);
     }
   }
@@ -1419,20 +1672,20 @@ void Tangle32Pairs(const ElementType *input, ElementType *output)
       r2 = InsertTopHalf(r3, r2);
       LoadStridedSets<Align>(input + 16, 4, r5, r6, r7);
       r3 = InsertTopHalf(r7, r5);
-      r8 = Load<Align>(input + 28);
+      r8 = LoadForTangle<Align>(input + 28);
       r5 = InsertTopHalf(r5, r8);
       r8 = InsertTopHalf(r8, r7);
       LoadStridedSets<Align>(input + 32, 4, r9, r10, r11, r12);
       r7 = InsertTopHalf(r11, r12);
       r11 = InsertTopHalf(r12, r11);
-      r13 = Load<Align>(input + 48);
+      r13 = LoadForTangle<Align>(input + 48);
       r12 = InsertTopHalf(r9, r0);
       r9 = InsertTopHalf(r13, r9);
       LoadStridedSets<Align>(input + 56, 4, r14, r15);
       r0 = InsertTopHalf(r0, r15);
       r15 = InsertTopHalf(r15, r14);
       r13 = InsertTopHalf(r14, r13);
-      r14 = Load<Align>(input + 52);
+      r14 = LoadForTangle<Align>(input + 52);
       StoreStridedSets<Align>(output, 4, r0, r15, r13, r14, r9, r10, r7, r11, r12, r1, r4, r2, r5, r8, r3, r6);
     }
   }

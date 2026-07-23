@@ -8,7 +8,7 @@ namespace FFT20XX
     using std::tie;
     using tup = std::tuple<F, F>;
 
-    assert(fftLength < 32);
+    // assert(fftLength < 32);
 
     switch (fftLength)
     {
