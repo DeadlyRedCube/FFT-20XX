@@ -384,25 +384,23 @@ FORCE_INLINE void DITComplexRadix4(
 
 
 
+template <typename V, typename Angles>
 FORCE_INLINE void DIFComplexRadix4Inv(
-  auto &aR,
-  auto &aI,
-  auto &bR,
-  auto &bI,
-  auto &cR,
-  auto &cI,
-  auto &dR,
-  auto &dI,
-  std::floating_point auto w0r,
-  std::floating_point auto w0i,
-  std::floating_point auto w1r,
-  std::floating_point auto w1i,
-  std::floating_point auto w2r,
-  std::floating_point auto w2i,
-  auto &t0,
-  auto &t1,
-  auto &t2)
+  V &aR,
+  V &aI,
+  V &bR,
+  V &bI,
+  V &cR,
+  V &cI,
+  V &dR,
+  V &dI,
+  const Angles &angles,
+  ThreeTemps<V> temps)
 {
+  auto &t0 = temps.t0;
+  auto &t1 = temps.t1;
+  auto &t2 = temps.t2;
+
   // This is effectively the opposite of the above Radix4.
   t0 = Add(dI, cI);
   t1 = Sub(dR, cR);
@@ -425,15 +423,20 @@ FORCE_INLINE void DIFComplexRadix4Inv(
 
   dR = Sub(bR, t0); // -dR
   bR = Add(t0, bR); // -bR
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  if constexpr (requires (Angles a) { a.a; })
   {
-    t0 = Set1(w1r);      // Load the angles in the middle of this to get them ready
-    t2 = Set1(w1i);
+    t0 = Set2(angles.a.w1r, angles.b.w1r);      // Load the angles in the middle of this to get them ready
+    t2 = Set2(angles.a.w1i, angles.b.w1i);
+  }
+  else if constexpr (std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(angles.w1r);
+    t2 = Set1(angles.w1i);
   }
   else
   {
-    t0 = Set1Half(w1r);
-    t2 = Set1Half(w1i);
+    t0 = Set1Half(angles.w1r);
+    t2 = Set1Half(angles.w1i);
   }
   dI = Sub(bI, t1);
   bI = Add(bI, t1);
@@ -443,24 +446,32 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   t2 = Mul(cR, t2);
   cR = NMAdd(cR, t0, t1);
 
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  if constexpr (requires (Angles a) { a.a; })
   {
-    t1 = Set1(w0i);
+    t1 = Set2(angles.a.w0i, angles.b.w0i);
+  }
+  else if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t1 = Set1(angles.w0i);
   }
   else
   {
-    t1 = Set1Half(w0i);
+    t1 = Set1Half(angles.w0i);
   }
 
   cI = MAdd(cI, t0, t2);
 
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  if constexpr (requires (Angles a) { a.a; })
   {
-    t0 = Set1(w0r);  // Preload this angle for the b rotation
+    t0 = Set2(angles.a.w0r, angles.b.w0r);  // Preload this angle for the b rotation
+  }
+  else if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(angles.w0r);
   }
   else
   {
-    t0 = Set1Half(w0r);
+    t0 = Set1Half(angles.w0r);
   }
 
   // Rotate b by w0
@@ -468,24 +479,32 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   t1 = Mul(bI, t1);
   bI = MAdd(bI, t0, t2);
 
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  if constexpr (requires (Angles a) { a.a; })
   {
-    t2 = Set1(w2i);
+    t2 = Set2(angles.a.w2i, angles.b.w2i);
+  }
+  else if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t2 = Set1(angles.w2i);
   }
   else
   {
-    t2 = Set1Half(w2i);
+    t2 = Set1Half(angles.w2i);
   }
   bR = NMAdd(bR, t0, t1);
 
   // now rotate d by w2
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  if constexpr (requires (Angles a) { a.a; })
   {
-    t0 = Set1(w2r); // Preload this angle for the d rotation
+    t0 = Set2(angles.a.w2r, angles.b.w2r); // Preload this angle for the d rotation
+  }
+  else if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(angles.w2r);
   }
   else
   {
-    t0 = Set1Half(w2r);
+    t0 = Set1Half(angles.w2r);
   }
 
   t1 = Mul(dR, t2);
@@ -494,86 +513,6 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   dR = NMAdd(dR, t0, t2);
 };
 
-
-
-FORCE_INLINE void DIFComplexRadix4Inv(
-  auto &aR,
-  auto &aI,
-  auto &bR,
-  auto &bI,
-  auto &cR,
-  auto &cI,
-  auto &dR,
-  auto &dI,
-  std::floating_point auto &w0rA,
-  std::floating_point auto &w0iA,
-  std::floating_point auto &w1rA,
-  std::floating_point auto &w1iA,
-  std::floating_point auto &w2rA,
-  std::floating_point auto &w2iA,
-  std::floating_point auto &w0rB,
-  std::floating_point auto &w0iB,
-  std::floating_point auto &w1rB,
-  std::floating_point auto &w1iB,
-  std::floating_point auto &w2rB,
-  std::floating_point auto &w2iB,
-  auto &t0,
-  auto &t1,
-  auto &t2)
-{
-  // This is effectively the opposite of the above Radix4.
-  t0 = Add(dI, cI);
-  t1 = Sub(dR, cR);
-  cR = Add(dR, cR);
-  cI = Sub(dI, cI);
-
-  // This frees up dR and dI
-
-  dR = Add(aR, bR);
-  bR = Sub(bR, aR); // negated
-  dI = Sub(aI, bI);
-  bI = Add(aI, bI);
-
-  aR = Add(dR, cR);
-  cR = Sub(cR, dR); // -cR
-  aI = Add(dI, cI);
-  cI = Sub(dI, cI);
-
-  // aR and aI are *finalized* at this point - do not use!
-
-  dR = Sub(bR, t0); // -dR
-  bR = Add(t0, bR); // -bR
-  t0 = Set2(w1rA, w1rB);      // Load the angles in the middle of this to get them ready
-  t2 = Set2(w1iA, w1iB);
-  dI = Sub(bI, t1);
-  bI = Add(bI, t1);
-
-  // Rotate c by w1
-  t1 = Mul(cI, t2);
-  t2 = Mul(cR, t2);
-  cR = NMAdd(cR, t0, t1);
-
-  t1 = Set2(w0iA, w0iB);
-
-  cI = MAdd(cI, t0, t2);
-
-  t0 = Set2(w0rA, w0rB);  // Preload this angle for the b rotation
-
-  // Rotate b by w0
-  t2 = Mul(bR, t1);
-  t1 = Mul(bI, t1);
-  bI = MAdd(bI, t0, t2);
-
-  t2 = Set2(w2iA, w2iB);
-  bR = NMAdd(bR, t0, t1);
-
-  // now rotate d by w2
-  t0 = Set2(w2rA, w2rB);
-  t1 = Mul(dR, t2);
-  t2 = Mul(dI, t2);
-  dI = MAdd(dI, t0, t1);
-  dR = NMAdd(dR, t0, t2);
-};
 
 
 template <typename VT>
@@ -586,15 +525,12 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   VT &cI,
   VT &dR,
   VT &dI,
-  const VT &w0r,
-  const VT &w0i,
-  const VT &w1r,
-  const VT &w1i,
-  const VT &w2r,
-  const VT &w2i,
-  VT &t1,
-  VT &t2)
+  const ThreeVectorAngles<VT> &angles,
+  TwoTemps<VT> temps)
 {
+  auto &t1 = temps.t0;
+  auto &t2 = temps.t1;
+
   // This is effectively the opposite of the above Radix4.
   t1 = Add(dR, cR);
   dR = Sub(dR, cR);
@@ -618,20 +554,20 @@ FORCE_INLINE void DIFComplexRadix4Inv(
 
   // aR/aI are finalized here do not use them as temp!
 
-  t1 = Mul(bR, w0i);
-  t2 = Mul(bI, w0i);
-  bR = NMAdd(bR, w0r, t2);
-  bI = MAdd(bI, w0r, t1);
+  t1 = Mul(bR, angles.w0i);
+  t2 = Mul(bI, angles.w0i);
+  bR = NMAdd(bR, angles.w0r, t2);
+  bI = MAdd(bI, angles.w0r, t1);
 
-  t1 = Mul(dI, w2r);
-  t2 = Mul(dR, w2r);
-  dR = MAdd(dR, w2i, t1);
-  dI = NMAdd(dI, w2i, t2);
+  t1 = Mul(dI, angles.w2r);
+  t2 = Mul(dR, angles.w2r);
+  dR = MAdd(dR, angles.w2i, t1);
+  dI = NMAdd(dI, angles.w2i, t2);
 
-  t1 = Mul(cI, w1i);
-  t2 = Mul(cR, w1i);
-  cR = NMAdd(cR, w1r, t1);
-  cI = MAdd(cI, w1r, t2);
+  t1 = Mul(cI, angles.w1i);
+  t2 = Mul(cR, angles.w1i);
+  cR = NMAdd(cR, angles.w1r, t1);
+  cI = MAdd(cI, angles.w1r, t2);
 };
 
 
