@@ -154,35 +154,82 @@ FORCE_INLINE void DIFRealOutputRadix4PairInv(
 }
 
 
-
-FORCE_INLINE void DITComplexRadix4(
-  auto &aR,
-  auto &aI,
-  auto &bR,
-  auto &bI,
-  auto &cR,
-  auto &cI,
-  auto &dR,
-  auto &dI,
-  std::floating_point auto w0r,
-  std::floating_point auto w0i,
-  std::floating_point auto w1r,
-  std::floating_point auto w1i,
-  std::floating_point auto w2r,
-  std::floating_point auto w2i,
-  auto &t0,
-  auto &t1,
-  auto &t2)
+template <std::floating_point F>
+struct ThreeScalarAngles
 {
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  F w0r;
+  F w0i;
+  F w1r;
+  F w1i;
+  F w2r;
+  F w2i;
+};
+
+#if COMPILER_MSVC
+  #pragma warning (push)
+  #pragma warning (disable: 4623 4626 5027) // default constructor/assignment/move assignment implicitly defined as deleted
+#endif
+template <typename T>
+struct TwoTemps
+{
+  T t0;
+  T t1;
+};
+
+template <typename T>
+struct ThreeTemps
+{
+  T t0;
+  T t1;
+  T t2;
+};
+
+template <typename V>
+struct ThreeVectorAngles
+{
+  V w0r;
+  V w0i;
+  V w1r;
+  V w1i;
+  V w2r;
+  V w2i;
+};
+
+#if COMPILER_MSVC
+  #pragma warning (pop)
+#endif
+
+template <typename V, typename Angles>
+FORCE_INLINE void DITComplexRadix4(
+  V &aR,
+  V &aI,
+  V &bR,
+  V &bI,
+  V &cR,
+  V &cI,
+  V &dR,
+  V &dI,
+  const Angles &angles,
+  ThreeTemps<V> temps)
+{
+  auto &t0 = temps.t0;
+  auto &t1 = temps.t1;
+  auto &t2 = temps.t2;
+
+  if constexpr (requires (Angles a) { a.a; })
   {
-    t1 = Set1(w1i);
-    t0 = Set1(w1r);
+    t1 = Set2(angles.a.w1i, angles.b.w1i);
+    t0 = Set2(angles.a.w1r, angles.b.w1r);
+  }
+  else if constexpr (std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t1 = Set1(angles.w1i);
+    t0 = Set1(angles.w1r);
   }
   else
   {
-    t1 = Set1Half(w1i);
-    t0 = Set1Half(w1r);
+    t1 = Set1Half(angles.w1i);
+    t0 = Set1Half(angles.w1r);
   }
 
   // Start by rotating c by w1
@@ -191,15 +238,20 @@ FORCE_INLINE void DITComplexRadix4(
   cR = NMAdd(cR, t0, t1); // -cR
   cI = MAdd(cI, t0, t2);
 
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  if constexpr (requires (Angles a) { a.a; })
   {
-    t0 = Set1(w0r);
-    t1 = Set1(w0i);
+    t0 = Set2(angles.a.w0r, angles.b.w0r);
+    t1 = Set2(angles.a.w0i, angles.b.w0i);
+  }
+  else if constexpr (std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(angles.w0r);
+    t1 = Set1(angles.w0i);
   }
   else
   {
-    t0 = Set1Half(w0r);
-    t1 = Set1Half(w0i);
+    t0 = Set1Half(angles.w0r);
+    t1 = Set1Half(angles.w0i);
   }
 
   // Start the a/c butterfly while that loads
@@ -213,22 +265,30 @@ FORCE_INLINE void DITComplexRadix4(
   bR = NMAdd(bR, t0, t1); // -bR
   t1 = Add(aI, cI);
   cI = Sub(aI, cI);
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  if constexpr (requires (Angles a) { a.a; })
   {
-    aI = Set1(w2i);
+    aI = Set2(angles.a.w2i, angles.b.w2i);
+  }
+  else if constexpr (std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    aI = Set1(angles.w2i);
   }
   else
   {
-    aI = Set1Half(w2i);
+    aI = Set1Half(angles.w2i);
   }
   bI = MAdd(bI, t0, aR);
-  if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  if constexpr (requires (Angles a) { a.a; })
   {
-    t0 = Set1(w2r);
+    t0 = Set2(angles.a.w2r, angles.b.w2r);
+  }
+  else if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
+  {
+    t0 = Set1(angles.w2r);
   }
   else
   {
-    t0 = Set1Half(w2r);
+    t0 = Set1Half(angles.w2r);
   }
 
   // aR is unused here, angles are loaded as t0,aI
@@ -256,109 +316,35 @@ FORCE_INLINE void DITComplexRadix4(
   cI = Sub(t0, cI);
 };
 
-// Like the above but sets
-FORCE_INLINE void DITComplexRadix4(
-  auto &aR,
-  auto &aI,
-  auto &bR,
-  auto &bI,
-  auto &cR,
-  auto &cI,
-  auto &dR,
-  auto &dI,
-  std::floating_point auto w0rA,
-  std::floating_point auto w0iA,
-  std::floating_point auto w1rA,
-  std::floating_point auto w1iA,
-  std::floating_point auto w2rA,
-  std::floating_point auto w2iA,
-  std::floating_point auto w0rB,
-  std::floating_point auto w0iB,
-  std::floating_point auto w1rB,
-  std::floating_point auto w1iB,
-  std::floating_point auto w2rB,
-  std::floating_point auto w2iB,
-  auto &t0,
-  auto &t1,
-  auto &t2)
+template <typename F>
+struct ThreeScalarAnglesX2
 {
-  t1 = Set2(w1iA, w1iB);
-  t0 = Set2(w1rA, w1rB);
-
-  // Start by rotating c by w1
-  t2 = Mul(cR, t1);
-  t1 = Mul(cI, t1);
-  cR = NMAdd(cR, t0, t1); // -cR
-  cI = MAdd(cI, t0, t2);
-
-  t0 = Set2(w0rA, w0rB);
-  t1 = Set2(w0iA, w0iB);
-
-  // Start the a/c butterfly while that loads
-  t2 = Sub(aR, cR);
-  cR = Add(aR, cR);
-
-  // Rotate b by w0
-  aR = Mul(bR, t1);
-  t1 = Mul(bI, t1);
-
-  bR = NMAdd(bR, t0, t1); // -bR
-  t1 = Add(aI, cI);
-  cI = Sub(aI, cI);
-  aI = Set2(w2iA, w2iB);
-  bI = MAdd(bI, t0, aR);
-  t0 = Set2(w2rA, w2rB);
-
-  // aR is unused here, angles are loaded as t0,aI
-
-  // now rotate d by w0
-  aR = Mul(dR, t0);
-  t0 = Mul(dI, t0);
-  dI = NMAdd(dI, aI, aR);
-  dR = MAdd(dR, aI, t0);
-
-  // Do the last butterflies and get everything back into their proper registers
-  aR = Sub(dI, bR);
-  t0 = Add(dI, bR); // actually -dR
-  aI = Add(bI, dR);
-  dI = Sub(bI, dR);
-
-  bI = Sub(aI, t1);
-  aI = Add(t1, aI);
-  bR = Sub(t2, aR);
-  aR = Add(t2, aR);
-
-  dR = Add(cR, dI);
-  cR = Sub(cR, dI);
-  dI = Add(t0, cI);
-  cI = Sub(t0, cI);
+  ThreeScalarAngles<F> a;
+  ThreeScalarAngles<F> b;
 };
 
 
 // This function uses all 16 registers!
+template <typename V>
 FORCE_INLINE void DITComplexRadix4(
-  auto &aR,
-  auto &aI,
-  auto &bR,
-  auto &bI,
-  auto &cR,
-  auto &cI,
-  auto &dR,
-  auto &dI,
-  auto w0r,
-  auto w0i,
-  auto w1r,
-  auto w1i,
-  auto w2r,
-  auto w2i,
-  auto &t1,
-  auto &t2)
+  V &aR,
+  V &aI,
+  V &bR,
+  V &bI,
+  V &cR,
+  V &cI,
+  V &dR,
+  V &dI,
+  const ThreeVectorAngles<V> &angles,
+  TwoTemps<V> temps)
 {
+  auto &t1 = temps.t0;
+  auto &t2 = temps.t1;
   // Rotate c by w1
-  t2 = Mul(cR, w1r);
-  cR = Mul(cR, w1i);
-  t1 = NMAdd(cI, w1i, t2);
-  cI = MAdd(cI, w1r, cR);
+  t2 = Mul(cR, angles.w1r);
+  cR = Mul(cR, angles.w1i);
+  t1 = NMAdd(cI, angles.w1i, t2);
+  cI = MAdd(cI, angles.w1r, cR);
 
   // Do the a/c butterfly while that loads
   cR = Sub(aR, t1);
@@ -368,16 +354,16 @@ FORCE_INLINE void DITComplexRadix4(
 
   // use aI and t2 as temp registers
   // Rotate b by w0
-  aI = Mul(bR, w0i);
-  t2 = Mul(bI, w0i);
-  bI = MAdd(bI, w0r, aI);
-  bR = NMAdd(bR, w0r, t2); // actually -bR
+  aI = Mul(bR, angles.w0i);
+  t2 = Mul(bI, angles.w0i);
+  bI = MAdd(bI, angles.w0r, aI);
+  bR = NMAdd(bR, angles.w0r, t2); // actually -bR
 
   // now rotate d by w2
-  t2 = Mul(dR, w2r);
-  dR = Mul(dR, w2i);
-  aI = NMAdd(dI, w2i, t2); // this is rotated dR
-  dI = MAdd(dI, w2r, dR);
+  t2 = Mul(dR, angles.w2r);
+  dR = Mul(dR, angles.w2i);
+  aI = NMAdd(dI, angles.w2i, t2); // this is rotated dR
+  dI = MAdd(dI, angles.w2r, dR);
 
   // Do the last butterflies
   dR = Add(aI, bR); // actually -dR
