@@ -21,7 +21,7 @@ namespace FFT20XX::SSE2
     { return (uintptr_t(ptr) & (sizeof(__m128) - 1)) == 0; }
 
   constexpr auto MinimumRealFFTLength = 32;
-
+  constexpr bool HasNativeFMA = false;
   constexpr auto VecSize = 4u;
   using VecType = __m128;
   using ElementType = float;
@@ -48,35 +48,34 @@ namespace FFT20XX::SSE2
 
 
 
-  [[nodiscard]] FORCE_INLINE auto Set1(float v)
-  {
-    return _mm_set1_ps(v);
-  }
-
-
-  [[nodiscard]] FORCE_INLINE auto Add(auto a, auto b)
+  [[nodiscard]] FORCE_INLINE auto Add(__m128 a, __m128 b)
   {
     return _mm_add_ps(a, b);
   }
 
-  [[nodiscard]] FORCE_INLINE auto Sub(auto a, auto b)
+  [[nodiscard]] FORCE_INLINE auto Sub(__m128 a, __m128 b)
   {
     return _mm_sub_ps(a, b);
   }
 
-  [[nodiscard]] FORCE_INLINE auto Mul(auto a, auto b)
+  [[nodiscard]] FORCE_INLINE auto Mul(__m128 a, __m128 b)
   {
     return _mm_mul_ps(a, b);
   }
 
-  [[nodiscard]] FORCE_INLINE auto MAdd(__m128 a, __m128 b, __m128 c) -> __m128
+  [[nodiscard]] FORCE_INLINE auto Mul(__m128 a, float b)
   {
-    return _mm_add_ps(_mm_mul_ps(a, b), c);
+    return _mm_mul_ps(a, _mm_set1_ps(b));
   }
 
-  [[nodiscard]] FORCE_INLINE auto NMAdd(__m128 a, __m128 b, __m128 c) -> __m128
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m128 a, auto b, __m128 c) -> __m128
   {
-    return _mm_sub_ps(c, _mm_mul_ps(a, b));
+    return Add(Mul(a, b), c);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m128 a, auto b, __m128 c) -> __m128
+  {
+    return Sub(c, Mul(a, b));
   }
 
   [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m128 a, __m128 b) -> __m128
@@ -113,11 +112,11 @@ namespace FFT20XX::SSE2
     return _mm_shuffle_ps(lo, hi, 0b11'10'01'00);
   }
 
-  FORCE_INLINE void Transpose4(auto &a, auto &b, auto &c, auto &d, auto &t0, auto &t1)
+  FORCE_INLINE void Transpose4(auto &a, auto &b, auto &c, auto &d)
   {
-    t0 = _mm_shuffle_ps(a, b, 0xEE);
+    auto t0 = _mm_shuffle_ps(a, b, 0xEE);
     a = _mm_shuffle_ps(a, b, 0x44);
-    t1 = _mm_shuffle_ps(c, d, 0x44);
+    auto t1 = _mm_shuffle_ps(c, d, 0x44);
     d = _mm_shuffle_ps(c, d, 0xEE);
 
     b = _mm_shuffle_ps(a, t1, 0xDD);

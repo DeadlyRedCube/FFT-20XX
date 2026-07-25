@@ -21,6 +21,7 @@ namespace FFT20XX::AVX
     { return (uintptr_t(ptr) & (sizeof(__m256d) - 1)) == 0; }
 
   constexpr auto MinimumRealFFTLength = 32;
+  constexpr bool HasNativeFMA = false;
 
   constexpr auto VecSize = 4u;
   using VecType = __m256d;
@@ -48,35 +49,34 @@ namespace FFT20XX::AVX
 
 
 
-  [[nodiscard]] FORCE_INLINE auto Set1(double v)
-  {
-    return _mm256_set1_pd(v);
-  }
-
-
-  [[nodiscard]] FORCE_INLINE auto Add(auto a, auto b)
+  [[nodiscard]] FORCE_INLINE auto Add(__m256d a, __m256d b)
   {
     return _mm256_add_pd(a, b);
   }
 
-  [[nodiscard]] FORCE_INLINE auto Sub(auto a, auto b)
+  [[nodiscard]] FORCE_INLINE auto Sub(__m256d a, __m256d b)
   {
     return _mm256_sub_pd(a, b);
   }
 
-  [[nodiscard]] FORCE_INLINE auto Mul(auto a, auto b)
+  [[nodiscard]] FORCE_INLINE auto Mul(__m256d a, __m256d b)
   {
     return _mm256_mul_pd(a, b);
   }
 
-  [[nodiscard]] FORCE_INLINE auto MAdd(__m256d a, __m256d b, __m256d c) -> __m256d
+  [[nodiscard]] FORCE_INLINE auto Mul(__m256d a, double b)
   {
-    return _mm256_add_pd(_mm256_mul_pd(a, b), c);
+    return _mm256_mul_pd(a, _mm256_set1_pd(b));
   }
 
-  [[nodiscard]] FORCE_INLINE auto NMAdd(__m256d a, __m256d b, __m256d c) -> __m256d
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m256d a, auto b, __m256d c) -> __m256d
   {
-    return _mm256_sub_pd(c, _mm256_mul_pd(a, b));
+    return Add(Mul(a, b), c);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m256d a, auto b, __m256d c) -> __m256d
+  {
+    return Sub(c, Mul(a, b));
   }
 
   [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m256d a, __m256d b) -> __m256d
@@ -105,11 +105,11 @@ namespace FFT20XX::AVX
     return _mm256_blend_pd(lo, hi, 0b1100);
   }
 
-  FORCE_INLINE void Transpose4(auto &a, auto &b, auto &c, auto &d, auto &t0, auto &t1)
+  FORCE_INLINE void Transpose4(auto &a, auto &b, auto &c, auto &d)
   {
-    t0 = _mm256_unpackhi_pd(a, b);
+    auto t0 = _mm256_unpackhi_pd(a, b);
     a = _mm256_unpacklo_pd(a, b);
-    t1 = _mm256_unpacklo_pd(c, d);
+    auto t1 = _mm256_unpacklo_pd(c, d);
     d = _mm256_unpackhi_pd(c, d);
 
     c = _mm256_permute2f128_pd(a, t1, 0x31);

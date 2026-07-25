@@ -21,6 +21,7 @@ namespace FFT20XX::AVX
     { return (uintptr_t(ptr) & (sizeof(__m256) - 1)) == 0; }
 
   constexpr auto MinimumRealFFTLength = 128;
+  constexpr bool HasNativeFMA = false;
 
   constexpr auto VecSize = 8u;
   using VecType = __m256;
@@ -47,17 +48,17 @@ namespace FFT20XX::AVX
 
 
   template <Alignment A>
-  [[nodiscard]] FORCE_INLINE auto LoadHalves(const float *pA, const float *pB, __m256 &temp) -> VecType
+  [[nodiscard]] FORCE_INLINE auto LoadHalves(const float *pA, const float *pB) -> VecType
   {
-    temp = _mm256_castps128_ps256(LoadHalf<A>(pB));
-    return _mm256_insertf128_ps(_mm256_castps128_ps256(LoadHalf<A>(pA)), _mm256_castps256_ps128(temp), 1);
+    auto t = _mm256_castps128_ps256(LoadHalf<A>(pB));
+    return _mm256_insertf128_ps(_mm256_castps128_ps256(LoadHalf<A>(pA)), _mm256_castps256_ps128(t), 1);
   }
 
   template <Alignment A, std::floating_point F, std::same_as<__m256>...V>
-  FORCE_INLINE void LoadStridedHalves(const F *baseA, const F *baseB, size_t stride, __m256 &temp, V &... vs)
+  FORCE_INLINE void LoadStridedHalves(const F *baseA, const F *baseB, size_t stride, V &... vs)
   {
     size_t offset = 0;
-    ((vs = LoadHalves<A>(baseA + offset, baseB + offset, temp), offset += stride), ...);
+    ((vs = LoadHalves<A>(baseA + offset, baseB + offset), offset += stride), ...);
   }
 
   template <Alignment A>
@@ -80,18 +81,18 @@ namespace FFT20XX::AVX
 
 
   template <Alignment A>
-  FORCE_INLINE void StoreHalves(float *pA, float *pB, __m256 v, __m256 &temp)
+  FORCE_INLINE void StoreHalves(float *pA, float *pB, __m256 v)
   {
-    temp = _mm256_castps128_ps256(_mm256_extractf128_ps(v, 1));
+    auto t = _mm256_castps128_ps256(_mm256_extractf128_ps(v, 1));
     Store<A>(pA, _mm256_castps256_ps128(v));
-    Store<A>(pB, _mm256_castps256_ps128(temp));
+    Store<A>(pB, _mm256_castps256_ps128(t));
   }
 
   template <Alignment A, std::floating_point F, std::same_as<__m256> ...V>
-  FORCE_INLINE void StoreStridedHalves(F *baseA, F *baseB, size_t stride, __m256 &temp, V...v)
+  FORCE_INLINE void StoreStridedHalves(F *baseA, F *baseB, size_t stride, V...v)
   {
     size_t offset = 0;
-    ((StoreHalves<A>(baseA + offset, baseB + offset, v, temp), offset += stride), ...);
+    ((StoreHalves<A>(baseA + offset, baseB + offset, v), offset += stride), ...);
   }
 
   template <Alignment A>
@@ -107,18 +108,6 @@ namespace FFT20XX::AVX
     Store<A>(p, _mm256_extractf128_ps(a, 1));
     Store<A>(p + 4, _mm256_extractf128_ps(b, 1));
   }
-
-  [[nodiscard]] FORCE_INLINE auto Set1(float v) -> __m256
-  {
-    return _mm256_set1_ps(v);
-  }
-
-
-  [[nodiscard]] FORCE_INLINE auto Set1Half(float v) -> __m128
-  {
-    return _mm_set1_ps(v);
-  }
-
 
   [[nodiscard]] FORCE_INLINE auto Set2(float lo, float hi) -> __m256
   {
@@ -141,6 +130,16 @@ namespace FFT20XX::AVX
     return _mm256_mul_ps(a, b);
   }
 
+  [[nodiscard]] FORCE_INLINE auto Mul(__m256 a, float b) -> __m256
+  {
+    return _mm256_mul_ps(a, _mm256_set1_ps(b));
+  }
+
+  [[nodiscard]] FORCE_INLINE auto Mul(__m256 a, std::pair<float, float> b) -> __m256
+  {
+    return _mm256_mul_ps(a, Set2(b.first, b.second));
+  }
+
   [[nodiscard]] FORCE_INLINE auto Add(__m128 a, __m128 b) -> __m128
   {
     return _mm_add_ps(a, b);
@@ -156,24 +155,29 @@ namespace FFT20XX::AVX
     return _mm_mul_ps(a, b);
   }
 
-  [[nodiscard]] FORCE_INLINE auto MAdd(__m256 a, __m256 b, __m256 c) -> __m256
+  [[nodiscard]] FORCE_INLINE auto Mul(__m128 a, float b) -> __m128
   {
-    return _mm256_add_ps(_mm256_mul_ps(a, b), c);
+    return _mm_mul_ps(a, _mm_set1_ps(b));
   }
 
-  [[nodiscard]] FORCE_INLINE auto NMAdd(__m256 a, __m256 b, __m256 c) -> __m256
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m256 a, auto b, __m256 c) -> __m256
   {
-    return _mm256_sub_ps(c, _mm256_mul_ps(a, b));
+    return Add(Mul(a, b), c);
   }
 
-  [[nodiscard]] FORCE_INLINE auto MAdd(__m128 a, __m128 b, __m128 c) -> __m128
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m256 a, auto b, __m256 c) -> __m256
   {
-    return _mm_add_ps(_mm_mul_ps(a, b), c);
+    return Sub(c, Mul(a, b));
   }
 
-  [[nodiscard]] FORCE_INLINE auto NMAdd(__m128 a, __m128 b, __m128 c) -> __m128
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m128 a, auto b, __m128 c) -> __m128
   {
-    return _mm_sub_ps(c, _mm_mul_ps(a, b));
+    return Add(Mul(a, b), c);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m128 a, auto b, __m128 c) -> __m128
+  {
+    return Sub(c, Mul(a, b));
   }
 
   [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m256 a, __m256 b) -> __m256
@@ -218,11 +222,11 @@ namespace FFT20XX::AVX
   }
 
 
-  FORCE_INLINE void Transpose4(__m256 &a, __m256 &b, __m256 &c, __m256 &d, __m256 &t0, __m256 &t1)
+  FORCE_INLINE void Transpose4(__m256 &a, __m256 &b, __m256 &c, __m256 &d)
   {
-    t0 = _mm256_shuffle_ps(a, b, 0xEE);
+    auto t0 = _mm256_shuffle_ps(a, b, 0xEE);
     a = _mm256_shuffle_ps(a, b, 0x44);
-    t1 = _mm256_shuffle_ps(c, d, 0x44);
+    auto t1 = _mm256_shuffle_ps(c, d, 0x44);
     d = _mm256_shuffle_ps(c, d, 0xEE);
 
     b = _mm256_shuffle_ps(a, t1, 0xDD);

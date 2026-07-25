@@ -21,6 +21,7 @@ namespace FFT20XX::SSE2
     { return (uintptr_t(ptr) & (sizeof(__m128d) - 1)) == 0; }
 
   constexpr auto MinimumRealFFTLength = 32;
+  constexpr bool HasNativeFMA = false;
 
   constexpr auto VecSize = 2u;
   using VecType = __m128d;
@@ -48,35 +49,34 @@ namespace FFT20XX::SSE2
 
 
 
-  [[nodiscard]] FORCE_INLINE auto Set1(double v)
-  {
-    return _mm_set1_pd(v);
-  }
-
-
-  [[nodiscard]] FORCE_INLINE auto Add(auto a, auto b)
+  [[nodiscard]] FORCE_INLINE auto Add(__m128d a, __m128d b)
   {
     return _mm_add_pd(a, b);
   }
 
-  [[nodiscard]] FORCE_INLINE auto Sub(auto a, auto b)
+  [[nodiscard]] FORCE_INLINE auto Sub(__m128d a, __m128d b)
   {
     return _mm_sub_pd(a, b);
   }
 
-  [[nodiscard]] FORCE_INLINE auto Mul(auto a, auto b)
+  [[nodiscard]] FORCE_INLINE auto Mul(__m128d a, __m128d b)
   {
     return _mm_mul_pd(a, b);
   }
 
-  [[nodiscard]] FORCE_INLINE auto MAdd(__m128d a, __m128d b, __m128d c) -> __m128d
+  [[nodiscard]] FORCE_INLINE auto Mul(__m128d a, double b)
   {
-    return _mm_add_pd(_mm_mul_pd(a, b), c);
+    return _mm_mul_pd(a, _mm_set1_pd(b));
   }
 
-  [[nodiscard]] FORCE_INLINE auto NMAdd(__m128d a, __m128d b, __m128d c) -> __m128d
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m128d a, auto b, __m128d c) -> __m128d
   {
-    return _mm_sub_pd(c, _mm_mul_pd(a, b));
+    return Add(Mul(a, b), c);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m128d a, auto b, __m128d c) -> __m128d
+  {
+    return Sub(c, Mul(a, b));
   }
 
   [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m128d a, __m128d b) -> __m128d

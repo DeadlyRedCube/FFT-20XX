@@ -1434,25 +1434,11 @@ extern "C"
     FMA::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
   }
 
-  void fft_real_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
-    COMMON_ASSERTS();
-    FMA::RunRealFwdFFT(t->Data(), input, output, fftLength);
-  }
-
   void fft_real_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     FMA::RunRealFwdFFT(t->Data(), input, output, fftLength);
-  }
-
-  void ifft_real_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
-    COMMON_ASSERTS();
-    FMA::RunRealInvFFT(t->Data(), input, output, fftLength);
   }
 
   void ifft_real_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)

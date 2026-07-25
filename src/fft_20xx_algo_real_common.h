@@ -1,9 +1,9 @@
 #pragma once
 
-FORCE_INLINE void ComplexMultiply(auto aR, auto aI, auto bR, auto bI, auto &cR, auto &cI, auto &tR, auto &tI)
+FORCE_INLINE void ComplexMultiply(auto aR, auto aI, auto bR, auto bI, auto &cR, auto &cI)
 {
-  tR = Mul(aR, bR);
-  tI = Mul(aI, bR);
+  auto tR = Mul(aR, bR);
+  auto tI = Mul(aI, bR);
   cR = NMAdd(aI, bI, tR);
   cI = MAdd(aR, bI, tI);
 }
@@ -82,11 +82,11 @@ FORCE_INLINE void DIFComplexRadix2Inv(auto &aR, auto &aI, auto &bR, auto &bI, au
 
 
 
-FORCE_INLINE void DITRealInputRadix4Pair(auto &a, auto &b, auto &c, auto &d, auto &e, auto &f, auto &g, auto &h, auto s, auto &t)
+FORCE_INLINE void DITRealInputRadix4Pair(auto &a, auto &b, auto &c, auto &d, auto &e, auto &f, auto &g, auto &h)
 {
   // Do the radix4 pair, shuffling data around through other named registers as temp space to get things into the correct
   //  location by the end.
-  t = Sub(b, f);
+  auto t = Sub(b, f);
   b = Add(b, f);
   f = Add(h, d);
   h = Sub(h, d);
@@ -97,8 +97,8 @@ FORCE_INLINE void DITRealInputRadix4Pair(auto &a, auto &b, auto &c, auto &d, aut
   f = Add(a, e);
   e = Sub(a, e);
 
-  a = Mul(s, Add(t, h));
-  t = Mul(s, Sub(h, t));
+  a = Mul(Add(t, h), InvSqrt2<ElementType>);
+  t = Mul(Sub(h, t), InvSqrt2<ElementType>);
 
   h = Sub(g, c);
   c = Add(g, c);
@@ -113,26 +113,16 @@ FORCE_INLINE void DITRealInputRadix4Pair(auto &a, auto &b, auto &c, auto &d, aut
 
 
 
-FORCE_INLINE void DIFRealOutputRadix4PairInv(
-  auto &a,
-  auto &b,
-  auto &c,
-  auto &d,
-  auto &e,
-  auto &f,
-  auto &g,
-  auto &h,
-  auto s,
-  auto &t)
+FORCE_INLINE void DIFRealOutputRadix4PairInv(auto &a, auto &b, auto &c, auto &d, auto &e, auto &f, auto &g, auto &h)
 {
   // Like the others, this uses a single temp register and uses other temporarily-unused values as additional storage.
-  t = Sub(e, g);
+  auto t = Sub(e, g);
   e = Add(e, g);
   g = Sub(f, h);
   h = Add(f, h);
 
-  f = Mul(s, Sub(t, h));
-  t = Mul(s, Add(t, h));
+  f = Mul(Sub(t, h), InvSqrt2<ElementType>);
+  t = Mul(Add(t, h), InvSqrt2<ElementType>);
 
   h = Add(a, c);
   a = Sub(a, c);
@@ -165,25 +155,6 @@ struct ThreeScalarAngles
   F w2i;
 };
 
-#if COMPILER_MSVC
-  #pragma warning (push)
-  #pragma warning (disable: 4623 4626 5027) // default constructor/assignment/move assignment implicitly defined as deleted
-#endif
-template <typename T>
-struct TwoTemps
-{
-  T t0;
-  T t1;
-};
-
-template <typename T>
-struct ThreeTemps
-{
-  T t0;
-  T t1;
-  T t2;
-};
-
 template <typename V>
 struct ThreeVectorAngles
 {
@@ -195,10 +166,28 @@ struct ThreeVectorAngles
   V w2i;
 };
 
-#if COMPILER_MSVC
-  #pragma warning (pop)
-#endif
 
+template <typename F>
+struct ThreeScalarAnglesX2
+{
+  ThreeScalarAnglesX2(ThreeScalarAngles<F> a, ThreeScalarAngles<F> b)
+    : w0r{a.w0r, b.w0r}
+    , w0i{a.w0i, b.w0i}
+    , w1r{a.w1r, b.w1r}
+    , w1i{a.w1i, b.w1i}
+    , w2r{a.w2r, b.w2r}
+    , w2i{a.w2i, b.w2i}
+    { }
+  std::pair<F, F> w0r;
+  std::pair<F, F> w0i;
+  std::pair<F, F> w1r;
+  std::pair<F, F> w1i;
+  std::pair<F, F> w2r;
+  std::pair<F, F> w2i;
+};
+
+
+// This function uses all 16 registers!
 template <typename V, typename Angles>
 FORCE_INLINE void DITComplexRadix4(
   V &aR,
@@ -209,144 +198,20 @@ FORCE_INLINE void DITComplexRadix4(
   V &cI,
   V &dR,
   V &dI,
-  const Angles &angles,
-  ThreeTemps<V> temps)
+  const Angles &angles)
 {
-  auto &t0 = temps.t0;
-  auto &t1 = temps.t1;
-  auto &t2 = temps.t2;
-
-  if constexpr (requires (Angles a) { a.a; })
+  if constexpr (HasNativeFMA)
   {
-    t1 = Set2(angles.a.w1i, angles.b.w1i);
-    t0 = Set2(angles.a.w1r, angles.b.w1r);
-  }
-  else if constexpr (std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    t1 = Set1(angles.w1i);
-    t0 = Set1(angles.w1r);
-  }
-  else
-  {
-    t1 = Set1Half(angles.w1i);
-    t0 = Set1Half(angles.w1r);
+    // !!!
   }
 
-  // Start by rotating c by w1
-  t2 = Mul(cR, t1);
-  t1 = Mul(cI, t1);
-  cR = NMAdd(cR, t0, t1); // -cR
-  cI = MAdd(cI, t0, t2);
-
-  if constexpr (requires (Angles a) { a.a; })
-  {
-    t0 = Set2(angles.a.w0r, angles.b.w0r);
-    t1 = Set2(angles.a.w0i, angles.b.w0i);
-  }
-  else if constexpr (std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    t0 = Set1(angles.w0r);
-    t1 = Set1(angles.w0i);
-  }
-  else
-  {
-    t0 = Set1Half(angles.w0r);
-    t1 = Set1Half(angles.w0i);
-  }
-
-  // Start the a/c butterfly while that loads
-  t2 = Sub(aR, cR);
-  cR = Add(aR, cR);
-
-  // Rotate b by w0
-  aR = Mul(bR, t1);
-  t1 = Mul(bI, t1);
-
-  bR = NMAdd(bR, t0, t1); // -bR
-  t1 = Add(aI, cI);
-  cI = Sub(aI, cI);
-  if constexpr (requires (Angles a) { a.a; })
-  {
-    aI = Set2(angles.a.w2i, angles.b.w2i);
-  }
-  else if constexpr (std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    aI = Set1(angles.w2i);
-  }
-  else
-  {
-    aI = Set1Half(angles.w2i);
-  }
-  bI = MAdd(bI, t0, aR);
-  if constexpr (requires (Angles a) { a.a; })
-  {
-    t0 = Set2(angles.a.w2r, angles.b.w2r);
-  }
-  else if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    t0 = Set1(angles.w2r);
-  }
-  else
-  {
-    t0 = Set1Half(angles.w2r);
-  }
-
-  // aR is unused here, angles are loaded as t0,aI
-
-  // now rotate d by w0
-  aR = Mul(dR, t0);
-  t0 = Mul(dI, t0);
-  dI = NMAdd(dI, aI, aR);
-  dR = MAdd(dR, aI, t0);
-
-  // Do the last butterflies and get everything back into their proper registers
-  aR = Sub(dI, bR);
-  t0 = Add(dI, bR); // actually -dR
-  aI = Add(bI, dR);
-  dI = Sub(bI, dR);
-
-  bI = Sub(aI, t1);
-  aI = Add(t1, aI);
-  bR = Sub(t2, aR);
-  aR = Add(t2, aR);
-
-  dR = Add(cR, dI);
-  cR = Sub(cR, dI);
-  dI = Add(t0, cI);
-  cI = Sub(t0, cI);
-};
-
-template <typename F>
-struct ThreeScalarAnglesX2
-{
-  ThreeScalarAngles<F> a;
-  ThreeScalarAngles<F> b;
-};
-
-
-// This function uses all 16 registers!
-template <typename V>
-FORCE_INLINE void DITComplexRadix4(
-  V &aR,
-  V &aI,
-  V &bR,
-  V &bI,
-  V &cR,
-  V &cI,
-  V &dR,
-  V &dI,
-  const ThreeVectorAngles<V> &angles,
-  TwoTemps<V> temps)
-{
-  auto &t1 = temps.t0;
-  auto &t2 = temps.t1;
   // Rotate c by w1
-  t2 = Mul(cR, angles.w1r);
+
+  auto t2 = Mul(cR, angles.w1r);
   cR = Mul(cR, angles.w1i);
-  t1 = NMAdd(cI, angles.w1i, t2);
+  auto t1 = NMAdd(cI, angles.w1i, t2);
   cI = MAdd(cI, angles.w1r, cR);
 
-  // Do the a/c butterfly while that loads
   cR = Sub(aR, t1);
   t1 = Add(aR, t1);
   aR = Add(aI, cI);
@@ -360,6 +225,7 @@ FORCE_INLINE void DITComplexRadix4(
   bR = NMAdd(bR, angles.w0r, t2); // actually -bR
 
   // now rotate d by w2
+
   t2 = Mul(dR, angles.w2r);
   dR = Mul(dR, angles.w2i);
   aI = NMAdd(dI, angles.w2i, t2); // this is rotated dR
@@ -384,138 +250,7 @@ FORCE_INLINE void DITComplexRadix4(
 
 
 
-template <typename V, typename Angles>
-FORCE_INLINE void DIFComplexRadix4Inv(
-  V &aR,
-  V &aI,
-  V &bR,
-  V &bI,
-  V &cR,
-  V &cI,
-  V &dR,
-  V &dI,
-  const Angles &angles,
-  ThreeTemps<V> temps)
-{
-  auto &t0 = temps.t0;
-  auto &t1 = temps.t1;
-  auto &t2 = temps.t2;
-
-  // This is effectively the opposite of the above Radix4.
-  t0 = Add(dI, cI);
-  t1 = Sub(dR, cR);
-  cR = Add(dR, cR);
-  cI = Sub(dI, cI);
-
-  // This frees up dR and dI
-
-  dR = Add(aR, bR);
-  bR = Sub(bR, aR); // negated
-  dI = Sub(aI, bI);
-  bI = Add(aI, bI);
-
-  aR = Add(dR, cR);
-  cR = Sub(cR, dR); // -cR
-  aI = Add(dI, cI);
-  cI = Sub(dI, cI);
-
-  // aR and aI are *finalized* at this point - do not use!
-
-  dR = Sub(bR, t0); // -dR
-  bR = Add(t0, bR); // -bR
-  if constexpr (requires (Angles a) { a.a; })
-  {
-    t0 = Set2(angles.a.w1r, angles.b.w1r);      // Load the angles in the middle of this to get them ready
-    t2 = Set2(angles.a.w1i, angles.b.w1i);
-  }
-  else if constexpr (std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    t0 = Set1(angles.w1r);
-    t2 = Set1(angles.w1i);
-  }
-  else
-  {
-    t0 = Set1Half(angles.w1r);
-    t2 = Set1Half(angles.w1i);
-  }
-  dI = Sub(bI, t1);
-  bI = Add(bI, t1);
-
-  // Rotate c by w1
-  t1 = Mul(cI, t2);
-  t2 = Mul(cR, t2);
-  cR = NMAdd(cR, t0, t1);
-
-  if constexpr (requires (Angles a) { a.a; })
-  {
-    t1 = Set2(angles.a.w0i, angles.b.w0i);
-  }
-  else if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    t1 = Set1(angles.w0i);
-  }
-  else
-  {
-    t1 = Set1Half(angles.w0i);
-  }
-
-  cI = MAdd(cI, t0, t2);
-
-  if constexpr (requires (Angles a) { a.a; })
-  {
-    t0 = Set2(angles.a.w0r, angles.b.w0r);  // Preload this angle for the b rotation
-  }
-  else if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    t0 = Set1(angles.w0r);
-  }
-  else
-  {
-    t0 = Set1Half(angles.w0r);
-  }
-
-  // Rotate b by w0
-  t2 = Mul(bR, t1);
-  t1 = Mul(bI, t1);
-  bI = MAdd(bI, t0, t2);
-
-  if constexpr (requires (Angles a) { a.a; })
-  {
-    t2 = Set2(angles.a.w2i, angles.b.w2i);
-  }
-  else if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    t2 = Set1(angles.w2i);
-  }
-  else
-  {
-    t2 = Set1Half(angles.w2i);
-  }
-  bR = NMAdd(bR, t0, t1);
-
-  // now rotate d by w2
-  if constexpr (requires (Angles a) { a.a; })
-  {
-    t0 = Set2(angles.a.w2r, angles.b.w2r); // Preload this angle for the d rotation
-  }
-  else if constexpr(std::same_as<std::remove_reference_t<decltype(aR)>, VecType>)
-  {
-    t0 = Set1(angles.w2r);
-  }
-  else
-  {
-    t0 = Set1Half(angles.w2r);
-  }
-
-  t1 = Mul(dR, t2);
-  t2 = Mul(dI, t2);
-  dI = MAdd(dI, t0, t1);
-  dR = NMAdd(dR, t0, t2);
-};
-
-
-
-template <typename VT>
+template <typename VT, typename Angles>
 FORCE_INLINE void DIFComplexRadix4Inv(
   VT &aR,
   VT &aI,
@@ -525,16 +260,12 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   VT &cI,
   VT &dR,
   VT &dI,
-  const ThreeVectorAngles<VT> &angles,
-  TwoTemps<VT> temps)
+  const Angles &angles)
 {
-  auto &t1 = temps.t0;
-  auto &t2 = temps.t1;
-
   // This is effectively the opposite of the above Radix4.
-  t1 = Add(dR, cR);
+  auto t1 = Add(dR, cR);
   dR = Sub(dR, cR);
-  t2 = Sub(dI, cI);
+  auto t2 = Sub(dI, cI);
   dI = Add(dI, cI);
 
   cR = Sub(aR, bR);
@@ -583,16 +314,14 @@ FORCE_INLINE void FinalRealDITRealComplexRadix4(
   auto &w0R, // Note that the angles here are mutable (and used as scratch) - they don't have to persist across loops
   auto &w0I, //  in the caller
   auto &w1R,
-  auto &w1I,
-  auto &t0,
-  auto &t1)
+  auto &w1I)
 {
   // For the final real DIT we need a second w1 angle that is just 0.707, -0.707 (but the complex w1 values remain
   //  the same)
 
   // ef *= angle0;
-  t0 = Mul(e, w0I);
-  t1 = Mul(f, w0I);
+  auto t0 = Mul(e, w0I);
+  auto t1 = Mul(f, w0I);
   f = MAdd(f, w0R, t0);
   e = NMAdd(e, w0R, t1); // -e
 
@@ -649,7 +378,7 @@ FORCE_INLINE void FinalRealDITRealComplexRadix4(
 
 
 
-FORCE_INLINE void FirstRealDITRealComplexRadix4Inv(
+FORCE_INLINE void FirstRealDIFRealComplexRadix4Inv(
   auto &a,
   auto &b,
   auto &c,
@@ -661,11 +390,9 @@ FORCE_INLINE void FirstRealDITRealComplexRadix4Inv(
   auto &w0R, // Like above, these are mutable and used as scratch because the caller does not need them to persist
   auto &w0I,
   auto &w1R,
-  auto &w1I,
-  auto &t0,
-  auto &t1)
+  auto &w1I)
 {
-  t0 = Sub(e, g);
+  auto t0 = Sub(e, g);
   e = Add(e, g);
   g = Add(f, h);
   f = Sub(f, h);
@@ -678,7 +405,7 @@ FORCE_INLINE void FirstRealDITRealComplexRadix4Inv(
   // t1, d are free
 
   d = Mul(h, w1R);
-  t1 = Mul(c, w1R);
+  auto t1 = Mul(c, w1R);
   c = MAdd(c, w1I, d);
   d = NMAdd(h, w1I, t1);
 
