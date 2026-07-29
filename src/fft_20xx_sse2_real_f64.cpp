@@ -21,7 +21,7 @@ namespace FFT20XX::SSE2
     { return (uintptr_t(ptr) & (sizeof(__m128d) - 1)) == 0; }
 
   constexpr auto MinimumRealFFTLength = 32;
-  constexpr bool HasNativeFMA = false;
+  constexpr bool UseFMAOptimization = false;
 
   constexpr auto VecSize = 2u;
   using VecType = __m128d;

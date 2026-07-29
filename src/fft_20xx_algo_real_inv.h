@@ -20,7 +20,7 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       auto start2 = 2 * flipStride;
       auto start3 = 3 * flipStride;
 
-      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08;
       LoadStridedSets<Align>(data, 2, r00, r01);
       LoadStridedSets<Align>(data + start1, 2, r02, r03);
       LoadStridedSets<Align>(data + start2, 2, r04, r05);
@@ -32,8 +32,8 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       Transpose2(r02, r03, r04);
       Transpose2(r06, r07, r02);
 
-      LoadSIMDAngleDouble(tableData, 0, flipStride, r06, r09, r10, r11);
-      FirstRealDIFRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, r10, r11, r06, r09);
+      auto angles0 = LoadSIMDAngleDouble(tableData, 0, flipStride);
+      FirstRealDIFRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles0.w1r, angles0.w1i, angles0.w0r, angles0.w0i);
 
       // Now do 2 quadrants of a 4x4 matrix transpose
       Transpose2(r08, r00, r06);
@@ -62,10 +62,8 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       Transpose2(r01, r03, r04);
       Transpose2(r05, r07, r01);
 
-      LoadSIMDAngleDouble(tableData, 2, flipStride, r05, r09, r10, r11);
-      ComplexMultiply(r05, r09, r10, r11, r12, r13);
-      auto angles = ThreeVectorAngles{r05, r09, r10, r11, r12, r13};
-      DIFComplexRadix4Inv(r08, r02, r00, r06, r04, r03, r01, r07, angles);
+      auto angles1 = LoadSIMDAngleGroup(tableData, 2, flipStride);
+      DIFComplexRadix4Inv(r08, r02, r00, r06, r04, r03, r01, r07, angles1);
 
       // The remainder of our 4x4 transpose
       Transpose2(r08, r00, r05);
@@ -86,7 +84,7 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       auto start3 = start0 +  3 * flipStride;
       const auto angleIndex0 = (subsetIndex >> 1);
 
-      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08;
 
       LoadStridedSets<Align>(data + start0, 2, r00, r01);
       LoadStridedSets<Align>(data + start1, 2, r02, r03);
@@ -98,10 +96,8 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       Transpose2(r02, r03, r04);
       Transpose2(r06, r07, r02);
 
-      LoadSIMDAngleDouble(tableData, angleIndex0, flipStride, r09, r10, r11, r12);
-      ComplexMultiply(r09, r10, r11, r12, r13, r06);
-      auto angles = ThreeVectorAngles{r09, r10, r11, r12, r13, r06};
-      DIFComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles);
+      auto angles0 = LoadSIMDAngleGroup(tableData, angleIndex0, flipStride);
+      DIFComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles0);
 
       Transpose2(r08, r00, r06);
       Transpose2(r04, r02, r08);
@@ -123,10 +119,8 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       Transpose2(r01, r03, r06);
       Transpose2(r04, r05, r01);
 
-      LoadSIMDAngleDouble(tableData, angleIndex0 + 2, flipStride, r04, r09, r10, r11);
-      ComplexMultiply(r04, r09, r10, r11, r12, r13);
-      angles = {r04, r09, r10, r11, r12, r13};
-      DIFComplexRadix4Inv(r07, r02, r00, r08, r06, r03, r01, r05, angles);
+      auto angles1 = LoadSIMDAngleGroup(tableData, angleIndex0 + 2, flipStride);
+      DIFComplexRadix4Inv(r07, r02, r00, r08, r06, r03, r01, r05, angles1);
 
       Transpose2(r07, r00, r04);
       Transpose2(r06, r01, r07);
@@ -148,7 +142,7 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       const auto start2 = 2_z * flipStride;
       const auto start3 = 3_z * flipStride;
 
-      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08;
       r00 = Load<Align>(&data[0]);
       r01 = Load<Align>(&data[4]);
       r02 = Load<Align>(&data[start1 + 0]);
@@ -165,9 +159,9 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       Deinterleave4(r06, r07, r02);
 
       // reuse r06
-      LoadSIMDAngleDouble(tableData, 0, flipStride, r06, r09, r10, r11);
+      auto angles = LoadSIMDAngleDouble(tableData, 0, flipStride);
 
-      FirstRealDIFRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, r10, r11, r06, r09);
+      FirstRealDIFRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles.w1r, angles.w1i, angles.w0r, angles.w0i);
 
       // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler.
       Transpose4(r08, r00, r04, r02);
@@ -195,7 +189,7 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       const auto angleIndex0 = subsetIndex >> 1;
 
       // "Give me ALL the registers that you have"
-      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08;
       r00 = Load<Align>(&data[start0 + 0]);
       r01 = Load<Align>(&data[start0 + 4]);
       r02 = Load<Align>(&data[start1 + 0]);
@@ -211,9 +205,7 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       Deinterleave4(r02, r03, r04);
       Deinterleave4(r06, r07, r02);
 
-      LoadSIMDAngleDouble(tableData, angleIndex0, flipStride, r09, r10, r11, r12);
-      ComplexMultiply(r09, r10, r11, r12, r06, r13);
-      auto angles = ThreeVectorAngles{r09, r10, r11, r12, r06, r13};
+      auto angles = LoadSIMDAngleGroup(tableData, angleIndex0, flipStride);
       DIFComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles);
 
       Transpose4(r08, r00, r04, r02);
@@ -241,7 +233,7 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       const auto start2 = 2_z * flipStride;
       const auto start3 = 3_z * flipStride;
 
-      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08;
 
       r00 = LoadHalves<Align>(&data[0], &data[0 + 8]);
       r01 = LoadHalves<Align>(&data[4], &data[4 + 8]);
@@ -257,21 +249,14 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       Deinterleave4(r02, r03, r04);
       Deinterleave4(r06, r07, r02);
 
-      LoadSIMDAngleDouble(tableData, 0, flipStride, r09, r10, r11, r12);
-      FirstRealDIFRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, r11, r12, r09, r10);
+      auto angles = LoadSIMDAngleDouble(tableData, 0, flipStride);
+      FirstRealDIFRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles.w1r, angles.w1i, angles.w0r, angles.w0i);
 
       Transpose4(r08, r00, r04, r02);
       Transpose4(r01, r05, r03, r07);
 
       // swap {e0, g0} and {b0, d0} because the real butterfly needs them in this order instead.
-      if constexpr(requires(VT &a) { SwapRealComponentsForLastDoubleFlip(a, a, a, a); })
-      {
-        SwapRealComponentsForLastDoubleFlip(r08, r01, r06, r13);
-      }
-      else
-      {
-        SwapRealComponentsForLastDoubleFlip(r08, r01, r06);
-      }
+      SwapRealComponentsForLastDoubleFlip(r08, r01, r06);
       StoreHalves<Align>(&data[0], &data[0 + 8], r06);
       StoreHalves<Align>(&data[4], &data[4 + 8], r01);
       StoreHalves<Align>(&data[start1 + 0], &data[start1 + 0 + 8], r04);
@@ -291,7 +276,7 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       auto start3 = start0 + 3 * flipStride;
       const auto angleIndex0 = subsetIndex >> 1;
 
-      VT r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, r13;
+      VT r00, r01, r02, r03, r04, r05, r06, r07, r08;
 
       r00 = LoadHalves<Align>(&data[start0 + 0], &data[start0 + 0 + 8]);
       r01 = LoadHalves<Align>(&data[start0 + 4], &data[start0 + 4 + 8]);
@@ -307,9 +292,7 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       Deinterleave4(r02, r03, r04);
       Deinterleave4(r06, r07, r02);
 
-      LoadSIMDAngleDouble(tableData, angleIndex0, flipStride, r06, r09, r10, r11);
-      ComplexMultiply(r06, r09, r10, r11, r12, r13);
-      auto angles = ThreeVectorAngles{r06, r09, r10, r11, r12, r13};
+      auto angles = LoadSIMDAngleGroup(tableData, angleIndex0, flipStride);
       DIFComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles);
 
       Transpose4(r08, r00, r04, r02);
@@ -354,9 +337,9 @@ void SecondDoubleFlipRadix4PassRealInv(const F *tableData, F *data, size_t lengt
     const auto angleIndex2 = (reversedFlipStride >> 1);
     const auto angleIndex3 = angleIndex1 | angleIndex2;
 
-    const auto angles1 = LoadScalarAngleTriple(tableData, angleIndex1, flipStride);
-    const auto angles2 = LoadScalarAngleTriple(tableData, angleIndex2, flipStride);
-    const auto angles3 = LoadScalarAngleTriple(tableData, angleIndex3, flipStride);
+    const auto angles1 = LoadScalarAngleGroup(tableData, angleIndex1, flipStride);
+    const auto angles2 = LoadScalarAngleGroup(tableData, angleIndex2, flipStride);
+    const auto angles3 = LoadScalarAngleGroup(tableData, angleIndex3, flipStride);
 
     for (auto i = 0u;;)
     {
@@ -468,16 +451,8 @@ void SecondDoubleFlipRadix4PassRealInv(const F *tableData, F *data, size_t lengt
       const auto angleIndex2 = angleIndex0 | (reversedFlipStride >> 1);
       const auto angleIndex3 = angleIndex1 | angleIndex2;
 
-      const auto angles01 = ThreeScalarAnglesX2
-        {
-          LoadScalarAngleTriple(tableData, angleIndex0, flipStride),
-          LoadScalarAngleTriple(tableData, angleIndex1, flipStride),
-        };
-      const auto angles23 = ThreeScalarAnglesX2
-        {
-          LoadScalarAngleTriple(tableData, angleIndex2, flipStride),
-          LoadScalarAngleTriple(tableData, angleIndex3, flipStride),
-        };
+      const auto angles01 = LoadScalarAngleGroupX2(tableData, angleIndex0, angleIndex1, flipStride);
+      const auto angles23 = LoadScalarAngleGroupX2(tableData, angleIndex2, angleIndex3, flipStride);
 
       for (auto i = 0u;;)
       {
@@ -565,9 +540,9 @@ void DoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType *data
     const auto angleIndex2 = (reversedFlipStride >> 1);
     const auto angleIndex3 = angleIndex1 | angleIndex2;
 
-    const auto angles1 = LoadScalarAngleTriple(tableData, angleIndex1, flipStride);
-    const auto angles2 = LoadScalarAngleTriple(tableData, angleIndex2, flipStride);
-    const auto angles3 = LoadScalarAngleTriple(tableData, angleIndex3, flipStride);
+    const auto angles1 = LoadScalarAngleGroup(tableData, angleIndex1, flipStride);
+    const auto angles2 = LoadScalarAngleGroup(tableData, angleIndex2, flipStride);
+    const auto angles3 = LoadScalarAngleGroup(tableData, angleIndex3, flipStride);
 
     for (auto i = 0u;;)
     {
@@ -679,10 +654,10 @@ void DoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType *data
       const auto angleIndex2 = angleIndex0 | (reversedFlipStride >> 1);
       const auto angleIndex3 = angleIndex1 | angleIndex2;
 
-      const auto angles0 = LoadScalarAngleTriple(tableData, angleIndex0, flipStride);
-      const auto angles1 = LoadScalarAngleTriple(tableData, angleIndex1, flipStride);
-      const auto angles2 = LoadScalarAngleTriple(tableData, angleIndex2, flipStride);
-      const auto angles3 = LoadScalarAngleTriple(tableData, angleIndex3, flipStride);
+      const auto angles0 = LoadScalarAngleGroup(tableData, angleIndex0, flipStride);
+      const auto angles1 = LoadScalarAngleGroup(tableData, angleIndex1, flipStride);
+      const auto angles2 = LoadScalarAngleGroup(tableData, angleIndex2, flipStride);
+      const auto angles3 = LoadScalarAngleGroup(tableData, angleIndex3, flipStride);
       for (auto i = 0u;;)
       {
         VecType r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11;
@@ -809,7 +784,7 @@ void SingleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, siz
         using HalfVec = decltype(LoadHalf<Align>(data));
         {
           const auto angleIndex1 = stride;
-          const auto angles1 = LoadScalarAngleTriple(tableData, angleIndex1, angleCount);
+          const auto angles1 = LoadScalarAngleGroup(tableData, angleIndex1, angleCount);
 
           for (auto i = 0u; i < subLength / 8; i += VecSize)
           {
@@ -863,8 +838,8 @@ void SingleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, siz
           const auto angleIndex0 = BitRev(subsetStep) >> (1 + std::countl_zero(length));
           const auto angleIndex1 = angleIndex0 + stride;
 
-          const auto angles0 = LoadScalarAngleTriple(tableData, angleIndex0, angleCount);
-          const auto angles1 = LoadScalarAngleTriple(tableData, angleIndex1, angleCount);
+          const auto angles0 = LoadScalarAngleGroup(tableData, angleIndex0, angleCount);
+          const auto angles1 = LoadScalarAngleGroup(tableData, angleIndex1, angleCount);
 
           HalfVec r00, r01, r02, r03, r04, r05, r06, r07;
           r00 = LoadHalf<Align>(&data[subsetStep + 0 * stride]);
@@ -917,11 +892,8 @@ void SingleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, siz
           const auto angleIndex1B = angleIndex0B + stride;
 
 
-          const auto angles0 = ThreeScalarAnglesX2
-            { LoadScalarAngleTriple(tableData, angleIndex0A, angleCount), LoadScalarAngleTriple(tableData, angleIndex0B, angleCount) };
-
-          const auto angles1 = ThreeScalarAnglesX2
-            { LoadScalarAngleTriple(tableData, angleIndex1A, angleCount), LoadScalarAngleTriple(tableData, angleIndex1B, angleCount) };
+          const auto angles0 = LoadScalarAngleGroupX2(tableData, angleIndex0A, angleIndex0B, angleCount);
+          const auto angles1 = LoadScalarAngleGroupX2(tableData, angleIndex1A, angleIndex1B, angleCount);
 
           const auto baseA = data + subsetStartIndex;
           const auto baseB = baseA + subsetStep;
@@ -975,7 +947,7 @@ void SingleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, siz
 
     {
       const auto angleIndex1 = stride;
-      const auto angles = LoadScalarAngleTriple(tableData, angleIndex1, angleCount);
+      const auto angles = LoadScalarAngleGroup(tableData, angleIndex1, angleCount);
 
       for (auto i = 0u; i < subLength / 8; i += VecSize)
       {
@@ -1030,9 +1002,9 @@ void SingleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, siz
       const auto angleIndex0 = BitRev(subsetStartIndex) >> (1 + std::countl_zero(length));
       const auto angleIndex1 = angleIndex0 + stride;
 
-      const auto angles0 = LoadScalarAngleTriple(tableData, angleIndex0, angleCount);
+      const auto angles0 = LoadScalarAngleGroup(tableData, angleIndex0, angleCount);
 
-      const auto angles1 = LoadScalarAngleTriple(tableData, angleIndex1, angleCount);
+      const auto angles1 = LoadScalarAngleGroup(tableData, angleIndex1, angleCount);
 
       for (auto i = subsetStartIndex; i < subsetStartIndex + stride; i += VecSize)
       {
@@ -1107,7 +1079,7 @@ void SingleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, siz
 
         {
           const auto angleIndex = BitRev(subLength) >> (1 + std::countl_zero(length));
-          const auto angles = LoadScalarAngleTriple(tableData, angleIndex, angleCount);
+          const auto angles = LoadScalarAngleGroup(tableData, angleIndex, angleCount);
 
           HalfVec aR, bR, cR, dR, aI, bI, cI, dI;
           LoadStridedSets<Align>(data + subLength, stride, aR, aI, cR, cI, bR, bI, dR, dI);
@@ -1120,11 +1092,7 @@ void SingleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, siz
         {
           const auto angleIndexA = BitRev(subsetStartIndex) >> (1 + std::countl_zero(length));
           const auto angleIndexB = BitRev(subsetStartIndex + subLength) >> (1 + std::countl_zero(length));
-          const auto angles = ThreeScalarAnglesX2
-            {
-              LoadScalarAngleTriple(tableData, angleIndexA, angleCount),
-              LoadScalarAngleTriple(tableData, angleIndexB, angleCount),
-            };
+          const auto angles = LoadScalarAngleGroupX2(tableData, angleIndexA, angleIndexB, angleCount);
 
           VecType aR, bR, cR, dR, aI, bI, cI, dI;
           auto *baseA = data + subsetStartIndex;
@@ -1149,7 +1117,7 @@ void SingleFlipRadix4PassRealInv(const F *tableData, F *data, size_t length, siz
     for (auto subsetStartIndex = subLength; subsetStartIndex < length; subsetStartIndex += subLength)
     {
       const auto angleIndex = BitRev(subsetStartIndex) >> (1 + std::countl_zero(length));
-      const auto angles = LoadScalarAngleTriple(tableData, angleIndex, angleCount);
+      const auto angles = LoadScalarAngleGroup(tableData, angleIndex, angleCount);
 
       for (auto i = subsetStartIndex; i < subsetStartIndex + stride; i += VecSize)
       {
@@ -1183,7 +1151,7 @@ void NoFlipRadix4PassRealInv(const ElementType *tableData, ElementType *data, si
   for (auto subsetStartIndex = subLength; subsetStartIndex < length; subsetStartIndex += subLength)
   {
     const auto angleIndex = BitRev(subsetStartIndex) >> (1 + std::countl_zero(length));
-    const auto angles = LoadScalarAngleTriple(tableData, angleIndex, angleCount);
+    const auto angles = LoadScalarAngleGroup(tableData, angleIndex, angleCount);
 
     for (auto i = subsetStartIndex; i < subsetStartIndex + stride; i += VecSize)
     {

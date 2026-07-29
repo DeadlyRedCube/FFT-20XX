@@ -56,12 +56,26 @@ FORCE_INLINE void DITRealOutputRadix2PairInv(auto &a, auto &b, auto &c, auto &d,
 
 FORCE_INLINE void DITComplexRadix2(auto &aR, auto &aI, auto &bR, auto &bI, auto wR, auto wI, auto &aROut, auto &aIOut)
 {
-  aROut = NMAdd(bI, wI, aR);
-  aROut = MAdd(bR, wR, aROut);
-  aIOut = MAdd(bR, wI, aI);
-  aIOut = MAdd(bI, wR, aIOut);
-  bR = Mx2Sub(aR, aROut);
-  bI = NMx2Add(aI, aIOut);
+  if constexpr (UseFMAOptimization)
+  {
+    aROut = NMAdd(bI, wI, aR);
+    aROut = MAdd(bR, wR, aROut);
+    aIOut = MAdd(bR, wI, aI);
+    aIOut = MAdd(bI, wR, aIOut);
+    bR = Mx2Sub(aR, aROut);
+    bI = NMx2Add(aI, aIOut);
+  }
+  else
+  {
+    aROut = Mul(bI, wI);
+    aIOut = Mul(bR, wI);
+    bR = NMAdd(bR, wR, aROut);
+    bI = MAdd(bI, wR, aIOut);
+    aROut = Sub(aR, bR);
+    aIOut = Add(aI, bI);
+    bR = Add(aR, bR);
+    bI = Sub(bI, aI);
+  }
 }
 
 
@@ -144,8 +158,17 @@ FORCE_INLINE void DIFRealOutputRadix4PairInv(auto &a, auto &b, auto &c, auto &d,
 }
 
 
-template <std::floating_point F>
-struct ThreeScalarAngles
+template <typename F>
+struct TwoAngles
+{
+  F w0r;
+  F w0i;
+  F w1r;
+  F w1i;
+};
+
+template <typename F>
+struct ThreeAngles
 {
   F w0r;
   F w0i;
@@ -155,22 +178,27 @@ struct ThreeScalarAngles
   F w2i;
 };
 
-template <typename V>
-struct ThreeVectorAngles
+template <std::floating_point F>
+struct TwoScalarAnglesX2
 {
-  V w0r;
-  V w0i;
-  V w1r;
-  V w1i;
-  V w2r;
-  V w2i;
+  TwoScalarAnglesX2(TwoAngles<F> a, TwoAngles<F> b)
+    : w0r{a.w0r, b.w0r}
+    , w0i{a.w0i, b.w0i}
+    , w1r{a.w1r, b.w1r}
+    , w1i{a.w1i, b.w1i}
+    { }
+  std::pair<F, F> w0r;
+  std::pair<F, F> w0i;
+  std::pair<F, F> w1r;
+  std::pair<F, F> w1i;
 };
 
 
-template <typename F>
+
+template <std::floating_point F>
 struct ThreeScalarAnglesX2
 {
-  ThreeScalarAnglesX2(ThreeScalarAngles<F> a, ThreeScalarAngles<F> b)
+  ThreeScalarAnglesX2(ThreeAngles<F> a, ThreeAngles<F> b)
     : w0r{a.w0r, b.w0r}
     , w0i{a.w0i, b.w0i}
     , w1r{a.w1r, b.w1r}
@@ -187,65 +215,141 @@ struct ThreeScalarAnglesX2
 };
 
 
+FORCE_INLINE auto GetScalarAngleIndices(size_t angleIndex, size_t angleCount)
+{
+  auto r1 = angleCount * 2;
+  auto r0 = angleCount;
+  auto i1 = r1 + angleCount;
+  auto i0 = r0 + angleCount / 2;
+
+  return std::tuple{ r0 + angleIndex, i0 + angleIndex, r1 + angleIndex, i1 + angleIndex };
+}
+
+
+
+template <std::floating_point F>
+FORCE_INLINE auto LoadScalarAngleGroup(const F *tableData, size_t angleIndex, size_t angleCount)
+{
+  auto [r0, i0, r1, i1] = GetScalarAngleIndices(angleIndex, angleCount);
+  auto wr1 = tableData[r0];
+  auto wi1 = tableData[i0];
+  auto wr2 = tableData[r1];
+  auto wi2 = tableData[i1];
+
+  if constexpr (UseFMAOptimization)
+    { return TwoAngles<F>{wr2, wi2, wr1, wi1}; }
+  else
+  {
+    // Third angle calculated based on the first two.
+    return ThreeAngles<F>{wr2, wi2, wr1, wi1, wr1 * wr2 - wi1 * wi2, wr1 * wi2 + wi1 * wr2};
+  }
+}
+
+
+template <std::floating_point F>
+FORCE_INLINE auto LoadScalarAngleGroupX2(const F *tableData, size_t angleIndexA, size_t angleIndexB, size_t angleCount)
+{
+  using T = std::conditional_t<UseFMAOptimization, TwoScalarAnglesX2<F>, ThreeScalarAnglesX2<F>>;
+  return T{LoadScalarAngleGroup(tableData, angleIndexA, angleCount), LoadScalarAngleGroup(tableData, angleIndexB, angleCount)};
+}
+
+template <std::floating_point F>
+FORCE_INLINE auto LoadSIMDAngleDouble(const F *tableData, size_t angleIndex, size_t angleCount)
+{
+  auto [r0, i0, r1, i1] = GetScalarAngleIndices(angleIndex, angleCount);
+  auto wr1 = Load<Alignment::Aligned>(&tableData[r0]);
+  auto wi1 = Load<Alignment::Aligned>(&tableData[i0]);
+  auto wr2 = Load<Alignment::Aligned>(&tableData[r1]);
+  auto wi2 = Load<Alignment::Aligned>(&tableData[i1]);
+  return TwoAngles{ wr2, wi2, wr1, wi1 };
+}
+
+
+template <std::floating_point F>
+FORCE_INLINE auto LoadSIMDAngleGroup(const F *tableData, size_t angleIndex, size_t angleCount)
+{
+  auto two = LoadSIMDAngleDouble(tableData, angleIndex, angleCount);
+  if constexpr (UseFMAOptimization)
+    { return two; }
+  else
+  {
+    VecType w2r, w2i;
+    ComplexMultiply(two.w0r, two.w0i, two.w1r, two.w1i, w2r, w2i);
+    return ThreeAngles{two.w0r, two.w0i, two.w1r, two.w1i, w2r, w2i};
+  }
+}
+
+
+
 // This function uses all 16 registers!
 template <typename V, typename Angles>
-FORCE_INLINE void DITComplexRadix4(
-  V &aR,
-  V &aI,
-  V &bR,
-  V &bI,
-  V &cR,
-  V &cI,
-  V &dR,
-  V &dI,
-  const Angles &angles)
+FORCE_INLINE void DITComplexRadix4(V &aR, V &aI, V &bR, V &bI, V &cR, V &cI, V &dR, V &dI, const Angles &angles)
 {
-  if constexpr (HasNativeFMA)
-  {
-    // !!!
-  }
-
   // Rotate c by w1
+  if constexpr (requires (Angles a) { a.w2r; })
+  {
+    auto t2 = Mul(cR, angles.w1r);
+    cR = Mul(cR, angles.w1i);
+    auto t1 = NMAdd(cI, angles.w1i, t2);
+    cI = MAdd(cI, angles.w1r, cR);
 
-  auto t2 = Mul(cR, angles.w1r);
-  cR = Mul(cR, angles.w1i);
-  auto t1 = NMAdd(cI, angles.w1i, t2);
-  cI = MAdd(cI, angles.w1r, cR);
+    cR = Sub(aR, t1);
+    t1 = Add(aR, t1);
+    aR = Add(aI, cI);
+    cI = Sub(aI, cI);
 
-  cR = Sub(aR, t1);
-  t1 = Add(aR, t1);
-  aR = Add(aI, cI);
-  cI = Sub(aI, cI);
+    // use aI and t2 as temp registers
+    // Rotate b by w0
+    aI = Mul(bR, angles.w0i);
+    t2 = Mul(bI, angles.w0i);
+    bI = MAdd(bI, angles.w0r, aI);
+    bR = NMAdd(bR, angles.w0r, t2); // actually -bR
 
-  // use aI and t2 as temp registers
-  // Rotate b by w0
-  aI = Mul(bR, angles.w0i);
-  t2 = Mul(bI, angles.w0i);
-  bI = MAdd(bI, angles.w0r, aI);
-  bR = NMAdd(bR, angles.w0r, t2); // actually -bR
+    // now rotate d by w2
 
-  // now rotate d by w2
+    t2 = Mul(dR, angles.w2r);
+    dR = Mul(dR, angles.w2i);
+    aI = NMAdd(dI, angles.w2i, t2); // this is rotated dR
+    dI = MAdd(dI, angles.w2r, dR);
 
-  t2 = Mul(dR, angles.w2r);
-  dR = Mul(dR, angles.w2i);
-  aI = NMAdd(dI, angles.w2i, t2); // this is rotated dR
-  dI = MAdd(dI, angles.w2r, dR);
+    // Do the last butterflies
+    dR = Add(aI, bR); // actually -dR
+    bR = Sub(aI, bR);
+    t2 = Sub(bI, dI);
+    bI = Add(bI, dI);
 
-  // Do the last butterflies
-  dR = Add(aI, bR); // actually -dR
-  bR = Sub(aI, bR);
-  t2 = Sub(bI, dI);
-  bI = Add(bI, dI);
+    aI = Add(aR, bI);
+    bI = Sub(bI, aR);
+    aR = Add(t1, bR);
+    bR = Sub(t1, bR);
 
-  aI = Add(aR, bI);
-  bI = Sub(bI, aR);
-  aR = Add(t1, bR);
-  bR = Sub(t1, bR);
+    dI = Add(dR, cI);
+    cI = Sub(dR, cI);
+    dR = Add(cR, t2);
+    cR = Sub(cR, t2);
+  }
+  else
+  {
+    auto t1 = NMAdd(dI, angles.w1i, MAdd(dR, angles.w1r, bR));
+    auto t2 = MAdd(dI, angles.w1r, MAdd(dR, angles.w1i, bI));
+    dR = Mx2Sub(bR, t1);
+    dI = NMx2Add(bI, t2);
 
-  dI = Add(dR, cI);
-  cI = Sub(dR, cI);
-  dR = Add(cR, t2);
-  cR = Sub(cR, t2);
+    bR = NMAdd(cI, angles.w1i, MAdd(cR, angles.w1r, aR));
+    bI = MAdd(cI, angles.w1r, MAdd(cR, angles.w1i, aI));
+    aR = Mx2Sub(aR, bR);
+    aI = NMx2Add(aI, bI);
+
+    cR = NMAdd(dR, angles.w0i, MAdd(dI, angles.w0r, aR));
+    cI = NMAdd(dR, angles.w0r, NMAdd(dI, angles.w0i, aI));
+    dR = Mx2Sub(aR, cR);
+    dI = NMx2Add(aI, cI);
+
+    aR = NMAdd(t2, angles.w0i, MAdd(t1, angles.w0r, bR));
+    aI = MAdd(t2, angles.w0r, MAdd(t1, angles.w0i, bI));
+    bR = Mx2Sub(bR, aR);
+    bI = NMx2Add(bI, aI);
+  }
 };
 
 
@@ -262,43 +366,77 @@ FORCE_INLINE void DIFComplexRadix4Inv(
   VT &dI,
   const Angles &angles)
 {
-  // This is effectively the opposite of the above Radix4.
-  auto t1 = Add(dR, cR);
-  dR = Sub(dR, cR);
-  auto t2 = Sub(dI, cI);
-  dI = Add(dI, cI);
+  if constexpr (requires (Angles a) { a.w2r; })
+  {
+    // This is effectively the opposite of the above Radix4.
+    auto t1 = Add(dR, cR);
+    dR = Sub(dR, cR);
+    auto t2 = Sub(dI, cI);
+    dI = Add(dI, cI);
 
-  cR = Sub(aR, bR);
-  aR = Add(aR, bR);
-  cI = Add(aI, bI);
-  aI = Sub(aI, bI);
+    cR = Sub(aR, bR);
+    aR = Add(aR, bR);
+    cI = Add(aI, bI);
+    aI = Sub(aI, bI);
 
-  bR = Sub(dI, cR); // actually -bR
-  dI = Add(cR, dI);
-  bI = Add(cI, dR);
-  dR = Sub(cI, dR);
+    bR = Sub(dI, cR); // actually -bR
+    dI = Add(cR, dI);
+    bI = Add(cI, dR);
+    dR = Sub(cI, dR);
 
-  cR = Sub(t1, aR); // actually -cR
-  aR = Add(aR, t1);
-  cI = Sub(aI, t2);
-  aI = Add(aI, t2);
+    cR = Sub(t1, aR); // actually -cR
+    aR = Add(aR, t1);
+    cI = Sub(aI, t2);
+    aI = Add(aI, t2);
 
-  // aR/aI are finalized here do not use them as temp!
+    // aR/aI are finalized here do not use them as temp!
 
-  t1 = Mul(bR, angles.w0i);
-  t2 = Mul(bI, angles.w0i);
-  bR = NMAdd(bR, angles.w0r, t2);
-  bI = MAdd(bI, angles.w0r, t1);
+    t1 = Mul(bR, angles.w0i);
+    t2 = Mul(bI, angles.w0i);
+    bR = NMAdd(bR, angles.w0r, t2);
+    bI = MAdd(bI, angles.w0r, t1);
 
-  t1 = Mul(dI, angles.w2r);
-  t2 = Mul(dR, angles.w2r);
-  dR = MAdd(dR, angles.w2i, t1);
-  dI = NMAdd(dI, angles.w2i, t2);
+    t1 = Mul(dI, angles.w2r);
+    t2 = Mul(dR, angles.w2r);
+    dR = MAdd(dR, angles.w2i, t1);
+    dI = NMAdd(dI, angles.w2i, t2);
 
-  t1 = Mul(cI, angles.w1i);
-  t2 = Mul(cR, angles.w1i);
-  cR = NMAdd(cR, angles.w1r, t1);
-  cI = MAdd(cI, angles.w1r, t2);
+    t1 = Mul(cI, angles.w1i);
+    t2 = Mul(cR, angles.w1i);
+    cR = NMAdd(cR, angles.w1r, t1);
+    cI = MAdd(cI, angles.w1r, t2);
+  }
+  else
+  {
+    auto t1 = Sub(aR, bR);
+    auto t2 = Sub(aI, bI);
+    aI = Add(aI, bI);
+    aR = Add(aR, bR);
+
+    bI = Add(cI, dI);
+    bR = Add(cR, dR);
+    cR = Sub(cR, dR);
+    cI = Sub(cI, dI);
+
+    dR = MAdd(aI, angles.w0i, Mul(t1, angles.w0r));
+    dI = NMAdd(t1, angles.w0i, Mul(aI, angles.w0r));
+
+    aI = Sub(t2, cI);
+    cI = Add(t2, cI);
+    t2 = Sub(aR, bR);
+    aR = Add(aR, bR);
+
+    bR = NMAdd(bI, angles.w0r, NMAdd(cR, angles.w0i, dR));
+    bI = MAdd(bI, angles.w0i, NMAdd(cR, angles.w0r, dI));
+    cR = Mx2Sub(dR, bR);
+    dI = Mx2Sub(dI, bI);
+
+    dR = MAdd(dI, angles.w1i, Mul(cR, angles.w1r));
+    dI = NMAdd(cR, angles.w1i, Mul(dI, angles.w1r));
+
+    cR = MAdd(cI, angles.w1i, Mul(t2, angles.w1r));
+    cI = NMAdd(t2, angles.w1i, Mul(cI, angles.w1r));
+  }
 };
 
 
@@ -319,61 +457,95 @@ FORCE_INLINE void FinalRealDITRealComplexRadix4(
   // For the final real DIT we need a second w1 angle that is just 0.707, -0.707 (but the complex w1 values remain
   //  the same)
 
-  // ef *= angle0;
-  auto t0 = Mul(e, w0I);
-  auto t1 = Mul(f, w0I);
-  f = MAdd(f, w0R, t0);
-  e = NMAdd(e, w0R, t1); // -e
+  if constexpr (UseFMAOptimization)
+  {
+    auto t1 = MAdd(e, w0R, NMAdd(f, w0I, a));
+    auto t2 = MAdd(h, w0R, MAdd(g, w0I, d));
 
-  // gh *= angle0;
-  t0 = Mul(g, w0R);
-  g = Mul(g, w0I);
-  w0I = NMAdd(h, w0I, t0);
-  t1 = MAdd(h, w0R, g);
+    e = MAdd(e, w0I, MAdd(f, w0R, b));
+    w0I = NMAdd(h, w0I, MAdd(g, w0R, c));
 
-  // g, h are free here
-  t0 = Sub(a, e);
-  e = Add(a, e);
-  w0R = Add(f, b);
-  f = Sub(f, b);
+    f = NMx2Add(c, w0I); // Do -g here so that we can leverage it for the 90 degree rotation later
 
-  g = Sub(w0I, c); // Do -g here so that we can leverage it for the 90 degree rotation later
-  c = Add(w0I, c);
-  h = Sub(t1, d);
-  d = Add(t1, d);
+    g = Mx2Sub(a, t1);
+    h = NMx2Add(b, e);
 
-  // Need to do another swap (this time of b0 and c0, again for the "real" radix's different ordering)
-  b = ReplaceFirstOf(w0R, c);
-  c = ReplaceFirstOf(c, w0R);
+    w0R = NMx2Add(d, t2);
 
-  // t0 is in use, but t1, w0R, w0I are not.
+    d = ReplaceFirstOf(e, w0I);
+    b = ReplaceFirstOf(w0I, e);
 
-  // cd *= angle1;
-  w0I = Mul(d, w1I);
-  d = Mul(d, w1R);
-  t1 = MAdd(c, w1I, d);
-  c = NMAdd(c, w1R, w0I);
+    a = NMAdd(t2, w1I, MAdd(b, w1R, t1));
+    c = Mx2Sub(t1, a);
 
-  w1R = ReplaceFirstOf(w1R, InvSqrt2<ElementType>);
-  w1I = ReplaceFirstOf(w1I, -InvSqrt2<ElementType>);
+    b = MAdd(b, w1I, MAdd(t2, w1R, d));
+    d = NMx2Add(d, b);
 
-  a = Sub(t0, c);
-  c = Add(t0, c);
+    w1I = ReplaceFirstOf(w1I, -InvSqrt2<ElementType>);
+    w1R = ReplaceFirstOf(w1R, InvSqrt2<ElementType>);
 
-  // gh *= {-angle1.imag(), -angle1.real()};
-  //  note that this takes advantage of g being stored as -g above
-  w0R = Mul(g, w1R);
-  g = Mul(g, w1I);
-  w0R = NMAdd(h, w1I, w0R);
-  h = MAdd(h, w1R, g);
+    e = MAdd(w0R, w1R, MAdd(f, w1I, g));
+    f = NMAdd(w0R, w1I, MAdd(f, w1R, h));
+    g = Mx2Sub(g, e);
+    h = NMx2Add(h, f);
+  }
+  else
+  {
+    auto t0 = Mul(e, w0I);
+    auto t1 = Mul(f, w0I);
+    f = MAdd(f, w0R, t0);
+    e = NMAdd(e, w0R, t1); // -e
 
-  d = Sub(t1, b);
-  b = Add(t1, b);
+    // gh *= angle0;
+    t0 = Mul(g, w0R);
+    g = Mul(g, w0I);
+    w0I = NMAdd(h, w0I, t0);
+    t1 = MAdd(h, w0R, g);
 
-  g = Sub(e, h);
-  e = Add(e, h);
-  h = Sub(w0R, f);
-  f = Add(w0R, f);
+    // g, h are free here
+    t0 = Sub(a, e);
+    e = Add(a, e);
+    w0R = Add(f, b);
+    f = Sub(f, b);
+
+    g = Sub(w0I, c); // Do -g here so that we can leverage it for the 90 degree rotation later
+    c = Add(w0I, c);
+    h = Sub(t1, d);
+    d = Add(t1, d);
+
+    // Need to do another swap (this time of b0 and c0, again for the "real" radix's different ordering)
+    b = ReplaceFirstOf(w0R, c);
+    c = ReplaceFirstOf(c, w0R);
+
+    // t0 is in use, but t1, w0R, w0I are not.
+
+    // cd *= angle1;
+    w0I = Mul(d, w1I);
+    d = Mul(d, w1R);
+    t1 = MAdd(c, w1I, d);
+    c = NMAdd(c, w1R, w0I);
+
+    w1R = ReplaceFirstOf(w1R, InvSqrt2<ElementType>);
+    w1I = ReplaceFirstOf(w1I, -InvSqrt2<ElementType>);
+
+    a = Sub(t0, c);
+    c = Add(t0, c);
+
+    // gh *= {-angle1.imag(), -angle1.real()};
+    //  note that this takes advantage of g being stored as -g above
+    w0R = Mul(g, w1R);
+    g = Mul(g, w1I);
+    w0R = NMAdd(h, w1I, w0R);
+    h = MAdd(h, w1R, g);
+
+    d = Sub(t1, b);
+    b = Add(t1, b);
+
+    g = Sub(e, h);
+    e = Add(e, h);
+    h = Sub(w0R, f);
+    f = Add(w0R, f);
+  }
 }
 
 
@@ -392,6 +564,8 @@ FORCE_INLINE void FirstRealDIFRealComplexRadix4Inv(
   auto &w1R,
   auto &w1I)
 {
+  // This one is the same regardless of whether or not we do the FMA optimization
+
   auto t0 = Sub(e, g);
   e = Add(e, g);
   g = Add(f, h);

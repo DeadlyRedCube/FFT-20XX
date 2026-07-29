@@ -21,7 +21,7 @@ namespace FFT20XX::AVX
     { return (uintptr_t(ptr) & (sizeof(__m256) - 1)) == 0; }
 
   constexpr auto MinimumRealFFTLength = 128;
-  constexpr bool HasNativeFMA = false;
+  constexpr bool UseFMAOptimization = false;
 
   constexpr auto VecSize = 8u;
   using VecType = __m256;
@@ -238,10 +238,10 @@ namespace FFT20XX::AVX
 
 
   // Takes the first two elements of acegACEG0 and bdfh0 and puts them in t, then the second two elements from each into bdfh0.
-  FORCE_INLINE void SwapRealComponentsForLastDoubleFlip(__m256 aceg0, __m256 &bdfh0, __m256 &t, __m256 &t2)
+  FORCE_INLINE void SwapRealComponentsForLastDoubleFlip(__m256 aceg0, __m256 &bdfh0, __m256 &t)
   {
     t = _mm256_shuffle_ps(aceg0, bdfh0, 0b01'00'01'00);
-    t2 = _mm256_shuffle_ps(aceg0, bdfh0, 0b11'10'11'10);
+    auto t2 = _mm256_shuffle_ps(aceg0, bdfh0, 0b11'10'11'10);
     t = _mm256_blend_ps(aceg0, t, 0b00001111);
     bdfh0 = _mm256_blend_ps(bdfh0, t2, 0b00001111);
   }

@@ -21,7 +21,7 @@ namespace FFT20XX::AVX
     { return (uintptr_t(ptr) & (sizeof(__m256d) - 1)) == 0; }
 
   constexpr auto MinimumRealFFTLength = 32;
-  constexpr bool HasNativeFMA = false;
+  constexpr bool UseFMAOptimization = false;
 
   constexpr auto VecSize = 4u;
   using VecType = __m256d;
