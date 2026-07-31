@@ -381,65 +381,6 @@ namespace FFT20XX::FMA32Cplx
     return { _mm256_mul_ps(a.r, b), _mm256_mul_ps(a.i, b) };
   }
 
-  template <Dir D>
-  FORCE_INLINE void Rotate(ComplexVec<VecType> &a, ComplexVec<VecType> w)
-  {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm256_fmsub_ps(a.r, w.r, _mm256_mul_ps(a.i, w.i));
-      a.i = _mm256_fmadd_ps(a.r, w.i, _mm256_mul_ps(a.i, w.r));
-      a.r = t;
-    }
-    else
-    {
-      auto t = _mm256_fmadd_ps(a.r, w.r, _mm256_mul_ps(a.i, w.i));
-      a.i = _mm256_fmsub_ps(a.i, w.r, _mm256_mul_ps(a.r, w.i));
-      a.r = t;
-    }
-  }
-
-
-  template <Dir D>
-  FORCE_INLINE void Rotate(ComplexVec<VecType> &a, Complex<float> w)
-  {
-    auto wR = _mm256_set1_ps(w.r);
-    auto wI = _mm256_set1_ps(w.i);
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm256_fmsub_ps(a.r, wR, _mm256_mul_ps(a.i, wI));
-      a.i = _mm256_fmadd_ps(a.r, wI, _mm256_mul_ps(a.i, wR));
-      a.r = t;
-    }
-    else
-    {
-      auto t = _mm256_fmadd_ps(a.r, wR, _mm256_mul_ps(a.i, wI));
-      a.i = _mm256_fmsub_ps(a.i, wR, _mm256_mul_ps(a.r, wI));
-      a.r = t;
-    }
-  }
-
-
-
-  template <Dir D>
-  FORCE_INLINE void Rotate(ComplexVec<VecType> &a, std::pair<Complex<float>, Complex<float>> w)
-  {
-    auto wR = Set2(w.first.r, w.second.r);
-    auto wI = Set2(w.first.i, w.second.i);
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm256_fmsub_ps(a.r, wR, _mm256_mul_ps(a.i, wI));
-      a.i = _mm256_fmadd_ps(a.r, wI, _mm256_mul_ps(a.i, wR));
-      a.r = t;
-    }
-    else
-    {
-      auto t = _mm256_fmadd_ps(a.r, wR, _mm256_mul_ps(a.i, wI));
-      a.i = _mm256_fmsub_ps(a.i, wR, _mm256_mul_ps(a.r, wI));
-      a.r = t;
-    }
-  }
-
-
   FORCE_INLINE void Transpose4x4(
     ComplexVec<VecType> &a,
     ComplexVec<VecType> &b,
