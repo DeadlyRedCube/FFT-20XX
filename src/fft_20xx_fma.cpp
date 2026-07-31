@@ -1335,7 +1335,7 @@ void MiddleOutFFT(
 
 extern "C"
 {
-  void fft_cplx_interleaved_f32_fma(const fft_table_f32 *table, const float *inputN, float *outputN, size_t fftLength)
+  /*void fft_cplx_interleaved_f32_fma(const fft_table_f32 *table, const float *inputN, float *outputN, size_t fftLength)
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     //const auto tableData = t->Data();
@@ -1347,7 +1347,7 @@ extern "C"
       return;
     }
 
-    /*const auto length = fftLength;
+    const auto length = fftLength;
     const auto *input = reinterpret_cast<const std::complex<float> *>(inputN);
     auto *output = reinterpret_cast<std::complex<float> *>(outputN);
 
@@ -1407,8 +1407,8 @@ extern "C"
 
     // Step N - 1:
     //  The final weird flipperooni
-    LastDoubleFlipRadix4PassAVX(tableData, output, length);*/
-}
+    LastDoubleFlipRadix4PassAVX(tableData, output, length);
+  }*/
 
 
   void fft_cplx_interleaved_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
@@ -1419,32 +1419,10 @@ extern "C"
   }
 
 
-  void ifft_cplx_interleaved_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
-  {
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
-    COMMON_ASSERTS();
-    FMA::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
-  }
-
-
-  void ifft_cplx_interleaved_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+   void ifft_cplx_interleaved_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
   {
     [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     FMA::RunComplexFFT<Dir::Inverse>(t->Data(), input, output, fftLength);
-  }
-
-  void fft_real_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
-    COMMON_ASSERTS();
-    FMA::RunRealFwdFFT(t->Data(), input, output, fftLength);
-  }
-
-  void ifft_real_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
-  {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
-    COMMON_ASSERTS();
-    FMA::RunRealInvFFT(t->Data(), input, output, fftLength);
   }
 }

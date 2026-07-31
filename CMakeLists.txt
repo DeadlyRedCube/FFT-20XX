@@ -67,7 +67,9 @@ if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
         "src/fft_20xx_avx_real_f32.cpp"
         "src/fft_20xx_avx_real_f64.cpp"
         "src/fft_20xx_fma.cpp"
+        "src/fft_20xx_fma_cplx_f32.cpp"
         "src/fft_20xx_fma_real_f32.cpp"
+        "src/fft_20xx_fma_real_f64.cpp"
   )
 
   if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
@@ -79,7 +81,9 @@ if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
     set_source_files_properties("src/fft_20xx_avx_real_f32.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX")
     set_source_files_properties("src/fft_20xx_avx_real_f64.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX")
     set_source_files_properties("src/fft_20xx_fma.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+    set_source_files_properties("src/fft_20xx_fma_cplx_f32.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
     set_source_files_properties("src/fft_20xx_fma_real_f32.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+    set_source_files_properties("src/fft_20xx_fma_real_f64.cpp" PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
   else()
     set_source_files_properties("src/fft_20xx_sse2_cplx_f32.cpp" PROPERTIES COMPILE_OPTIONS -march=core2)
     set_source_files_properties("src/fft_20xx_sse2_cplx_f64.cpp" PROPERTIES COMPILE_OPTIONS -march=core2)
@@ -89,7 +93,9 @@ if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
     set_source_files_properties("src/fft_20xx_avx_real_f32.cpp" PROPERTIES COMPILE_OPTIONS -march=sandybridge)
     set_source_files_properties("src/fft_20xx_avx_real_f64.cpp" PROPERTIES COMPILE_OPTIONS -march=sandybridge)
     set_source_files_properties("src/fft_20xx_fma.cpp" PROPERTIES COMPILE_OPTIONS -mfma)
+    set_source_files_properties("src/fft_20xx_fma_cplx_f32.cpp" PROPERTIES COMPILE_OPTIONS -mfma)
     set_source_files_properties("src/fft_20xx_fma_real_f32.cpp" PROPERTIES COMPILE_OPTIONS -mfma)
+    set_source_files_properties("src/fft_20xx_fma_real_f64.cpp" PROPERTIES COMPILE_OPTIONS -mfma)
   endif()
 elseif((CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
     OR (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")

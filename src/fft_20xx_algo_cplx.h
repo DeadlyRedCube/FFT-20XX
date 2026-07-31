@@ -148,7 +148,7 @@ FORCE_INLINE void DoRadix4(V &a, V &b, V &c, V &d, A angles)
 }
 
 template <std::floating_point F = ElementType>
-auto LoadSingleAngle(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<Complex<ElementType>>
+auto LoadSingleAngle(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<Complex<F>>
 {
   static_assert(requires (Angles<ElementType> a) { a.w0; a.w1; });
   auto i1 = angleCount * 4;
@@ -163,7 +163,7 @@ auto LoadSingleAngle(const F *tableData, size_t angleIndex, size_t angleCount) -
   auto w1 = Complex{ tableData[r0 + angleIndex], tableData[i0 + angleIndex] };
   auto w2 = Complex{ tableData[r1 + angleIndex], tableData[i1 + angleIndex] };
 
-  if constexpr (requires(Angles<ElementType> a) { a.w2; })
+  if constexpr (requires(Angles<F> a) { a.w2; })
   {
     return { w2, w1, w1 * w2 };
   }
@@ -172,6 +172,24 @@ auto LoadSingleAngle(const F *tableData, size_t angleIndex, size_t angleCount) -
     return {w1, w2};
   }
 }
+
+template <std::floating_point F = ElementType>
+auto LoadDoubleAngle(const F *tableData, size_t angleIndex0, size_t angleIndex1, size_t angleCount)
+  -> Angles<std::pair<Complex<F>, Complex<F>>>
+{
+  auto angles0 = LoadSingleAngle(tableData, angleIndex0, angleCount);
+  auto angles1 = LoadSingleAngle(tableData, angleIndex1, angleCount);
+
+  if constexpr (requires(Angles<F> a) { a.w2; })
+  {
+    return { {angles0.w0, angles1.w0}, {angles0.w1, angles1.w1}, {angles0.w2, angles1.w2} };
+  }
+  else
+  {
+    return { {angles0.w0, angles1.w0}, {angles0.w1, angles1.w1} };
+  }
+}
+
 
 template <std::floating_point F = ElementType>
 auto LoadSingleAngleSet(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<VecType>>
@@ -268,8 +286,8 @@ void NoFlipRadix4Pass(const ElementType *tableData, ElementType *data, const siz
 }
 
 
-template <Dir D, Alignment Align>
-void SingleFlipRadix4Pass(const ElementType *tableData, ElementType *data, const size_t length, const size_t radix4Stride)
+template <Dir D, Alignment Align, std::floating_point F = ElementType, uint32_t VS = VecSize>
+void SingleFlipRadix4Pass(const F *tableData, F *data, const size_t length, const size_t radix4Stride)
 {
     // There's a different flip pattern for power of 2 and power of 4 single flips
   const auto doubleStride = radix4Stride * 2;
@@ -277,6 +295,54 @@ void SingleFlipRadix4Pass(const ElementType *tableData, ElementType *data, const
   {
     // For power of four lengths, the flip happens completely within the butterfly (b and c flip). 1024 is a good
     //  test size for this case
+
+    if constexpr (VS > 4)
+    {
+      static_assert(VS == 8);
+
+      if (radix4Stride < VS)
+      {
+        assert(radix4Stride == 4 && length == 64);
+
+        constexpr auto sectionCount = 4u;
+        const auto angles01 = LoadDoubleAngle(tableData, 0u, 2u, sectionCount);
+        const auto angles23 = LoadDoubleAngle(tableData, 1u, 3u, sectionCount);
+
+        const auto sectionStart0 = data;
+        const auto sectionStart1 = sectionStart0 + 32u;
+        const auto sectionStart2 = sectionStart0 + 64u;
+        const auto sectionStart3 = sectionStart0 + 96u;
+        {
+          auto a = LoadUnpackedComplexHalves<Align>(sectionStart0, sectionStart1);
+          auto b = LoadUnpackedComplexHalves<Align>(sectionStart0 + 4u, sectionStart1 + 4u);
+          auto c = LoadUnpackedComplexHalves<Align>(sectionStart0 + 16u, sectionStart1 + 16u);
+          auto d = LoadUnpackedComplexHalves<Align>(sectionStart0 + 20u, sectionStart1 + 20u);
+
+          DoRadix4<D>(a, b, c, d, angles01);
+
+          StoreUnpackedLowerHalves<Align>(sectionStart0, a, c);
+          StoreUnpackedUpperHalves<Align>(sectionStart1, a, c);
+          StoreUnpackedLowerHalves<Align>(sectionStart0 + 16u, b, d);
+          StoreUnpackedUpperHalves<Align>(sectionStart1 + 16u, b, d);
+        }
+        {
+          auto a = LoadUnpackedComplexHalves<Align>(sectionStart2, sectionStart3);
+          auto b = LoadUnpackedComplexHalves<Align>(sectionStart2 + 4u, sectionStart3 + 4u);
+          auto c = LoadUnpackedComplexHalves<Align>(sectionStart2 + 16u, sectionStart3 + 16u);
+          auto d = LoadUnpackedComplexHalves<Align>(sectionStart2 + 20u, sectionStart3 + 20u);
+
+          DoRadix4<D>(a, b, c, d, angles23);
+
+          StoreUnpackedLowerHalves<Align>(sectionStart2, a, c);
+          StoreUnpackedUpperHalves<Align>(sectionStart3, a, c);
+          StoreUnpackedLowerHalves<Align>(sectionStart2 + 16u, b, d);
+          StoreUnpackedUpperHalves<Align>(sectionStart3 + 16u, b, d);
+        }
+
+        return;
+      }
+    }
+
 
     // The first set of stride works with no rotations (besides the 90)
     {
@@ -348,6 +414,66 @@ void SingleFlipRadix4Pass(const ElementType *tableData, ElementType *data, const
     //  (first one is no-rotation, second one is InvSqrt2-only)
     // Then (using the first row as a1/b1/c1/d1 and the second as a2/b2/c2/d2) swap b2/a1 and d2/c1 (the rest stay)
     // 2048 is a good test size for this case.
+
+    if constexpr (VS > 4)
+    {
+      static_assert(VS == 8);
+
+      if (radix4Stride < VS)
+      {
+        assert(radix4Stride == 4 && length == 128);
+
+        // !!!
+        const auto sectionCount = length / (radix4Stride * 4);
+        for (auto sectionIndex = 0_z; sectionIndex < sectionCount; sectionIndex += 4)
+        {
+          const auto angleIndex0A = BitRev(sectionIndex) >> (1 + std::countl_zero(sectionCount));
+          const auto angleIndex0B = BitRev(sectionIndex + 2) >> (1 + std::countl_zero(sectionCount));
+          auto angles0 = LoadDoubleAngle(tableData, angleIndex0A, angleIndex0B, sectionCount);
+          const auto angleIndex1A = angleIndex0A + (sectionCount >> 1);
+          const auto angleIndex1B = angleIndex0B + (sectionCount >> 1);
+          auto angles1 = LoadDoubleAngle(tableData, angleIndex1A, angleIndex1B, sectionCount);
+
+          const auto sectionStart0A = data + sectionIndex * radix4Stride * 8;
+          const auto sectionStart1A = sectionStart0A + radix4Stride * 8;
+          const auto sectionStart0B = sectionStart0A + radix4Stride * 16;
+          const auto sectionStart1B = sectionStart0B + radix4Stride * 8;
+
+          for (auto i = 0_z; i < doubleStride; i += 2 * VecSize)
+          {
+            auto a = LoadUnpackedComplexHalves<Align>(&sectionStart0A[ 0 + i], &sectionStart0B[ 0 + i]);
+            auto b = LoadUnpackedComplexHalves<Align>(&sectionStart0A[ 4 + i], &sectionStart0B[ 4 + i]);
+            auto c = LoadUnpackedComplexHalves<Align>(&sectionStart0A[16 + i], &sectionStart0B[16 + i]);
+            auto d = LoadUnpackedComplexHalves<Align>(&sectionStart0A[20 + i], &sectionStart0B[20 + i]);
+
+            DoRadix4<D>(a, b, c, d, angles0);
+
+            // These can be stored back in-place
+            StoreUnpackedComplexHalves<Align>(&sectionStart0A[ 0 + i], &sectionStart0B[ 0 + i], a);
+            StoreUnpackedComplexHalves<Align>(&sectionStart0A[16 + i], &sectionStart0B[16 + i], c);
+
+            // Now load the two values that get replaced with section 0 values and store over them
+            a = LoadUnpackedComplexHalves<Align>(&sectionStart1A[ 0 + i], &sectionStart1B[ 0 + i]);
+            StoreUnpackedComplexHalves<Align>(&sectionStart1A[ 0 + i], &sectionStart1B[ 0 + i], b);
+
+            c = LoadUnpackedComplexHalves<Align>(&sectionStart1A[16 + i], &sectionStart1B[16 + i]);
+            StoreUnpackedComplexHalves<Align>(&sectionStart1A[16 + i], &sectionStart1B[16 + i], d);
+
+            // Load the remaining 2
+            b = LoadUnpackedComplexHalves<Align>(&sectionStart1A[ 4 + i], &sectionStart1B[ 4 + i]);
+            d = LoadUnpackedComplexHalves<Align>(&sectionStart1A[20 + i], &sectionStart1B[20 + i]);
+
+            DoRadix4<D>(a, b, c, d, angles1);
+
+            StoreUnpackedComplexHalves<Align>(&sectionStart0A[ 4 + i], &sectionStart0B[ 4 + i], a);
+            StoreUnpackedComplexHalves<Align>(&sectionStart1A[ 4 + i], &sectionStart1B[ 4 + i], b);
+            StoreUnpackedComplexHalves<Align>(&sectionStart0A[20 + i], &sectionStart0B[20 + i], c);
+            StoreUnpackedComplexHalves<Align>(&sectionStart1A[20 + i], &sectionStart1B[20 + i], d);
+          }
+        }
+        return;
+      }
+    }
 
     // The first two sections are the no-rotation and simple-rotation cases so special case them for efficiency.
     {
@@ -537,8 +663,8 @@ void DoubleFlipRadix4Pass(
   }
 }
 
-template <std::floating_point F>
-auto LoadFinalAngles(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<VecType>>
+template <std::floating_point F, typename V = VecType>
+auto LoadFinalAngles(const F *tableData, size_t angleIndex, size_t angleCount) -> Angles<ComplexVec<V>>
 {
   auto i1 = angleCount * 4;
   auto r1 = (angleCount == 4) ? 8 : (angleCount * 3);
@@ -562,7 +688,7 @@ auto LoadFinalAngles(const F *tableData, size_t angleIndex, size_t angleCount) -
     };
 
 
-  if constexpr (requires (Angles<ComplexVec<VecType>> a) { a.w2; })
+  if constexpr (requires (Angles<ComplexVec<V>> a) { a.w2; })
   {
     return {w2, w1, ComplexMultiply(w1, w2)};
   }
@@ -572,6 +698,71 @@ auto LoadFinalAngles(const F *tableData, size_t angleIndex, size_t angleCount) -
   }
 }
 
+template <Dir D, Alignment Align, std::floating_point F>
+void SecondToLastDoubleFlipRadix4Pass(const F *tableData, F *data, const size_t length)
+{
+  constexpr auto radix4Stride = 4_z;
+  const auto flipStride = length / 16;
+
+  const auto shift = std::countl_zero(length - 1);
+  const auto angleIndexFlipInsert = BitRev(flipStride) >> shift;
+
+  for (auto groupStartIndex = 0_z; groupStartIndex < length; groupStartIndex += flipStride * 4)
+  {
+    for (auto butterflySetStartIndex = 0_z; butterflySetStartIndex < flipStride; butterflySetStartIndex += radix4Stride * 4)
+    {
+      const auto angleIndex0 = (BitRev(groupStartIndex) >> shift) + butterflySetStartIndex;
+      const auto angleIndex2 = angleIndex0 | angleIndexFlipInsert;
+      const auto angleIndex1 = angleIndex0 | (angleIndexFlipInsert >> 1);
+      const auto angleIndex3 = angleIndex1 | angleIndex2;
+
+      const auto angles01 = LoadDoubleAngle(tableData, angleIndex0, angleIndex1, flipStride);
+      const auto angles23 = LoadDoubleAngle(tableData, angleIndex2, angleIndex3, flipStride);
+
+      auto i = groupStartIndex + butterflySetStartIndex;
+
+      auto a01 = LoadUnpackedComplexHalves<Align>(
+        &data[2 * (i + flipStride * 0 + radix4Stride * 0)],
+        &data[2 * (i + flipStride * 2 + radix4Stride * 0)]);
+      auto b01 = LoadUnpackedComplexHalves<Align>(
+        &data[2 * (i + flipStride * 0 + radix4Stride * 0) + 4u],
+        &data[2 * (i + flipStride * 2 + radix4Stride * 0) + 4u]);
+      auto c01 = LoadUnpackedComplexHalves<Align>(
+        &data[2 * (i + flipStride * 0 + radix4Stride * 2)],
+        &data[2 * (i + flipStride * 2 + radix4Stride * 2)]);
+      auto d01 = LoadUnpackedComplexHalves<Align>(
+        &data[2 * (i + flipStride * 0 + radix4Stride * 2) + 4u],
+        &data[2 * (i + flipStride * 2 + radix4Stride * 2) + 4u]
+        );
+
+      auto a23 = LoadUnpackedComplexHalves<Align>(
+        &data[2 * (i + flipStride * 1 + radix4Stride * 0)],
+        &data[2 * (i + flipStride * 3 + radix4Stride * 0)]);
+      auto b23 = LoadUnpackedComplexHalves<Align>(
+        &data[2 * (i + flipStride * 1 + radix4Stride * 0) +  4u],
+        &data[2 * (i + flipStride * 3 + radix4Stride * 0) +  4u]);
+      auto c23 = LoadUnpackedComplexHalves<Align>(
+        &data[2 * (i + flipStride * 1 + radix4Stride * 2)],
+        &data[2 * (i + flipStride * 3 + radix4Stride * 2)]);
+      auto d23 = LoadUnpackedComplexHalves<Align>(
+        &data[2 * (i + flipStride * 1 + radix4Stride * 2) + 4u],
+        &data[2 * (i + flipStride * 3 + radix4Stride * 2) + 4u]);
+
+      DoRadix4<D>(a01, b01, c01, d01, angles01);
+      DoRadix4<D>(a23, b23, c23, d23, angles23);
+
+      StoreUnpackedComplex<Align>(&data[2 * (i + flipStride * 0 + radix4Stride * 0)], a01);
+      StoreUnpackedComplex<Align>(&data[2 * (i + flipStride * 2 + radix4Stride * 0)], b01);
+      StoreUnpackedComplex<Align>(&data[2 * (i + flipStride * 1 + radix4Stride * 0)], c01);
+      StoreUnpackedComplex<Align>(&data[2 * (i + flipStride * 3 + radix4Stride * 0)], d01);
+
+      StoreUnpackedComplex<Align>(&data[2 * (i + flipStride * 0 + radix4Stride * 2)], a23);
+      StoreUnpackedComplex<Align>(&data[2 * (i + flipStride * 2 + radix4Stride * 2)], b23);
+      StoreUnpackedComplex<Align>(&data[2 * (i + flipStride * 1 + radix4Stride * 2)], c23);
+      StoreUnpackedComplex<Align>(&data[2 * (i + flipStride * 3 + radix4Stride * 2)], d23);
+    }
+  }
+}
 
 template <Dir D, Alignment Align>
 void LastDoubleFlipRadix4Pass(const ElementType *tableData, ElementType *data, const size_t length)
@@ -677,9 +868,6 @@ void LastDoubleFlipRadix4Pass(const ElementType *tableData, ElementType *data, c
 }
 
 
-
-constexpr auto SIMDSetSize = 4u;
-
 // This function is templated on F = ElementType so that the `RunSmallComplex` check works
 template <Dir D, Alignment Align, std::floating_point F = ElementType>
 void RunComplex(
@@ -726,15 +914,18 @@ void RunComplex(
 
   // Loop until the stride gets to be too small to properly handle as a radix 4 without swapping within a SIMD set.
   //  (more generally this should be "round up to nearest power of 4 but meh, this is good enough)
-  constexpr auto StopStride = (SIMDSetSize == 8) ? 16u : SIMDSetSize;
+  constexpr auto StopStride = (VecSize == 8) ? 16u : VecSize;
   for (; radix4Stride >= StopStride; radix4Stride >>= 2)
     { DoubleFlipRadix4Pass<D, Align>(tableData, output, length, radix4Stride); }
 
-  if constexpr (SIMDSetSize > 4u)
+  if constexpr (VecSize > 4u)
   {
-    static_assert(SIMDSetSize <= 8u);
-    // This needs a special-case because the second-to-last pass has a stride that is smaller than the SIMD set.
-    SecondToLastDoubleFlipRadix4Pass<D, Align>(tableData, output, length);
+    if (length >= 256)
+    {
+      static_assert(VecSize == 8u);
+      // This needs a special-case because the second-to-last pass has a stride that is smaller than the SIMD set.
+      SecondToLastDoubleFlipRadix4Pass<D, Align>(tableData, output, length);
+    }
   }
 
   // Step N - 1:

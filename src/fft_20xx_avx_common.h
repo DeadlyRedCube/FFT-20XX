@@ -1,3 +1,7 @@
+#if COMPILER_MSVC
+  #pragma warning (disable : 4505) // unreferenced function with internal linkage has been removed
+#endif
+
 template <typename T> concept f32 = std::same_as<float, T> || std::same_as<__m128, T> || std::same_as<__m256, T>;
 template <typename T> concept simd_vec = std::same_as<std::remove_cvref_t<T>, __m256> || std::same_as<std::remove_cvref_t<T>, __m256d>;
 template <typename T> concept simd_half_vec = std::same_as<std::remove_cvref_t<T>, __m128> || std::same_as<std::remove_cvref_t<T>, __m128d>;
