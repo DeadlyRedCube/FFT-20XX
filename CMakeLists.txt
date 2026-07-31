@@ -109,6 +109,8 @@ elseif((CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
 
       PRIVATE
         "src/fft_20xx_neon.cpp"
+        "src/fft_20xx_neon_real_f32.cpp"
+        "src/fft_20xx_neon_real_f64.cpp"
   )
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
   # nothing to do here
