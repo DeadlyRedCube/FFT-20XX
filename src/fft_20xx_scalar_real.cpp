@@ -118,7 +118,7 @@ namespace FFT20XX::ScalarReal
   }
 
   template <std::floating_point F>
-  FORCE_INLINE void Transpose4(Vec<F> &a, Vec<F> &b, Vec<F> &c, Vec<F> &d)
+  FORCE_INLINE void Transpose4x4(Vec<F> &a, Vec<F> &b, Vec<F> &c, Vec<F> &d)
   {
     for (auto x = 0u; x < VecSize; x += 4u)
     {

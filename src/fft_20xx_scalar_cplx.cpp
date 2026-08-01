@@ -167,17 +167,6 @@ namespace FFT20XX::ScalarCplx
     }
   }
 
-  template <std::floating_point F>
-  FORCE_INLINE void Transpose4x4(
-    ComplexVec<Vec<F>> &a,
-    ComplexVec<Vec<F>> &b,
-    ComplexVec<Vec<F>> &c,
-    ComplexVec<Vec<F>> &d)
-  {
-    Transpose4x4(a.r, b.r, c.r, d.r);
-    Transpose4x4(a.i, b.i, c.i, d.i);
-  }
-
   namespace F32
   {
     using ElementType = float;

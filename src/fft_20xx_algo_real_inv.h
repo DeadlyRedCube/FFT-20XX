@@ -25,19 +25,19 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       LoadStridedSets<Align>(data + start3, 2, r06, r07);
 
       // Deinterleave the real/imaginary components
-      Transpose2(r00, r01, r08);
-      Transpose2(r04, r05, r00);
-      Transpose2(r02, r03, r04);
-      Transpose2(r06, r07, r02);
+      Transpose2x2(r00, r01, r08);
+      Transpose2x2(r04, r05, r00);
+      Transpose2x2(r02, r03, r04);
+      Transpose2x2(r06, r07, r02);
 
       auto angles0 = LoadSIMDAngleDouble(tableData, 0, flipStride);
       FirstRealDIFRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles0.w1r, angles0.w1i, angles0.w0r, angles0.w0i);
 
       // Now do 2 quadrants of a 4x4 matrix transpose
-      Transpose2(r08, r00, r06);
-      Transpose2(r04, r02, r08);
-      Transpose2(r01, r05, r04);
-      Transpose2(r03, r07, r01);
+      Transpose2x2(r08, r00, r06);
+      Transpose2x2(r04, r02, r08);
+      Transpose2x2(r01, r05, r04);
+      Transpose2x2(r03, r07, r01);
 
       // Store the two quadrants that are in spots we already loaded from
       //  (note that there's a bit of extra shuffle here for the real values vs. the fully-complex subsets below)
@@ -55,19 +55,19 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       LoadStridedSets<Align>(data + start3 + 4, 2, r05, r07);
 
       // Once again deinterleave the real/imaginary components
-      Transpose2(r00, r02, r08);
-      Transpose2(r04, r06, r00);
-      Transpose2(r01, r03, r04);
-      Transpose2(r05, r07, r01);
+      Transpose2x2(r00, r02, r08);
+      Transpose2x2(r04, r06, r00);
+      Transpose2x2(r01, r03, r04);
+      Transpose2x2(r05, r07, r01);
 
       auto angles1 = LoadSIMDAngleGroup(tableData, 2, flipStride);
       DIFComplexRadix4Inv(r08, r02, r00, r06, r04, r03, r01, r07, angles1);
 
       // The remainder of our 4x4 transpose
-      Transpose2(r08, r00, r05);
-      Transpose2(r04, r01, r08);
-      Transpose2(r02, r06, r04);
-      Transpose2(r03, r07, r02);
+      Transpose2x2(r08, r00, r05);
+      Transpose2x2(r04, r01, r08);
+      Transpose2x2(r02, r06, r04);
+      Transpose2x2(r03, r07, r02);
       StoreStridedSets<Align>(data + start1, 2, r05, r08);
       StoreStridedSets<Align>(data + start3, 2, r00, r01);
       StoreStridedSets<Align>(data + start1 + 4, 2, r04, r02);
@@ -89,18 +89,18 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       LoadStridedSets<Align>(data + start2, 2, r04, r05);
       LoadStridedSets<Align>(data + start3, 2, r06, r07);
 
-      Transpose2(r00, r01, r08);
-      Transpose2(r04, r05, r00);
-      Transpose2(r02, r03, r04);
-      Transpose2(r06, r07, r02);
+      Transpose2x2(r00, r01, r08);
+      Transpose2x2(r04, r05, r00);
+      Transpose2x2(r02, r03, r04);
+      Transpose2x2(r06, r07, r02);
 
       auto angles0 = LoadSIMDAngleGroup(tableData, angleIndex0, flipStride);
       DIFComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles0);
 
-      Transpose2(r08, r00, r06);
-      Transpose2(r04, r02, r08);
-      Transpose2(r01, r05, r04);
-      Transpose2(r03, r07, r01);
+      Transpose2x2(r08, r00, r06);
+      Transpose2x2(r04, r02, r08);
+      Transpose2x2(r01, r05, r04);
+      Transpose2x2(r03, r07, r01);
 
       StoreStridedSets<Align>(data + start0, 2, r06, r08);
       StoreStridedSets<Align>(data + start2, 2, r00, r02);
@@ -112,18 +112,18 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       LoadStridedSets<Align>(data + start1 + 4, 2, r01, r03);
       LoadStridedSets<Align>(data + start3 + 4, 2, r04, r05);
 
-      Transpose2(r00, r02, r07);
-      Transpose2(r06, r08, r00);
-      Transpose2(r01, r03, r06);
-      Transpose2(r04, r05, r01);
+      Transpose2x2(r00, r02, r07);
+      Transpose2x2(r06, r08, r00);
+      Transpose2x2(r01, r03, r06);
+      Transpose2x2(r04, r05, r01);
 
       auto angles1 = LoadSIMDAngleGroup(tableData, angleIndex0 + 2, flipStride);
       DIFComplexRadix4Inv(r07, r02, r00, r08, r06, r03, r01, r05, angles1);
 
-      Transpose2(r07, r00, r04);
-      Transpose2(r06, r01, r07);
-      Transpose2(r02, r08, r06);
-      Transpose2(r03, r05, r02);
+      Transpose2x2(r07, r00, r04);
+      Transpose2x2(r06, r01, r07);
+      Transpose2x2(r02, r08, r06);
+      Transpose2x2(r03, r05, r02);
 
       StoreStridedSets<Align>(data + start1, 2, r04, r07);
       StoreStridedSets<Align>(data + start3, 2, r00, r01);
@@ -162,8 +162,8 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       FirstRealDIFRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles.w1r, angles.w1i, angles.w0r, angles.w0i);
 
       // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler.
-      Transpose4(r08, r00, r04, r02);
-      Transpose4(r01, r05, r03, r07);
+      Transpose4x4(r08, r00, r04, r02);
+      Transpose4x4(r01, r05, r03, r07);
 
       // swap {e0, g0} and {b0, d0} because the real butterfly needs them in this order instead.
       SwapRealComponentsForLastDoubleFlip(r08, r01, r06);
@@ -206,8 +206,8 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       auto angles = LoadSIMDAngleGroup(tableData, angleIndex0, flipStride);
       DIFComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles);
 
-      Transpose4(r08, r00, r04, r02);
-      Transpose4(r01, r05, r03, r07);
+      Transpose4x4(r08, r00, r04, r02);
+      Transpose4x4(r01, r05, r03, r07);
 
       Store<Align>(&data[start0 + 0], r08);
       Store<Align>(&data[start0 + 4], r01);
@@ -250,8 +250,8 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       auto angles = LoadSIMDAngleDouble(tableData, 0, flipStride);
       FirstRealDIFRealComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles.w1r, angles.w1i, angles.w0r, angles.w0i);
 
-      Transpose4(r08, r00, r04, r02);
-      Transpose4(r01, r05, r03, r07);
+      Transpose4x4(r08, r00, r04, r02);
+      Transpose4x4(r01, r05, r03, r07);
 
       // swap {e0, g0} and {b0, d0} because the real butterfly needs them in this order instead.
       SwapRealComponentsForLastDoubleFlip(r08, r01, r06);
@@ -293,8 +293,8 @@ void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType 
       auto angles = LoadSIMDAngleGroup(tableData, angleIndex0, flipStride);
       DIFComplexRadix4Inv(r08, r01, r00, r05, r04, r03, r02, r07, angles);
 
-      Transpose4(r08, r00, r04, r02);
-      Transpose4(r01, r05, r03, r07);
+      Transpose4x4(r08, r00, r04, r02);
+      Transpose4x4(r01, r05, r03, r07);
 
       StoreHalves<Align>(&data[start0 + 0], &data[start0 + 0 + 8], r08);
       StoreHalves<Align>(&data[start0 + 4], &data[start0 + 4 + 8], r01);

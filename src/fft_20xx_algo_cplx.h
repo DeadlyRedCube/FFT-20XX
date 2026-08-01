@@ -11,6 +11,28 @@ FORCE_INLINE void StoreUnpackedComplex(ElementType *ptr, ComplexVec<VecType> v)
 }
 
 
+template <typename V = VecType>
+FORCE_INLINE void Transpose4x4(
+  ComplexVec<V> &a,
+  ComplexVec<V> &b,
+  ComplexVec<V> &c,
+  ComplexVec<V> &d)
+{
+  Transpose4x4(a.r, b.r, c.r, d.r);
+  Transpose4x4(a.i, b.i, c.i, d.i);
+}
+
+template <typename V = VecType>
+FORCE_INLINE void Transpose2x2(
+  ComplexVec<V> &a,
+  ComplexVec<V> &b)
+{
+  V t;
+  Transpose2x2(a.r, b.r, t);
+  a.r = t;
+  Transpose2x2(a.i, b.i, t);
+  a.i = t;
+}
 
 template <typename V>
 FORCE_INLINE void AddSub(ComplexVec<V> &a, ComplexVec<V> &b)

@@ -877,18 +877,18 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
       LoadStridedSets<Align>(data, 2, r00, r01, r02, r03);
       LoadStridedSets<Align>(data + start2, 2, r04, r05, r06, r07);
 
-      Transpose2(r00, r04, r08);
-      Transpose2(r01, r06, r00);
-      Transpose2(r02, r05, r01);
-      Transpose2(r03, r07, r02);
+      Transpose2x2(r00, r04, r08);
+      Transpose2x2(r01, r06, r00);
+      Transpose2x2(r02, r05, r01);
+      Transpose2x2(r03, r07, r02);
 
       auto angles0 = LoadSIMDAngleDouble(tableData, 0, flipStride);
       FinalRealDITRealComplexRadix4(r08, r00, r04, r06, r01, r02, r05, r07, angles0.w1r, angles0.w1i, angles0.w0r, angles0.w0i);
 
-      Transpose2(r08, r00, r03);
-      Transpose2(r04, r06, r08);
-      Transpose2(r01, r02, r04);
-      Transpose2(r05, r07, r01);
+      Transpose2x2(r08, r00, r03);
+      Transpose2x2(r04, r06, r08);
+      Transpose2x2(r01, r02, r04);
+      Transpose2x2(r05, r07, r01);
 
       StoreStridedSets<Align>(data, 2, r03, r00);
       StoreStridedSets<Align>(data + start2, 2, r08, r06);
@@ -898,18 +898,18 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
       StoreStridedSets<Align>(data + start1, 2, r04, r02);
       StoreStridedSets<Align>(data + start3, 2, r01, r07);
 
-      Transpose2(r00, r08, r01);
-      Transpose2(r05, r10, r00);
-      Transpose2(r03, r09, r02);
-      Transpose2(r06, r11, r04);
+      Transpose2x2(r00, r08, r01);
+      Transpose2x2(r05, r10, r00);
+      Transpose2x2(r03, r09, r02);
+      Transpose2x2(r06, r11, r04);
 
       auto angles1 = LoadSIMDAngleGroup(tableData, 2, flipStride);
       DITComplexRadix4(r01, r00, r08, r10, r02, r04, r09, r11, angles1);
 
-      Transpose2(r01, r00, r03);
-      Transpose2(r08, r10, r01);
-      Transpose2(r02, r04, r06);
-      Transpose2(r09, r11, r02);
+      Transpose2x2(r01, r00, r03);
+      Transpose2x2(r08, r10, r01);
+      Transpose2x2(r02, r04, r06);
+      Transpose2x2(r09, r11, r02);
 
       StoreStridedSets<Align>(data + 4, 2, r03, r00);
       StoreStridedSets<Align>(data + start2 + 4, 2, r01, r10);
@@ -939,18 +939,18 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
       LoadStridedSets<Align>(data + start0, 2, r00, r01, r02, r03);
       LoadStridedSets<Align>(data + start2, 2, r04, r05, r06, r07);
 
-      Transpose2(r00, r04, r08);
-      Transpose2(r02, r06, r00);
-      Transpose2(r01, r05, r02);
-      Transpose2(r03, r07, r01);
+      Transpose2x2(r00, r04, r08);
+      Transpose2x2(r02, r06, r00);
+      Transpose2x2(r01, r05, r02);
+      Transpose2x2(r03, r07, r01);
 
       auto angles0 = LoadSIMDAngleGroup(tableData, angleIndex0, flipStride);
       DITComplexRadix4(r08, r00, r04, r06, r02, r01, r05, r07, angles0);
 
-      Transpose2(r08, r00, r03);
-      Transpose2(r04, r06, r08);
-      Transpose2(r02, r01, r04);
-      Transpose2(r05, r07, r02);
+      Transpose2x2(r08, r00, r03);
+      Transpose2x2(r04, r06, r08);
+      Transpose2x2(r02, r01, r04);
+      Transpose2x2(r05, r07, r02);
 
       StoreStridedSets<Align>(data + start0, 2, r03, r00);
       StoreStridedSets<Align>(data + start2, 2, r08, r06);
@@ -959,18 +959,18 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
       StoreStridedSets<Align>(data + start1, 2, r04, r01);
       StoreStridedSets<Align>(data + start3, 2, r02, r07);
 
-      Transpose2(r00, r09, r01);
-      Transpose2(r05, r11, r00);
-      Transpose2(r03, r10, r02);
-      Transpose2(r08, r12, r03);
+      Transpose2x2(r00, r09, r01);
+      Transpose2x2(r05, r11, r00);
+      Transpose2x2(r03, r10, r02);
+      Transpose2x2(r08, r12, r03);
 
       auto angles1 = LoadSIMDAngleGroup(tableData, angleIndex0 + 2, flipStride);
       DITComplexRadix4(r01, r00, r09, r11, r02, r03, r10, r12, angles1);
 
-      Transpose2(r01, r00, r04);
-      Transpose2(r09, r11, r01);
-      Transpose2(r02, r03, r05);
-      Transpose2(r10, r12, r02);
+      Transpose2x2(r01, r00, r04);
+      Transpose2x2(r09, r11, r01);
+      Transpose2x2(r02, r03, r05);
+      Transpose2x2(r10, r12, r02);
 
       StoreStridedSets<Align>(data + start0 + 4, 2, r04, r00);
       StoreStridedSets<Align>(data + start1 + 4, 2, r05, r03);
@@ -1002,8 +1002,8 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
       SwapRealComponentsForLastDoubleFlip(r00, r01, r08);
 
       // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler.
-      Transpose4(r08, r04, r02, r06);
-      Transpose4(r01, r05, r03, r07);
+      Transpose4x4(r08, r04, r02, r06);
+      Transpose4x4(r01, r05, r03, r07);
 
       // [0] angles are special-cased here because they're from a "previous" radix2 step (which hasn't been angle-
       //  reversed yet, effectively, so it's still in bit reverse order, hence the 1/sqrt(2) terms)
@@ -1057,8 +1057,8 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
       // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler (and
       //  also lines the values up with the loaded angles)
 
-      Transpose4(r00, r04, r02, r06);
-      Transpose4(r01, r05, r03, r07);
+      Transpose4x4(r00, r04, r02, r06);
+      Transpose4x4(r01, r05, r03, r07);
 
       auto angles = LoadSIMDAngleGroup(tableData, angleIndex0, flipStride);
       DITComplexRadix4(r00, r01, r04, r05, r02, r03, r06, r07, angles);
@@ -1105,8 +1105,8 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
       SwapRealComponentsForLastDoubleFlip(r00, r01, r08);
 
       // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler.
-      Transpose4(r08, r04, r02, r06);
-      Transpose4(r01, r05, r03, r07);
+      Transpose4x4(r08, r04, r02, r06);
+      Transpose4x4(r01, r05, r03, r07);
 
       auto angles = LoadSIMDAngleDouble(tableData, 0, flipStride);
       FinalRealDITRealComplexRadix4(r08, r01, r04, r05, r02, r03, r06, r07, angles.w1r, angles.w1i, angles.w0r, angles.w0i);
@@ -1159,8 +1159,8 @@ inline void LastDoubleFlipRadix4PassRealFwd(const F *tableData, F *data, size_t 
       // Transpose these - note that 1 and 2 are out of order - this makes the deinterleave at the end simpler (and
       //  also lines the values up with the loaded angles)
 
-      Transpose4(r00, r04, r02, r06);
-      Transpose4(r01, r05, r03, r07);
+      Transpose4x4(r00, r04, r02, r06);
+      Transpose4x4(r01, r05, r03, r07);
 
       auto angles = LoadSIMDAngleGroup(tableData, angleIndex0, flipStride);
       DITComplexRadix4(r00, r01, r04, r05, r02, r03, r06, r07, angles);
