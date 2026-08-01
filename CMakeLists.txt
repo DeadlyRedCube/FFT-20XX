@@ -108,7 +108,8 @@ elseif((CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
       fft-20xx
 
       PRIVATE
-        "src/fft_20xx_neon.cpp"
+        "src/fft_20xx_neon_cplx_f32.cpp"
+        "src/fft_20xx_neon_cplx_f64.cpp"
         "src/fft_20xx_neon_real_f32.cpp"
         "src/fft_20xx_neon_real_f64.cpp"
   )
