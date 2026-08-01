@@ -89,15 +89,11 @@ namespace FFT20XX::FMA64
     return _mm256_fnmadd_pd(a, _mm256_set1_pd(b), c);
   }
 
-  [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m256d a, __m256d b) -> __m256d
+  [[nodiscard]] FORCE_INLINE auto MSub(__m256d a, double b, __m256d c) -> __m256d
   {
-    return _mm256_fmsub_pd(_mm256_set1_pd(2.0), a, b);
+    return _mm256_fmsub_pd(a, _mm256_set1_pd(b), c);
   }
 
-  [[nodiscard]] FORCE_INLINE auto NMx2Add(__m256d a, __m256d b) -> __m256d
-  {
-    return _mm256_fnmadd_pd(_mm256_set1_pd(2.0), a, b);
-  }
 
 
   [[nodiscard]] FORCE_INLINE auto ReplaceFirstOf(auto value, auto newFirst)

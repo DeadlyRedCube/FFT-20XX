@@ -4,14 +4,15 @@
 #include "fft_20xx/fft_20xx_util.h"
 #include "fft_20xx_common.h"
 
+#include <cstring>
 
 
 namespace FFT20XX
 {
   template <std::floating_point F>
   constexpr auto TableDataOffset = std::max({1_z, sizeof(size_t) / sizeof(F), SIMDAlignment / sizeof(F)});;
-  static_assert(TableDataOffset<float> >= sizeof(size_t));
-  static_assert(TableDataOffset<double> >= sizeof(size_t));
+  static_assert(TableDataOffset<float> * sizeof(float) >= sizeof(size_t));
+  static_assert(TableDataOffset<double> * sizeof(double) >= sizeof(size_t));
 
   #define FFT20XX_TABLE_INIT(Table, F) \
     inline const F *GetTableData(const fft_20xx::c::Table *t) \

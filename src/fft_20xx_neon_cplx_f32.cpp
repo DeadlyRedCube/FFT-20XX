@@ -54,21 +54,6 @@ namespace FFT20XX::NEONCplx32
   }
 
 
-
-  template <Alignment Align>
-  FORCE_INLINE auto LoadUnpackedComplex(const float *ptr) -> ComplexVec<VecType>
-    { return { Load<Align>(ptr), Load<Align>(ptr + VecSize) }; }
-
-
-  template <Alignment Align>
-  FORCE_INLINE void StoreUnpackedComplex(float *ptr, ComplexVec<VecType> v)
-  {
-    Store<Align>(ptr, v.r);
-    Store<Align>(ptr + VecSize, v.i);
-  }
-
-
-
   template <Alignment Align>
   FORCE_INLINE auto LoadPackedComplex(const float *ptr) -> ComplexVec<VecType>
   {
@@ -85,155 +70,40 @@ namespace FFT20XX::NEONCplx32
   }
 
 
-
-
-
-  FORCE_INLINE void AddSub(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
+  [[nodiscard]] FORCE_INLINE auto Add(float32x4_t a, float32x4_t b)
   {
-    auto t = vaddq_f32(a.r, b.r);
-    b.r = vsubq_f32(a.r, b.r);
-    a.r = t;
-    t = vaddq_f32(a.i, b.i);
-    b.i = vsubq_f32(a.i, b.i);
-    a.i = t;
+    return vaddq_f32(a, b);
   }
 
-
-
-  template <Dir D>
-  FORCE_INLINE void AddSubRot45(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
+  [[nodiscard]] FORCE_INLINE auto Sub(float32x4_t a, float32x4_t b)
   {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = vaddq_f32(b.r, b.i);
-      b.i = vsubq_f32(b.i, b.r);
-      b.r = vmulq_n_f32(t, InvSqrt2<float>);
-      b.i = vmulq_n_f32(b.i, InvSqrt2<float>);
-    }
+    return vsubq_f32(a, b);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto Mul(float32x4_t a, float32x4_t b)
+  {
+    return vmulq_f32(a, b);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto Mul(float32x4_t a, float b)
+  {
+    return vmulq_n_f32(a, b);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto MAdd(float32x4_t a, auto b, float32x4_t c) -> float32x4_t
+  {
+    if constexpr (std::floating_point<decltype(b)>)
+      { return vmlaq_n_f32(c, a, b); }
     else
-    {
-      auto t = vsubq_f32(b.r, b.i);
-      b.i = vaddq_f32(b.i, b.r);
-      b.r = vmulq_n_f32(t, InvSqrt2<float>);
-      b.i = vmulq_n_f32(b.i, InvSqrt2<float>);
-    }
-
-    auto t = vaddq_f32(a.r, b.r);
-    b.r = vsubq_f32(a.r, b.r);
-    a.r = t;
-    t = vaddq_f32(a.i, b.i);
-    b.i = vsubq_f32(a.i, b.i);
-    a.i = t;
+      { return vmlaq_f32(c, b, a); }
   }
 
-
-
-  template <Dir D>
-  FORCE_INLINE void AddSubRot90(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
+  [[nodiscard]] FORCE_INLINE auto NMAdd(float32x4_t a, auto b, float32x4_t c) -> float32x4_t
   {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = vaddq_f32(a.r, b.i);
-      b.i = vsubq_f32(a.r, b.i);
-      a.r = t;
-      t = vsubq_f32(a.i, b.r);
-      b.r = vaddq_f32(a.i, b.r);
-      a.i = t;
-    }
+    if constexpr (std::floating_point<decltype(b)>)
+      { return vmlsq_n_f32(c, a, b); }
     else
-    {
-      auto t = vsubq_f32(a.r, b.i);
-      b.i = vaddq_f32(a.r, b.i);
-      a.r = t;
-      t = vaddq_f32(a.i, b.r);
-      b.r = vsubq_f32(a.i, b.r);
-      a.i = t;
-    }
-    std::swap(b.r, b.i);
-  }
-
-
-
-  template <Dir D>
-  FORCE_INLINE void AddSubRot135(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
-  {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = vsubq_f32(b.i, b.r);
-      b.i = vaddq_f32(b.i, b.r); // This is actually -b.i
-      b.r = vmulq_n_f32(t, InvSqrt2<float>);
-      b.i = vmulq_n_f32(b.i, InvSqrt2<float>);
-
-      t = vaddq_f32(a.r, b.r);
-      b.r = vsubq_f32(a.r, b.r);
-      a.r = t;
-      t = vsubq_f32(a.i, b.i); // Because b.i is -b.i, addition is subtraction!
-      b.i = vaddq_f32(a.i, b.i);
-      a.i = t;
-    }
-    else
-    {
-      auto t = vaddq_f32(b.i, b.r); // This is actually -b.r
-      b.i = vsubq_f32(b.r, b.i);
-      b.r = vmulq_n_f32(t, InvSqrt2<float>);
-      b.i = vmulq_n_f32(b.i, InvSqrt2<float>);
-
-      t = vsubq_f32(a.r, b.r); // because b.r is actually -b.r, swap the addition/subtraction
-      b.r = vaddq_f32(a.r, b.r);
-      a.r = t;
-      t = vaddq_f32(a.i, b.i);
-      b.i = vsubq_f32(a.i, b.i);
-      a.i = t;
-    }
-  }
-
-
-  [[nodiscard]] FORCE_INLINE auto ComplexMultiply(ComplexVec<VecType> a, ComplexVec<VecType> b) -> ComplexVec<VecType>
-  {
-    auto t = vmlsq_f32(vmulq_f32(a.r, b.r), a.i, b.i);
-    a.i = vmlaq_f32(vmulq_f32(a.r, b.i), a.i, b.r);
-    a.r = t;
-    return a;
-  }
-
-  [[nodiscard]] FORCE_INLINE auto ScalarMultiply(ComplexVec<VecType> a, VecType b) -> ComplexVec<VecType>
-  {
-    return { vmulq_f32(a.r, b), vmulq_f32(a.i, b) };
-  }
-
-  template <Dir D>
-  FORCE_INLINE void Rotate(ComplexVec<VecType> &a, ComplexVec<VecType> w)
-  {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = vmlsq_f32(vmulq_f32(a.r, w.r), a.i, w.i);
-      a.i = vmlaq_f32(vmulq_f32(a.r, w.i), a.i, w.r);
-      a.r = t;
-    }
-    else
-    {
-      auto t = vmlaq_f32(vmulq_f32(a.r, w.r), a.i, w.i);
-      a.i = vmlsq_f32(vmulq_f32(a.i, w.r), a.r, w.i);
-      a.r = t;
-    }
-  }
-
-
-  template <Dir D>
-  FORCE_INLINE void Rotate(ComplexVec<VecType> &a, Complex<float> w)
-  {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = vmlsq_n_f32(vmulq_n_f32(a.r, w.r), a.i, w.i);
-      a.i = vmlaq_n_f32(vmulq_n_f32(a.r, w.i), a.i, w.r);
-      a.r = t;
-    }
-    else
-    {
-      auto t = vmlaq_n_f32(vmulq_n_f32(a.r, w.r), a.i, w.i);
-      a.i = vmlsq_n_f32(vmulq_n_f32(a.i, w.r), a.r, w.i);
-      a.r = t;
-    }
+      { return vmlsq_f32(c, b, a); }
   }
 
 

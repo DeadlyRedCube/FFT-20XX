@@ -212,25 +212,14 @@ namespace FFT20XX::FMA
     return _mm256_fnmadd_ps(a, Set2(b.first, b.second), c);
   }
 
-  [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m256 a, __m256 b) -> __m256
+  [[nodiscard]] FORCE_INLINE auto MSub(__m256 a, float b, __m256 c) -> __m256
   {
-    return _mm256_fmsub_ps(_mm256_set1_ps(2.0f), a, b);
+    return _mm256_fmsub_ps(a, _mm256_set1_ps(b), c);
   }
 
-  [[nodiscard]] FORCE_INLINE auto NMx2Add(__m256 a, __m256 b) -> __m256
+  [[nodiscard]] FORCE_INLINE auto MSub(__m128 a, float b, __m128 c) -> __m128
   {
-    return _mm256_fnmadd_ps(_mm256_set1_ps(2.0f), a, b);
-  }
-
-
-  [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m128 a, __m128 b) -> __m128
-  {
-    return _mm_fmsub_ps(_mm_set1_ps(2.0f), a, b);
-  }
-
-  [[nodiscard]] FORCE_INLINE auto NMx2Add(__m128 a, __m128 b) -> __m128
-  {
-    return _mm_fnmadd_ps(_mm_set1_ps(2.0f), a, b);
+    return _mm_fmsub_ps(a, _mm_set1_ps(b), c);
   }
 
   [[nodiscard]] FORCE_INLINE auto ReplaceFirstOf(__m256 value, auto newFirst) -> __m256

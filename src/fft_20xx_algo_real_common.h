@@ -60,8 +60,8 @@ FORCE_INLINE void DITComplexRadix2(auto &aR, auto &aI, auto &bR, auto &bI, auto 
     aROut = MAdd(bR, wR, aROut);
     aIOut = MAdd(bR, wI, aI);
     aIOut = MAdd(bI, wR, aIOut);
-    bR = Mx2Sub(aR, aROut);
-    bI = NMx2Add(aI, aIOut);
+    bR = MSub(aR, ElementType(2), aROut);
+    bI = NMAdd(aI, ElementType(2), aIOut);
   }
   else
   {
@@ -330,23 +330,23 @@ FORCE_INLINE void DITComplexRadix4(V &aR, V &aI, V &bR, V &bI, V &cR, V &cI, V &
   {
     auto t1 = NMAdd(dI, angles.w1i, MAdd(dR, angles.w1r, bR));
     auto t2 = MAdd(dI, angles.w1r, MAdd(dR, angles.w1i, bI));
-    dR = Mx2Sub(bR, t1);
-    dI = NMx2Add(bI, t2);
+    dR = MSub(bR, ElementType(2), t1);
+    dI = NMAdd(bI, ElementType(2), t2);
 
     bR = NMAdd(cI, angles.w1i, MAdd(cR, angles.w1r, aR));
     bI = MAdd(cI, angles.w1r, MAdd(cR, angles.w1i, aI));
-    aR = Mx2Sub(aR, bR);
-    aI = NMx2Add(aI, bI);
+    aR = MSub(aR, ElementType(2), bR);
+    aI = NMAdd(aI, ElementType(2), bI);
 
     cR = NMAdd(dR, angles.w0i, MAdd(dI, angles.w0r, aR));
     cI = NMAdd(dR, angles.w0r, NMAdd(dI, angles.w0i, aI));
-    dR = Mx2Sub(aR, cR);
-    dI = NMx2Add(aI, cI);
+    dR = MSub(aR, ElementType(2), cR);
+    dI = NMAdd(aI, ElementType(2), cI);
 
     aR = NMAdd(t2, angles.w0i, MAdd(t1, angles.w0r, bR));
     aI = MAdd(t2, angles.w0r, MAdd(t1, angles.w0i, bI));
-    bR = Mx2Sub(bR, aR);
-    bI = NMx2Add(bI, aI);
+    bR = MSub(bR, ElementType(2), aR);
+    bI = NMAdd(bI, ElementType(2), aI);
   }
 };
 
@@ -426,8 +426,8 @@ FORCE_INLINE void DIFComplexRadix4Inv(
 
     bR = NMAdd(bI, angles.w0r, NMAdd(cR, angles.w0i, dR));
     bI = MAdd(bI, angles.w0i, NMAdd(cR, angles.w0r, dI));
-    cR = Mx2Sub(dR, bR);
-    dI = Mx2Sub(dI, bI);
+    cR = MSub(dR, ElementType(2), bR);
+    dI = MSub(dI, ElementType(2), bI);
 
     dR = MAdd(dI, angles.w1i, Mul(cR, angles.w1r));
     dI = NMAdd(cR, angles.w1i, Mul(dI, angles.w1r));
@@ -463,29 +463,29 @@ FORCE_INLINE void FinalRealDITRealComplexRadix4(
     e = MAdd(e, w0I, MAdd(f, w0R, b));
     w0I = NMAdd(h, w0I, MAdd(g, w0R, c));
 
-    f = NMx2Add(c, w0I); // Do -g here so that we can leverage it for the 90 degree rotation later
+    f = NMAdd(c, ElementType(2), w0I); // Do -g here so that we can leverage it for the 90 degree rotation later
 
-    g = Mx2Sub(a, t1);
-    h = NMx2Add(b, e);
+    g = MSub(a, ElementType(2), t1);
+    h = NMAdd(b, ElementType(2), e);
 
-    w0R = NMx2Add(d, t2);
+    w0R = NMAdd(d, ElementType(2), t2);
 
     d = ReplaceFirstOf(e, w0I);
     b = ReplaceFirstOf(w0I, e);
 
     a = NMAdd(t2, w1I, MAdd(b, w1R, t1));
-    c = Mx2Sub(t1, a);
+    c = MSub(t1, ElementType(2), a);
 
     b = MAdd(b, w1I, MAdd(t2, w1R, d));
-    d = NMx2Add(d, b);
+    d = NMAdd(d, ElementType(2), b);
 
     w1I = ReplaceFirstOf(w1I, -InvSqrt2<ElementType>);
     w1R = ReplaceFirstOf(w1R, InvSqrt2<ElementType>);
 
     e = MAdd(w0R, w1R, MAdd(f, w1I, g));
     f = NMAdd(w0R, w1I, MAdd(f, w1R, h));
-    g = Mx2Sub(g, e);
-    h = NMx2Add(h, f);
+    g = MSub(g, ElementType(2), e);
+    h = NMAdd(h, ElementType(2), f);
   }
   else
   {

@@ -1,3 +1,225 @@
+template <Alignment Align>
+FORCE_INLINE auto LoadUnpackedComplex(const ElementType *ptr) -> ComplexVec<VecType>
+  { return { Load<Align>(ptr), Load<Align>(ptr + VecSize) }; }
+
+
+template <Alignment Align>
+FORCE_INLINE void StoreUnpackedComplex(ElementType *ptr, ComplexVec<VecType> v)
+{
+  Store<Align>(ptr, v.r);
+  Store<Align>(ptr + VecSize, v.i);
+}
+
+
+
+template <typename V>
+FORCE_INLINE void AddSub(ComplexVec<V> &a, ComplexVec<V> &b)
+{
+  auto t = Add(a.r, b.r);
+  b.r = Sub(a.r, b.r);
+  a.r = t;
+  t = Add(a.i, b.i);
+  b.i = Sub(a.i, b.i);
+  a.i = t;
+}
+
+
+template <Dir D, typename V>
+FORCE_INLINE void AddSubRot45(ComplexVec<V> &a, ComplexVec<V> &b)
+{
+  if constexpr (D == Dir::Forward)
+  {
+    auto t = Add(b.r, b.i);
+    b.i = Sub(b.i, b.r);
+    b.r = Mul(t, InvSqrt2<ElementType>);
+    b.i = Mul(b.i, InvSqrt2<ElementType>);
+  }
+  else
+  {
+    auto t = Sub(b.r, b.i);
+    b.i = Add(b.i, b.r);
+    b.r = Mul(t, InvSqrt2<ElementType>);
+    b.i = Mul(b.i, InvSqrt2<ElementType>);
+  }
+
+  auto t = Add(a.r, b.r);
+  b.r = Sub(a.r, b.r);
+  a.r = t;
+  t = Add(a.i, b.i);
+  b.i = Sub(a.i, b.i);
+  a.i = t;
+}
+
+
+
+template <Dir D, typename V>
+FORCE_INLINE void AddSubRot90(ComplexVec<V> &a, ComplexVec<V> &b)
+{
+  if constexpr (D == Dir::Forward)
+  {
+    auto t = Add(a.r, b.i);
+    b.i = Sub(a.r, b.i);
+    a.r = t;
+    t = Sub(a.i, b.r);
+    b.r = Add(a.i, b.r);
+    a.i = t;
+  }
+  else
+  {
+    auto t = Sub(a.r, b.i);
+    b.i = Add(a.r, b.i);
+    a.r = t;
+    t = Add(a.i, b.r);
+    b.r = Sub(a.i, b.r);
+    a.i = t;
+  }
+  std::swap(b.r, b.i);
+}
+
+
+
+template <Dir D, typename V>
+FORCE_INLINE void AddSubRot135(ComplexVec<V> &a, ComplexVec<V> &b)
+{
+  if constexpr (D == Dir::Forward)
+  {
+    auto t = Sub(b.i, b.r);
+    b.i = Add(b.i, b.r); // This is actually -b.i
+    b.r = Mul(t, InvSqrt2<ElementType>);
+    b.i = Mul(b.i, InvSqrt2<ElementType>);
+
+    t = Add(a.r, b.r);
+    b.r = Sub(a.r, b.r);
+    a.r = t;
+    t = Sub(a.i, b.i); // Because b.i is -b.i, addition is subtraction!
+    b.i = Add(a.i, b.i);
+    a.i = t;
+  }
+  else
+  {
+    auto t = Add(b.i, b.r); // This is actually -b.r
+    b.i = Sub(b.r, b.i);
+    b.r = Mul(t, InvSqrt2<ElementType>);
+    b.i = Mul(b.i, InvSqrt2<ElementType>);
+
+    t = Sub(a.r, b.r); // because b.r is actually -b.r, swap the addition/subtraction
+    b.r = Add(a.r, b.r);
+    a.r = t;
+    t = Add(a.i, b.i);
+    b.i = Sub(a.i, b.i);
+    a.i = t;
+  }
+}
+
+
+template <Dir D, typename V>
+FORCE_INLINE void Rotate(ComplexVec<V> &a, auto angle)
+{
+  auto w =
+    [&]()
+    {
+      if constexpr (requires (decltype(angle) aa) { aa.first; })
+        { return ComplexVec{ Set2(angle.first.r, angle.second.r),  Set2(angle.first.i, angle.second.i) }; }
+      else
+        { return angle; }
+    }();
+
+  if constexpr (D == Dir::Forward)
+  {
+    auto t = NMAdd(a.i, w.i, Mul(a.r, w.r));
+    a.i = MAdd(a.r, w.i, Mul(a.i, w.r));
+    a.r = t;
+  }
+  else
+  {
+    auto t = MAdd(a.r, w.r, Mul(a.i, w.i));
+    a.i = NMAdd(a.r, w.i, Mul(a.i, w.r));
+    a.r = t;
+  }
+}
+
+
+template <Dir D, typename V>
+FORCE_INLINE void AddSubRot(ComplexVec<V> &a, ComplexVec<V> &b, auto angle)
+{
+  auto w =
+    [&]()
+    {
+      if constexpr (requires (decltype(angle) aa) { aa.first; })
+        { return ComplexVec{ Set2(angle.first.r, angle.second.r),  Set2(angle.first.i, angle.second.i) }; }
+      else
+        { return angle; }
+    }();
+
+  if constexpr (D == Dir::Forward)
+  {
+    auto t1 = MAdd(b.r, w.r, NMAdd(b.i, w.i, a.r));
+    auto t2 = MAdd(b.r, w.i, MAdd(b.i, w.r, a.i));
+    b.r = MSub(a.r, 2.0f, t1);
+    a.r = t1;
+    b.i = MSub(a.i, 2.0f, t2);
+    a.i = t2;
+  }
+  else
+  {
+    auto t1 = MAdd(b.r, w.r, MAdd(b.i, w.i, a.r));
+    auto t2 = NMAdd(b.r, w.i, MAdd(b.i, w.r, a.i));
+    b.r = MSub(a.r, 2.0f, t1);
+    a.r = t1;
+    b.i = MSub(a.i, 2.0f, t2);
+    a.i = t2;
+  }
+}
+
+
+
+template <Dir D, typename V>
+FORCE_INLINE void AddSubRotPlus90(ComplexVec<V> &a, ComplexVec<V> &b, auto angle)
+{
+  auto w =
+    [&]()
+    {
+      if constexpr (requires (decltype(angle) aa) { aa.first; })
+        { return ComplexVec{ Set2(angle.first.r, angle.second.r),  Set2(angle.first.i, angle.second.i) }; }
+      else
+        { return angle; }
+    }();
+
+  if constexpr (D == Dir::Forward)
+  {
+    auto t1 = MAdd(b.r, w.i, MAdd(b.i, w.r, a.r));
+    auto t2 = NMAdd(b.r, w.r, MAdd(b.i, w.i, a.i));
+    b.r = MSub(a.r, 2.0f, t1);
+    a.r = t1;
+    b.i = MSub(a.i, 2.0f, t2);
+    a.i = t2;
+  }
+  else
+  {
+    auto t1 = MAdd(b.r, w.i, NMAdd(b.i, w.r, a.r));
+    auto t2 = MAdd(b.r, w.r, MAdd(b.i, w.i, a.i));
+    b.r = MSub(a.r, 2.0f, t1);
+    a.r = t1;
+    b.i = MSub(a.i, 2.0f, t2);
+    a.i = t2;
+  }
+}
+
+template <typename V>
+[[nodiscard]] FORCE_INLINE auto ComplexMultiply(ComplexVec<V> a, ComplexVec<V> b) -> ComplexVec<V>
+{
+  auto t = NMAdd(a.i, b.i, Mul(a.r, b.r));
+  a.i = MAdd(a.r, b.i, Mul(a.i, b.r));
+  a.r = t;
+  return a;
+}
+
+template <typename V>
+[[nodiscard]] FORCE_INLINE auto ScalarMultiply(ComplexVec<V> a, V b) -> ComplexVec<V>
+{
+  return { Mul(a.r, b), Mul(a.i, b) };
+}
+
 auto BitRev(std::integral auto v)
 {
   if constexpr (sizeof(v) == sizeof(uint64_t))

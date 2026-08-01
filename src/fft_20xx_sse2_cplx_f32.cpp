@@ -60,21 +60,35 @@ namespace FFT20XX::SSE2
       { return _mm_storeu_ps(ptr, v); }
   }
 
-
-
-  template <Alignment Align>
-  FORCE_INLINE auto LoadUnpackedComplex(const float *ptr) -> ComplexVec<VecType>
-    { return { Load<Align>(ptr), Load<Align>(ptr + VecSize) }; }
-
-
-  template <Alignment Align>
-  FORCE_INLINE void StoreUnpackedComplex(float *ptr, ComplexVec<VecType> v)
+  [[nodiscard]] FORCE_INLINE auto Add(__m128 a, __m128 b)
   {
-    Store<Align>(ptr, v.r);
-    Store<Align>(ptr + VecSize, v.i);
+    return _mm_add_ps(a, b);
   }
 
+  [[nodiscard]] FORCE_INLINE auto Sub(__m128 a, __m128 b)
+  {
+    return _mm_sub_ps(a, b);
+  }
 
+  [[nodiscard]] FORCE_INLINE auto Mul(__m128 a, __m128 b)
+  {
+    return _mm_mul_ps(a, b);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto Mul(__m128 a, float b)
+  {
+    return _mm_mul_ps(a, _mm_set1_ps(b));
+  }
+
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m128 a, auto b, __m128 c) -> __m128
+  {
+    return Add(Mul(a, b), c);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m128 a, auto b, __m128 c) -> __m128
+  {
+    return Sub(c, Mul(a, b));
+  }
 
   template <Alignment Align>
   FORCE_INLINE auto LoadPackedComplex(const float *ptr) -> ComplexVec<VecType>
@@ -93,162 +107,6 @@ namespace FFT20XX::SSE2
     auto bb = _mm_unpackhi_ps(v.r, v.i);
     Store<Align>(ptr, aa);
     Store<Align>(ptr + 4, bb);
-  }
-
-
-
-
-
-  FORCE_INLINE void AddSub(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
-  {
-    auto t = _mm_add_ps(a.r, b.r);
-    b.r = _mm_sub_ps(a.r, b.r);
-    a.r = t;
-    t = _mm_add_ps(a.i, b.i);
-    b.i = _mm_sub_ps(a.i, b.i);
-    a.i = t;
-  }
-
-
-
-  template <Dir D>
-  FORCE_INLINE void AddSubRot45(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
-  {
-    const auto s = _mm_set1_ps(InvSqrt2<float>);
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm_add_ps(b.r, b.i);
-      b.i = _mm_sub_ps(b.i, b.r);
-      b.r = _mm_mul_ps(s, t);
-      b.i = _mm_mul_ps(s, b.i);
-    }
-    else
-    {
-      auto t = _mm_sub_ps(b.r, b.i);
-      b.i = _mm_add_ps(b.i, b.r);
-      b.r = _mm_mul_ps(s, t);
-      b.i = _mm_mul_ps(s, b.i);
-    }
-
-    auto t = _mm_add_ps(a.r, b.r);
-    b.r = _mm_sub_ps(a.r, b.r);
-    a.r = t;
-    t = _mm_add_ps(a.i, b.i);
-    b.i = _mm_sub_ps(a.i, b.i);
-    a.i = t;
-  }
-
-
-
-  template <Dir D>
-  FORCE_INLINE void AddSubRot90(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
-  {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm_add_ps(a.r, b.i);
-      b.i = _mm_sub_ps(a.r, b.i);
-      a.r = t;
-      t = _mm_sub_ps(a.i, b.r);
-      b.r = _mm_add_ps(a.i, b.r);
-      a.i = t;
-    }
-    else
-    {
-      auto t = _mm_sub_ps(a.r, b.i);
-      b.i = _mm_add_ps(a.r, b.i);
-      a.r = t;
-      t = _mm_add_ps(a.i, b.r);
-      b.r = _mm_sub_ps(a.i, b.r);
-      a.i = t;
-    }
-    std::swap(b.r, b.i);
-  }
-
-
-
-  template <Dir D>
-  FORCE_INLINE void AddSubRot135(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
-  {
-    const auto s = _mm_set1_ps(InvSqrt2<float>);
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm_sub_ps(b.i, b.r);
-      b.i = _mm_add_ps(b.i, b.r); // This is actually -b.i
-      b.r = _mm_mul_ps(s, t);
-      b.i = _mm_mul_ps(s, b.i);
-
-      t = _mm_add_ps(a.r, b.r);
-      b.r = _mm_sub_ps(a.r, b.r);
-      a.r = t;
-      t = _mm_sub_ps(a.i, b.i); // Because b.i is -b.i, addition is subtraction!
-      b.i = _mm_add_ps(a.i, b.i);
-      a.i = t;
-    }
-    else
-    {
-      auto t = _mm_add_ps(b.i, b.r); // This is actually -b.r
-      b.i = _mm_sub_ps(b.r, b.i);
-      b.r = _mm_mul_ps(s, t);
-      b.i = _mm_mul_ps(s, b.i);
-
-      t = _mm_sub_ps(a.r, b.r); // because b.r is actually -b.r, swap the addition/subtraction
-      b.r = _mm_add_ps(a.r, b.r);
-      a.r = t;
-      t = _mm_add_ps(a.i, b.i);
-      b.i = _mm_sub_ps(a.i, b.i);
-      a.i = t;
-    }
-  }
-
-
-  [[nodiscard]] FORCE_INLINE auto ComplexMultiply(ComplexVec<VecType> a, ComplexVec<VecType> b) -> ComplexVec<VecType>
-  {
-    auto t = _mm_sub_ps(_mm_mul_ps(a.r, b.r), _mm_mul_ps(a.i, b.i));
-    a.i = _mm_add_ps(_mm_mul_ps(a.r, b.i), _mm_mul_ps(a.i, b.r));
-    a.r = t;
-    return a;
-  }
-
-  [[nodiscard]] FORCE_INLINE auto ScalarMultiply(ComplexVec<VecType> a, VecType b) -> ComplexVec<VecType>
-  {
-    return { _mm_mul_ps(a.r, b), _mm_mul_ps(a.i, b) };
-  }
-
-  template <Dir D>
-  FORCE_INLINE void Rotate(ComplexVec<VecType> &a, ComplexVec<VecType> w)
-  {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm_sub_ps(_mm_mul_ps(a.r, w.r), _mm_mul_ps(a.i, w.i));
-      a.i = _mm_add_ps(_mm_mul_ps(a.r, w.i), _mm_mul_ps(a.i, w.r));
-      a.r = t;
-    }
-    else
-    {
-      auto t = _mm_add_ps(_mm_mul_ps(a.r, w.r), _mm_mul_ps(a.i, w.i));
-      a.i = _mm_sub_ps(_mm_mul_ps(a.i, w.r), _mm_mul_ps(a.r, w.i));
-      a.r = t;
-    }
-  }
-
-
-  template <Dir D>
-  FORCE_INLINE void Rotate(ComplexVec<VecType> &a, Complex<float> w)
-  {
-    auto wR = _mm_set1_ps(w.r);
-    auto wI = _mm_set1_ps(w.i);
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm_sub_ps(_mm_mul_ps(a.r, wR), _mm_mul_ps(a.i, wI));
-      a.i = _mm_add_ps(_mm_mul_ps(a.r, wI), _mm_mul_ps(a.i, wR));
-      a.r = t;
-    }
-    else
-    {
-      auto t = _mm_add_ps(_mm_mul_ps(a.r, wR), _mm_mul_ps(a.i, wI));
-      a.i = _mm_sub_ps(_mm_mul_ps(a.i, wR), _mm_mul_ps(a.r, wI));
-      a.r = t;
-    }
   }
 
 

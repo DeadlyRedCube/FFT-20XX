@@ -78,16 +78,6 @@ namespace FFT20XX::SSE2
     return Sub(c, Mul(a, b));
   }
 
-  [[nodiscard]] FORCE_INLINE auto Mx2Sub(__m128 a, __m128 b) -> __m128
-  {
-    return _mm_sub_ps(_mm_add_ps(a, a), b);
-  }
-
-  [[nodiscard]] FORCE_INLINE auto NMx2Add(__m128 a, __m128 b) -> __m128
-  {
-    return _mm_sub_ps(b, _mm_add_ps(a, a));
-  }
-
   [[nodiscard]] FORCE_INLINE auto ReplaceFirstOf(auto value, auto newFirst)
   {
     // For AVX the best version I've found is:

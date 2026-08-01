@@ -84,19 +84,6 @@ namespace FFT20XX::AVX32Cplx
 
 
   template <Alignment Align>
-  FORCE_INLINE auto LoadUnpackedComplex(const float *ptr) -> ComplexVec<VecType>
-    { return { Load<Align>(ptr), Load<Align>(ptr + VecSize) }; }
-
-
-  template <Alignment Align>
-  FORCE_INLINE void StoreUnpackedComplex(float *ptr, ComplexVec<VecType> v)
-  {
-    Store<Align>(ptr, v.r);
-    Store<Align>(ptr + VecSize, v.i);
-  }
-
-
-  template <Alignment Align>
   FORCE_INLINE auto LoadUnpackedComplexHalves(const float *ptr0, const float *ptr1) -> ComplexVec<VecType>
   {
     auto r = _mm256_insertf128_ps(_mm256_castps128_ps256(LoadHalf<Align>(ptr0)), LoadHalf<Align>(ptr1), 1);
@@ -117,7 +104,8 @@ namespace FFT20XX::AVX32Cplx
   template <Alignment Align>
   FORCE_INLINE auto LoadPackedComplex(const float *ptr) -> ComplexVec<VecType>
   {
-    auto [r, i] = LoadUnpackedComplex<Align>(ptr);
+    auto r = Load<Align>(ptr);
+    auto i = Load<Align>(ptr + VecSize);
     auto t = _mm256_permute2f128_ps(r, i, 0x20);
     i = _mm256_permute2f128_ps(r, i, 0x31);
     r = _mm256_shuffle_ps(t, i, _MM_SHUFFLE(2, 0, 2, 0));
@@ -184,153 +172,72 @@ namespace FFT20XX::AVX32Cplx
     Store<Align>(ptr + 4 + VecSize, bI);
   }
 
-  FORCE_INLINE void AddSub(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
+
+  [[nodiscard]] FORCE_INLINE auto Add(__m256 a, __m256 b) -> __m256
   {
-    auto t = _mm256_add_ps(a.r, b.r);
-    b.r = _mm256_sub_ps(a.r, b.r);
-    a.r = t;
-    t = _mm256_add_ps(a.i, b.i);
-    b.i = _mm256_sub_ps(a.i, b.i);
-    a.i = t;
+    return _mm256_add_ps(a, b);
   }
 
-
-
-  template <Dir D>
-  FORCE_INLINE void AddSubRot45(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
+  [[nodiscard]] FORCE_INLINE auto Sub(__m256 a, __m256 b) -> __m256
   {
-    const auto s = _mm256_set1_ps(InvSqrt2<float>);
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm256_add_ps(b.r, b.i);
-      b.i = _mm256_sub_ps(b.i, b.r);
-      b.r = _mm256_mul_ps(s, t);
-      b.i = _mm256_mul_ps(s, b.i);
-    }
-    else
-    {
-      auto t = _mm256_sub_ps(b.r, b.i);
-      b.i = _mm256_add_ps(b.i, b.r);
-      b.r = _mm256_mul_ps(s, t);
-      b.i = _mm256_mul_ps(s, b.i);
-    }
-
-    auto t = _mm256_add_ps(a.r, b.r);
-    b.r = _mm256_sub_ps(a.r, b.r);
-    a.r = t;
-    t = _mm256_add_ps(a.i, b.i);
-    b.i = _mm256_sub_ps(a.i, b.i);
-    a.i = t;
+    return _mm256_sub_ps(a, b);
   }
 
-
-
-  template <Dir D>
-  FORCE_INLINE void AddSubRot90(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
+  [[nodiscard]] FORCE_INLINE auto Mul(__m256 a, __m256 b) -> __m256
   {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm256_add_ps(a.r, b.i);
-      b.i = _mm256_sub_ps(a.r, b.i);
-      a.r = t;
-      t = _mm256_sub_ps(a.i, b.r);
-      b.r = _mm256_add_ps(a.i, b.r);
-      a.i = t;
-    }
-    else
-    {
-      auto t = _mm256_sub_ps(a.r, b.i);
-      b.i = _mm256_add_ps(a.r, b.i);
-      a.r = t;
-      t = _mm256_add_ps(a.i, b.r);
-      b.r = _mm256_sub_ps(a.i, b.r);
-      a.i = t;
-    }
-    std::swap(b.r, b.i);
+    return _mm256_mul_ps(a, b);
   }
 
-
-
-  template <Dir D>
-  FORCE_INLINE void AddSubRot135(ComplexVec<VecType> &a, ComplexVec<VecType> &b)
+  [[nodiscard]] FORCE_INLINE auto Mul(__m256 a, float b) -> __m256
   {
-    const auto s = _mm256_set1_ps(InvSqrt2<float>);
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm256_sub_ps(b.i, b.r);
-      b.i = _mm256_add_ps(b.i, b.r); // This is actually -b.i
-      b.r = _mm256_mul_ps(s, t);
-      b.i = _mm256_mul_ps(s, b.i);
-
-      t = _mm256_add_ps(a.r, b.r);
-      b.r = _mm256_sub_ps(a.r, b.r);
-      a.r = t;
-      t = _mm256_sub_ps(a.i, b.i); // Because b.i is -b.i, addition is subtraction!
-      b.i = _mm256_add_ps(a.i, b.i);
-      a.i = t;
-    }
-    else
-    {
-      auto t = _mm256_add_ps(b.i, b.r); // This is actually -b.r
-      b.i = _mm256_sub_ps(b.r, b.i);
-      b.r = _mm256_mul_ps(s, t);
-      b.i = _mm256_mul_ps(s, b.i);
-
-      t = _mm256_sub_ps(a.r, b.r); // because b.r is actually -b.r, swap the addition/subtraction
-      b.r = _mm256_add_ps(a.r, b.r);
-      a.r = t;
-      t = _mm256_add_ps(a.i, b.i);
-      b.i = _mm256_sub_ps(a.i, b.i);
-      a.i = t;
-    }
+    return _mm256_mul_ps(a, _mm256_set1_ps(b));
   }
 
-
-  [[nodiscard]] FORCE_INLINE auto ComplexMultiply(ComplexVec<VecType> a, ComplexVec<VecType> b) -> ComplexVec<VecType>
+  [[nodiscard]] FORCE_INLINE auto Mul(__m256 a, std::pair<float, float> b) -> __m256
   {
-    auto t = _mm256_sub_ps(_mm256_mul_ps(a.r, b.r), _mm256_mul_ps(a.i, b.i));
-    a.i = _mm256_add_ps(_mm256_mul_ps(a.r, b.i), _mm256_mul_ps(a.i, b.r));
-    a.r = t;
-    return a;
+    return _mm256_mul_ps(a, Set2(b.first, b.second));
   }
 
-  [[nodiscard]] FORCE_INLINE auto ScalarMultiply(ComplexVec<VecType> a, VecType b) -> ComplexVec<VecType>
+  [[nodiscard]] FORCE_INLINE auto Add(__m128 a, __m128 b) -> __m128
   {
-    return { _mm256_mul_ps(a.r, b), _mm256_mul_ps(a.i, b) };
+    return _mm_add_ps(a, b);
   }
 
-  template <Dir D>
-  FORCE_INLINE void Rotate(ComplexVec<VecType> &a, auto w)
+  [[nodiscard]] FORCE_INLINE auto Sub(__m128 a, __m128 b) -> __m128
   {
-    VecType wR, wI;
-    if constexpr (std::same_as<decltype(w), ComplexVec<VecType>>)
-    {
-      wR = w.r;
-      wI = w.i;
-    }
-    else if constexpr (std::same_as<decltype(w), std::pair<Complex<ElementType>, Complex<ElementType>>>)
-    {
-      wR = Set2(w.first.r, w.second.r);
-      wI = Set2(w.first.i, w.second.i);
-    }
-    else
-    {
-      wR = _mm256_set1_ps(w.r);
-      wI = _mm256_set1_ps(w.i);
-    }
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = _mm256_sub_ps(_mm256_mul_ps(a.r, wR), _mm256_mul_ps(a.i, wI));
-      a.i = _mm256_add_ps(_mm256_mul_ps(a.r, wI), _mm256_mul_ps(a.i, wR));
-      a.r = t;
-    }
-    else
-    {
-      auto t = _mm256_add_ps(_mm256_mul_ps(a.r, wR), _mm256_mul_ps(a.i, wI));
-      a.i = _mm256_sub_ps(_mm256_mul_ps(a.i, wR), _mm256_mul_ps(a.r, wI));
-      a.r = t;
-    }
+    return _mm_sub_ps(a, b);
   }
+
+  [[nodiscard]] FORCE_INLINE auto Mul(__m128 a, __m128 b) -> __m128
+  {
+    return _mm_mul_ps(a, b);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto Mul(__m128 a, float b) -> __m128
+  {
+    return _mm_mul_ps(a, _mm_set1_ps(b));
+  }
+
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m256 a, auto b, __m256 c) -> __m256
+  {
+    return Add(Mul(a, b), c);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m256 a, auto b, __m256 c) -> __m256
+  {
+    return Sub(c, Mul(a, b));
+  }
+
+  [[nodiscard]] FORCE_INLINE auto MAdd(__m128 a, auto b, __m128 c) -> __m128
+  {
+    return Add(Mul(a, b), c);
+  }
+
+  [[nodiscard]] FORCE_INLINE auto NMAdd(__m128 a, auto b, __m128 c) -> __m128
+  {
+    return Sub(c, Mul(a, b));
+  }
+
 
 
   FORCE_INLINE void Transpose4x4(

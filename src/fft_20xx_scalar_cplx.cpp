@@ -137,156 +137,16 @@ namespace FFT20XX::ScalarCplx
   }
 
 
-  template <std::floating_point F>
-  FORCE_INLINE void AddSub(ComplexVec<Vec<F>> &a, ComplexVec<Vec<F>> &b)
+  [[nodiscard]] FORCE_INLINE auto MAdd(auto a, auto b, auto c)
   {
-    auto t = Add(a.r, b.r);
-    b.r = Sub(a.r, b.r);
-    a.r = t;
-    t = Add(a.i, b.i);
-    b.i = Sub(a.i, b.i);
-    a.i = t;
+    return Add(Mul(a, b), c);
   }
 
-
-
-  template <Dir D, std::floating_point F>
-  FORCE_INLINE void AddSubRot45(ComplexVec<Vec<F>> &a, ComplexVec<Vec<F>> &b)
+  [[nodiscard]] FORCE_INLINE auto NMAdd(auto a, auto b, auto c)
   {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = Add(b.r, b.i);
-      b.i = Sub(b.i, b.r);
-      b.r = Mul(t, InvSqrt2<F>);
-      b.i = Mul(b.i, InvSqrt2<F>);
-    }
-    else
-    {
-      auto t = Sub(b.r, b.i);
-      b.i = Add(b.i, b.r);
-      b.r = Mul(t, InvSqrt2<F>);
-      b.i = Mul(b.i, InvSqrt2<F>);
-    }
-
-    auto t = Add(a.r, b.r);
-    b.r = Sub(a.r, b.r);
-    a.r = t;
-    t = Add(a.i, b.i);
-    b.i = Sub(a.i, b.i);
-    a.i = t;
+    return Sub(c, Mul(a, b));
   }
 
-
-
-  template <Dir D, std::floating_point F>
-  FORCE_INLINE void AddSubRot90(ComplexVec<Vec<F>> &a, ComplexVec<Vec<F>> &b)
-  {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = Add(a.r, b.i);
-      b.i = Sub(a.r, b.i);
-      a.r = t;
-      t = Sub(a.i, b.r);
-      b.r = Add(a.i, b.r);
-      a.i = t;
-    }
-    else
-    {
-      auto t = Sub(a.r, b.i);
-      b.i = Add(a.r, b.i);
-      a.r = t;
-      t = Add(a.i, b.r);
-      b.r = Sub(a.i, b.r);
-      a.i = t;
-    }
-    std::swap(b.r, b.i);
-  }
-
-
-
-  template <Dir D, std::floating_point F>
-  FORCE_INLINE void AddSubRot135(ComplexVec<Vec<F>> &a, ComplexVec<Vec<F>> &b)
-  {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = Sub(b.i, b.r);
-      b.i = Add(b.i, b.r); // This is actually -b.i
-      b.r = Mul(t, InvSqrt2<F>);
-      b.i = Mul(b.i, InvSqrt2<F>);
-
-      t = Add(a.r, b.r);
-      b.r = Sub(a.r, b.r);
-      a.r = t;
-      t = Sub(a.i, b.i); // Because b.i is -b.i, addition is subtraction!
-      b.i = Add(a.i, b.i);
-      a.i = t;
-    }
-    else
-    {
-      auto t = Add(b.i, b.r); // This is actually -b.r
-      b.i = Sub(b.r, b.i);
-      b.r = Mul(t, InvSqrt2<F>);
-      b.i = Mul(b.i, InvSqrt2<F>);
-
-      t = Sub(a.r, b.r); // because b.r is actually -b.r, swap the addition/subtraction
-      b.r = Add(a.r, b.r);
-      a.r = t;
-      t = Add(a.i, b.i);
-      b.i = Sub(a.i, b.i);
-      a.i = t;
-    }
-  }
-
-
-  template <std::floating_point F>
-  [[nodiscard]] FORCE_INLINE auto ComplexMultiply(ComplexVec<Vec<F>> a, ComplexVec<Vec<F>> b) -> ComplexVec<Vec<F>>
-  {
-    auto t = Sub(Mul(a.r, b.r), Mul(a.i, b.i));
-    a.i = Add(Mul(a.r, b.i), Mul(a.i, b.r));
-    a.r = t;
-    return a;
-  }
-
-  template <std::floating_point F>
-  [[nodiscard]] FORCE_INLINE auto ScalarMultiply(ComplexVec<Vec<F>> a, Vec<F> b) -> ComplexVec<Vec<F>>
-  {
-    return { Mul(a.r, b), Mul(a.i, b) };
-  }
-
-  template <Dir D, std::floating_point F>
-  FORCE_INLINE void Rotate(ComplexVec<Vec<F>> &a, ComplexVec<Vec<F>> w)
-  {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = Sub(Mul(a.r, w.r), Mul(a.i, w.i));
-      a.i = Add(Mul(a.r, w.i), Mul(a.i, w.r));
-      a.r = t;
-    }
-    else
-    {
-      auto t = Add(Mul(a.r, w.r), Mul(a.i, w.i));
-      a.i = Sub(Mul(a.i, w.r), Mul(a.r, w.i));
-      a.r = t;
-    }
-  }
-
-
-  template <Dir D, std::floating_point F>
-  FORCE_INLINE void Rotate(ComplexVec<Vec<F>> &a, Complex<F> w)
-  {
-    if constexpr (D == Dir::Forward)
-    {
-      auto t = Sub(Mul(a.r, w.r), Mul(a.i, w.i));
-      a.i = Add(Mul(a.r, w.i), Mul(a.i, w.r));
-      a.r = t;
-    }
-    else
-    {
-      auto t = Add(Mul(a.r, w.r), Mul(a.i, w.i));
-      a.i = Sub(Mul(a.i, w.r), Mul(a.r, w.i));
-      a.r = t;
-    }
-  }
 
 
   template <std::floating_point F>
