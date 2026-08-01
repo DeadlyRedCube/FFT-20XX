@@ -9,8 +9,6 @@
 static_assert(CPU_ARM64);
 static_assert(SIMD_NEON);
 
-#include <arm_neon.h>
-
 #if COMPILER_GCC
   #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
@@ -93,6 +91,7 @@ namespace FFT20XX::NEONReal64
     b = vtrn2q_f64(a, b);
   }
 
+  #include "fft_20xx_algo_real_common.h"
   #include "fft_20xx_algo_real_fwd.h"
   #include "fft_20xx_algo_real_inv.h"
 }

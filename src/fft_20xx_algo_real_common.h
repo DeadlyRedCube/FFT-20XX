@@ -1,5 +1,3 @@
-#pragma once
-
 FORCE_INLINE void ComplexMultiply(auto aR, auto aI, auto bR, auto bI, auto &cR, auto &cI)
 {
   auto tR = Mul(aR, bR);

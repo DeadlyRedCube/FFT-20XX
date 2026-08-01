@@ -154,6 +154,7 @@ namespace FFT20XX::AVX
 
 
 
+  #include "fft_20xx_algo_real_common.h"
   #include "fft_20xx_algo_real_fwd.h"
   #include "fft_20xx_algo_real_inv.h"
 }

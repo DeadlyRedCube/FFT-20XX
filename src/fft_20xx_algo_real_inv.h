@@ -1,5 +1,3 @@
-#include "fft_20xx_algo_real_common.h"
-
 template <Alignment Align, uint32_t VV = VecSize, typename VT = VecType>
 void FirstDoubleFlipRadix4PassRealInv(const ElementType *tableData, ElementType *data, size_t length)
 {

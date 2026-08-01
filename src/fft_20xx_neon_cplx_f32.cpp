@@ -4,13 +4,10 @@
 
 #include "fft_20xx_common.h"
 #include "fft_20xx_table.h"
-#include "fft_20xx_tiny.h"
+#include "fft_20xx_tiny_cplx.h"
 
 static_assert(CPU_ARM64);
 static_assert(SIMD_NEON);
-
-#include <arm_neon.h>
-
 
 #if COMPILER_GCC
   #pragma GCC diagnostic ignored "-Wignored-attributes"

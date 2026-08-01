@@ -9,8 +9,6 @@
 static_assert(CPU_ARM64);
 static_assert(SIMD_NEON);
 
-#include <arm_neon.h>
-
 namespace FFT20XX::NEON
 {
   template <std::floating_point F>
@@ -130,6 +128,7 @@ namespace FFT20XX::NEON
 
 
 
+  #include "fft_20xx_algo_real_common.h"
   #include "fft_20xx_algo_real_fwd.h"
   #include "fft_20xx_algo_real_inv.h"
 }

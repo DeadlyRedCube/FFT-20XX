@@ -1,5 +1,3 @@
-#include "fft_20xx_algo_real_common.h"
-
 template <Alignment Align, std::floating_point F>
 void Radix4InitialStepRealFwd(const F *input, F *output, size_t length)
 {

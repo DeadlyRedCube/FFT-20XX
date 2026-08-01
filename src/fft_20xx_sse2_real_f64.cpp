@@ -114,6 +114,7 @@ namespace FFT20XX::SSE2
     b = _mm_shuffle_pd(a, b, 0b11);
   }
 
+  #include "fft_20xx_algo_real_common.h"
   #include "fft_20xx_algo_real_fwd.h"
   #include "fft_20xx_algo_real_inv.h"
 }

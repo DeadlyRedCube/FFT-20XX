@@ -141,3 +141,4 @@
   #include <immintrin.h>
 #endif
 
+static_assert(CPU_ARM_ANY || CPU_X86_ANY);

@@ -4,7 +4,7 @@
 
 #include "fft_20xx_common.h"
 #include "fft_20xx_table.h"
-#include "fft_20xx_tiny.h"
+#include "fft_20xx_tiny_cplx.h"
 
 static_assert(CPU_X86 || CPU_X64);
 
@@ -158,7 +158,7 @@ namespace FFT20XX::AVX32Cplx
   }
 
 
-    template <Alignment Align>
+  template <Alignment Align>
   FORCE_INLINE auto StoreUnpackedLowerHalves(float *ptr, ComplexVec<VecType> a, ComplexVec<VecType> b)
   {
     auto aR = _mm256_castps256_ps128(a.r);
