@@ -338,33 +338,29 @@ using namespace FFT20XX;
 using namespace fft_20xx::c;
 extern "C"
 {
-  void fft_cplx_interleaved_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_f32_scalar(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    ScalarCplx::F32::RunComplex<Dir::Forward, Alignment::Unaligned>(t->Data(), input, output, fftLength);
+    ScalarCplx::F32::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
-  void ifft_cplx_interleaved_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_cplx_f32_scalar(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    ScalarCplx::F32::RunComplex<Dir::Inverse, Alignment::Unaligned>(t->Data(), input, output, fftLength);
+    ScalarCplx::F32::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
-  void fft_cplx_interleaved_f64_scalar(const fft_table_f32 *table, const double *input, double *output, size_t fftLength)
+  void fft_cplx_f64_scalar(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
-    ScalarCplx::F64::RunComplex<Dir::Forward, Alignment::Unaligned>(t->Data(), input, output, fftLength);
+    ScalarCplx::F64::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
-  void ifft_cplx_interleaved_f64_scalar(const fft_table_f32 *table, const double *input, double *output, size_t fftLength)
+  void ifft_cplx_f64_scalar(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
-    ScalarCplx::F64::RunComplex<Dir::Inverse, Alignment::Unaligned>(t->Data(), input, output, fftLength);
+    ScalarCplx::F64::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 }

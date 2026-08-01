@@ -277,9 +277,9 @@ using namespace FFT20XX;
 using namespace fft_20xx::c;
 extern "C"
 {
-  void fft_real_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength);
+  void fft_real_f32_sse2(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength);
 
-  void fft_real_f32_avx(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f32_avx(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
     // Do this test before COMMON_ASSERTS since the called function will do those
     if (fftLength < AVX::MinimumRealFFTLength)
@@ -288,15 +288,14 @@ extern "C"
       return fft_real_f32_sse2(table, input, output, fftLength);
     }
 
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    AVX::RealForwardFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
+    AVX::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
-  void ifft_real_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength);
+  void ifft_real_f32_sse2(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength);
 
-  void ifft_real_f32_avx(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_real_f32_avx(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
     if (fftLength < AVX::MinimumRealFFTLength)
     {
@@ -304,8 +303,7 @@ extern "C"
       return ifft_real_f32_sse2(table, input, output, fftLength);
     }
 
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    AVX::RealInverseFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
+    AVX::RealInverseFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 }

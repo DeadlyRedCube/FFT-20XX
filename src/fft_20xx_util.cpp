@@ -1,6 +1,7 @@
 #include "fft_20xx/fft_20xx.h"
 #include "fft_20xx/fft_20xx_util.h"
 
+#include "fft_20xx_common.h"
 #include "fft_20xx_platform.h"
 
 #include <cstdlib>
@@ -100,21 +101,15 @@ extern "C"
   #if CPU_X86_ANY
     fft_20xx::c::simd_support_flags_t fft_20xx_get_simd_support()
       { return fft_20xx::c::simd_support_flags_t(fft_20xx::s_simdSupport); }
-
-    constexpr auto SIMDAlignment = 16 * sizeof(float);
-  #elif CPU_ARM_ANY
-    constexpr auto SIMDAlignment = 4 * sizeof(float);
-  #else
-    constexpr auto SIMDAlignment = sizeof(double);
   #endif
 
 
   void *fft_20xx_allocate_bytes_simd_aligned(std::size_t byte_count)
   {
     #if defined (_MSC_VER)
-      return _aligned_malloc(byte_count,  SIMDAlignment);
+      return _aligned_malloc(byte_count,  FFT20XX::SIMDAlignment);
     #else
-      return std::aligned_alloc(SIMDAlignment, byte_count);
+      return std::aligned_alloc(FFT20XX::SIMDAlignment, byte_count);
     #endif
   }
 

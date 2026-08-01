@@ -138,19 +138,17 @@ using namespace FFT20XX;
 using namespace fft_20xx::c;
 extern "C"
 {
-  void fft_real_f32_neon(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f32_neon(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    NEON::RealForwardFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
+    NEON::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
 
-  void ifft_real_f32_neon(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_real_f32_neon(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    NEON::RealInverseFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
+    NEON::RealInverseFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 }

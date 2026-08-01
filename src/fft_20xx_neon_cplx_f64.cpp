@@ -261,18 +261,16 @@ using namespace FFT20XX;
 using namespace fft_20xx::c;
 extern "C"
 {
-  void fft_cplx_interleaved_f64_neon(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  void fft_cplx_f64_neon(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    const auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
-    NEONCplx64::RunComplex<Dir::Forward, Alignment::Unaligned>(t->Data(), input, output, fftLength);
+    NEONCplx64::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
-  void ifft_cplx_interleaved_f64_neon(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  void ifft_cplx_f64_neon(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    const auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
-    NEONCplx64::RunComplex<Dir::Inverse, Alignment::Unaligned>(t->Data(), input, output, fftLength);
+    NEONCplx64::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 }

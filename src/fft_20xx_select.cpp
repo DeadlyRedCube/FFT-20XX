@@ -14,29 +14,17 @@ extern "C"
   using namespace fft_20xx::c;
 
 #define MAKE_C_OVERLOADS(suffix) \
-  void fft_cplx_interleaved_f32##suffix(const fft_table_f32 *table, const float *input, float *output, size_t fftLength); \
-  void fft_cplx_interleaved_f64##suffix(const fft_table_f64 *table, const double *input, double *output, size_t fftLength); \
+  void fft_cplx_f32##suffix(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength); \
+  void fft_cplx_f64##suffix(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength); \
   \
-  void fft_cplx_f32##suffix(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength) \
-    { fft_cplx_interleaved_f32##suffix(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength); } \
+  void ifft_cplx_f32##suffix(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength); \
+  void ifft_cplx_f64##suffix(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength); \
   \
-  void fft_cplx_f64##suffix(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength) \
-    { fft_cplx_interleaved_f64##suffix(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength); } \
+  void fft_real_f32##suffix(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength); \
+  void fft_real_f64##suffix(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength); \
   \
-  void ifft_cplx_interleaved_f32##suffix(const fft_table_f32 *table, const float *input, float *output, size_t fftLength); \
-  void ifft_cplx_interleaved_f64##suffix(const fft_table_f64 *table, const double *input, double *output, size_t fftLength); \
-  \
-  void ifft_cplx_f32##suffix(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t fftLength) \
-    { ifft_cplx_interleaved_f32##suffix(table, reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), fftLength); } \
-  \
-  void ifft_cplx_f64##suffix(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t fftLength) \
-    { ifft_cplx_interleaved_f64##suffix(table, reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), fftLength); } \
-  \
-  void fft_real_f32##suffix(const fft_table_f32 *table, const float *input, float *output, size_t fftLength); \
-  void fft_real_f64##suffix(const fft_table_f64 *table, const double *input, double *output, size_t fftLength); \
-  \
-  void ifft_real_f32##suffix(const fft_table_f32 *table, const float *input, float *output, size_t fftLength); \
-  void ifft_real_f64##suffix(const fft_table_f64 *table, const double *input, double *output, size_t fftLength); \
+  void ifft_real_f32##suffix(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength); \
+  void ifft_real_f64##suffix(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength); \
   \
 
   MAKE_C_OVERLOADS()
@@ -100,27 +88,27 @@ extern "C"
     #define SELECT(name, ...) name##_scalar(__VA_ARGS__)
   #endif
 
-  void fft_cplx_interleaved_f32(const fft_table_f32 *table, const float *input, float *output, size_t length)
-    { SELECT(fft_cplx_interleaved_f32, table, input, output, length); }
+  void fft_cplx_f32(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length)
+    { SELECT(fft_cplx_f32, table, input, output, length); }
 
-  void fft_cplx_interleaved_f64(const fft_table_f64 *table, const double *input, double *output, size_t length)
-    { SELECT(fft_cplx_interleaved_f64, table, input, output, length); }
+  void fft_cplx_f64(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length)
+    { SELECT(fft_cplx_f64, table, input, output, length); }
 
-  void ifft_cplx_interleaved_f32(const fft_table_f32 *table, const float *input, float *output, size_t length)
-    { SELECT(ifft_cplx_interleaved_f32, table, input, output, length); }
+  void ifft_cplx_f32(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length)
+    { SELECT(ifft_cplx_f32, table, input, output, length); }
 
-  void ifft_cplx_interleaved_f64(const fft_table_f64 *table, const double *input, double *output, size_t length)
-    { SELECT(ifft_cplx_interleaved_f64, table, input, output, length); }
+  void ifft_cplx_f64(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length)
+    { SELECT(ifft_cplx_f64, table, input, output, length); }
 
-  void fft_real_f32(const fft_table_f32 *table, const float *input, float *output, size_t length)
+  void fft_real_f32(const fft_table_real_f32 *table, const float *input, float *output, size_t length)
     { SELECT(fft_real_f32, table, input, output, length); }
 
-  void ifft_real_f32(const fft_table_f32 *table, const float *input, float *output, size_t length)
+  void ifft_real_f32(const fft_table_real_f32 *table, const float *input, float *output, size_t length)
     { SELECT(ifft_real_f32, table, input, output, length); }
 
-  void fft_real_f64(const fft_table_f64 *table, const double *input, double *output, size_t length)
+  void fft_real_f64(const fft_table_real_f64 *table, const double *input, double *output, size_t length)
     { SELECT(fft_real_f64, table, input, output, length); }
 
-  void ifft_real_f64(const fft_table_f64 *table, const double *input, double *output, size_t length)
+  void ifft_real_f64(const fft_table_real_f64 *table, const double *input, double *output, size_t length)
     { SELECT(ifft_real_f64, table, input, output, length); }
 }

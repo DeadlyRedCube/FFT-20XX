@@ -309,9 +309,9 @@ using namespace FFT20XX;
 using namespace fft_20xx::c;
 extern "C"
 {
-  void fft_real_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength);
+  void fft_real_f32_sse2(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength);
 
-  void fft_real_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f32_fma(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
     // Do this test before COMMON_ASSERTS since the called function will do those
     if (fftLength < FMA::MinimumRealFFTLength)
@@ -320,15 +320,14 @@ extern "C"
       return fft_real_f32_sse2(table, input, output, fftLength);
     }
 
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    FMA::RealForwardFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
+    FMA::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
-  void ifft_real_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength);
+  void ifft_real_f32_sse2(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength);
 
-  void ifft_real_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_real_f32_fma(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
     if (fftLength < FMA::MinimumRealFFTLength)
     {
@@ -336,8 +335,7 @@ extern "C"
       return ifft_real_f32_sse2(table, input, output, fftLength);
     }
 
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    FMA::RealInverseFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
+    FMA::RealInverseFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 }

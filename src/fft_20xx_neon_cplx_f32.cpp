@@ -277,18 +277,16 @@ using namespace FFT20XX;
 using namespace fft_20xx::c;
 extern "C"
 {
-  void fft_cplx_interleaved_f32_neon(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_f32_neon(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    NEONCplx32::RunComplex<Dir::Forward, Alignment::Unaligned>(t->Data(), input, output, fftLength);
+    NEONCplx32::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
-  void ifft_cplx_interleaved_f32_neon(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_cplx_f32_neon(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    NEONCplx32::RunComplex<Dir::Inverse, Alignment::Unaligned>(t->Data(), input, output, fftLength);
+    NEONCplx32::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 }

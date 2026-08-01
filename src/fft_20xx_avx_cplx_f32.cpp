@@ -372,31 +372,29 @@ using namespace FFT20XX;
 using namespace fft_20xx::c;
 extern "C"
 {
-  void fft_cplx_interleaved_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength);
+  void fft_cplx_f32_sse2(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength);
 
-  void fft_cplx_interleaved_f32_avx(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void fft_cplx_f32_avx(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
   {
     if (fftLength < 64)
-      { return fft_cplx_interleaved_f32_sse2(table, input, output, fftLength); }
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+      { return fft_cplx_f32_sse2(table, input, output, fftLength); }
     COMMON_ASSERTS();
     if (AVX32Cplx::IsSIMDAligned(input) && AVX32Cplx::IsSIMDAligned(output))
-      { AVX32Cplx::RunComplex<Dir::Forward, Alignment::Aligned>(t->Data(), input, output, fftLength); }
+      { AVX32Cplx::RunComplex<Dir::Forward, Alignment::Aligned>(GetTableData(table), input, output, fftLength); }
     else
-      { AVX32Cplx::RunComplex<Dir::Forward, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
+      { AVX32Cplx::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
   }
 
-  void ifft_cplx_interleaved_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t fftLength);
+  void ifft_cplx_f32_sse2(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength);
 
-  void ifft_cplx_interleaved_f32_avx(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_cplx_f32_avx(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
   {
     if (fftLength < 64)
-      { return ifft_cplx_interleaved_f32_sse2(table, input, output, fftLength); }
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
+      { return ifft_cplx_f32_sse2(table, input, output, fftLength); }
     COMMON_ASSERTS();
     if (AVX32Cplx::IsSIMDAligned(input) && AVX32Cplx::IsSIMDAligned(output))
-      { AVX32Cplx::RunComplex<Dir::Inverse, Alignment::Aligned>(t->Data(), input, output, fftLength); }
+      { AVX32Cplx::RunComplex<Dir::Inverse, Alignment::Aligned>(GetTableData(table), input, output, fftLength); }
     else
-      { AVX32Cplx::RunComplex<Dir::Inverse, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
+      { AVX32Cplx::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
   }
 }

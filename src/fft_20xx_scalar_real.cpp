@@ -207,36 +207,32 @@ using namespace FFT20XX;
 using namespace fft_20xx::c;
 extern "C"
 {
-  void fft_real_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f32_scalar(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    ScalarReal::F32::RealForwardFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
+    ScalarReal::F32::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
 
-  void ifft_real_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_real_f32_scalar(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<float> *>(table);
     COMMON_ASSERTS();
-    ScalarReal::F32::RealInverseFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
+    ScalarReal::F32::RealInverseFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
-  void fft_real_f64_scalar(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  void fft_real_f64_scalar(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
-    ScalarReal::F64::RealForwardFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
+    ScalarReal::F64::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
 
-  void ifft_real_f64_scalar(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  void ifft_real_f64_scalar(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
-    ScalarReal::F64::RealInverseFFT<Alignment::Unaligned>(t->RealData(), input, output, fftLength);
+    ScalarReal::F64::RealInverseFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 }

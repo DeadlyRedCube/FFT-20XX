@@ -7,14 +7,25 @@
 #include "fft_20xx/fft_20xx.h"
 
 #define COMMON_ASSERTS() \
-  assert(t != nullptr); \
+  assert(table != nullptr); \
   assert(input != nullptr); \
   assert(output != nullptr); \
   assert(IsPowerOfTwo(fftLength)); \
-  assert(t->MaxFFTLength() >= fftLength)
+  assert(GetTableMaxFFTLength(table) >= fftLength)
+
 
 namespace FFT20XX
 {
+  #if CPU_X86_ANY
+    constexpr auto SIMDAlignment = 16 * sizeof(float);
+  #elif CPU_ARM_ANY
+    constexpr auto SIMDAlignment = 4 * sizeof(float);
+  #else
+    constexpr auto SIMDAlignment = std::max(sizeof(size_t), sizeof(double));
+  #endif
+
+
+
   enum class Dir
   {
     Forward,
@@ -42,6 +53,20 @@ namespace FFT20XX
   constexpr auto Log2Floor(I i) noexcept  -> std::uint32_t
     { return std::uint32_t(std::numeric_limits<I>::digits - 1 - std::countl_zero(i)); }
 
+  template <std::unsigned_integral I>
+  constexpr bool IsAlignedInt(I i, size_t alignment)
+  {
+    assert(IsPowerOfTwo(alignment));
+    return (i & (alignment - 1)) == 0;
+  }
+
+  template <typename T>
+  constexpr bool IsAlignedPtr(const T *ptr, size_t alignment)
+    { return IsAlignedInt(uintptr_t(ptr), alignment); }
+
+  template <typename T>
+  constexpr bool IsSIMDAlignedPtr(const T *ptr)
+    { return IsAlignedInt(uintptr_t(ptr), SIMDAlignment); }
   struct INegType;
   struct IType
   {

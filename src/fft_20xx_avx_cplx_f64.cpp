@@ -313,24 +313,22 @@ using namespace FFT20XX;
 using namespace fft_20xx::c;
 extern "C"
 {
-  void fft_cplx_interleaved_f64_avx(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  void fft_cplx_f64_avx(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     if (AVXCplx64::IsSIMDAligned(input) && AVXCplx64::IsSIMDAligned(output))
-      { AVXCplx64::RunComplex<Dir::Forward, Alignment::Aligned>(t->Data(), input, output, fftLength); }
+      { AVXCplx64::RunComplex<Dir::Forward, Alignment::Aligned>(GetTableData(table), input, output, fftLength); }
     else
-      { AVXCplx64::RunComplex<Dir::Forward, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
+      { AVXCplx64::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
   }
 
 
-  void ifft_cplx_interleaved_f64_avx(const fft_table_f64 *table, const double *input, double *output, size_t fftLength)
+  void ifft_cplx_f64_avx(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
-    [[maybe_unused]] auto t = reinterpret_cast<const FFTTableImpl<double> *>(table);
     COMMON_ASSERTS();
     if (AVXCplx64::IsSIMDAligned(input) && AVXCplx64::IsSIMDAligned(output))
-      { AVXCplx64::RunComplex<Dir::Inverse, Alignment::Aligned>(t->Data(), input, output, fftLength); }
+      { AVXCplx64::RunComplex<Dir::Inverse, Alignment::Aligned>(GetTableData(table), input, output, fftLength); }
     else
-      { AVXCplx64::RunComplex<Dir::Inverse, Alignment::Unaligned>(t->Data(), input, output, fftLength); }
+      { AVXCplx64::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
   }
 }
