@@ -35,8 +35,7 @@ target_sources(
     "src/fft_20xx_tiny_cplx.h"
     "src/fft_20xx_tiny_real.h"
 
-    "src/fft_20xx_scalar_cplx.cpp"
-    "src/fft_20xx_scalar_real.cpp"
+    "src/fft_20xx_scalar.cpp"
     "src/fft_20xx_table.cpp"
     "src/fft_20xx_select.cpp"
     "src/fft_20xx_util.cpp"
@@ -57,6 +56,9 @@ if ((CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
       fft-20xx
 
       PRIVATE
+        "src/fft_20xx_avx_f32_common.h"
+        "src/fft_20xx_avx_f64_common.h"
+
         "src/fft_20xx_sse2_f32.cpp"
         "src/fft_20xx_sse2_f64.cpp"
         "src/fft_20xx_avx_f32.cpp"
