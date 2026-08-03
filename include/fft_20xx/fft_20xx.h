@@ -1,7 +1,6 @@
 #ifndef FFT_20XX_INCLUDE_GUARD
   #define FFT_20XX_INCLUDE_GUARD
 
-
   #if defined(_MSC_VER)
     #pragma warning (push)
     #pragma warning (disable: 4514) // unreferenced inline function has been removed
@@ -10,8 +9,6 @@
   #include <inttypes.h>
   #include <stddef.h>
 
-  // C's "float/double _Complex" and C++'s "std::complex<float/double>" are guaranteed to have the same layout, so
-  //  use the correct language-specific version.
   #ifdef __cplusplus
     #include <complex>
     #include <utility>

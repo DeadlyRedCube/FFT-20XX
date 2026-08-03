@@ -143,7 +143,6 @@ extern "C"
     NEON64::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
-
   void ifft_cplx_f64_neon(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
@@ -155,8 +154,6 @@ extern "C"
     COMMON_ASSERTS();
     NEON64::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
-
-
 
   void ifft_real_f64_neon(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength)
   {

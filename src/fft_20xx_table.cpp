@@ -26,7 +26,7 @@ namespace
 
     {
       const auto offset = maxFFTLength * 3 / 4;
-      for (auto i = size_t(0); i < maxFFTLength * 3 / 4; i++)
+      for (auto i = 0_z; i < maxFFTLength * 3 / 4; i++)
       {
         constexpr auto NegTwoPi = -6.283185307179586;
         auto angle = NegTwoPi * double(i) / double(maxFFTLength);
@@ -38,7 +38,7 @@ namespace
     for (auto realCount = maxFFTLength / 4; realCount >= 16; realCount /= 2)
     {
       const auto offset = realCount * 3 / 2;
-      for (auto i = 0u; i < realCount * 3 / 2; i++)
+      for (auto i = 0_z; i < realCount * 3 / 2; i++)
       {
         table[i + offset] = table[(i + offset) * 2];
       }
@@ -63,7 +63,7 @@ namespace
   // The real FFTs have a strange ordering to the angles due to the order that the data moves around through the
   //  algorithm - this flips the index around when creating the angle so that we store the tables in this oddly-
   //  reversed order.
-  static size_t DoRealFFTIndexReverse(size_t i)
+  size_t DoRealFFTIndexReverse(size_t i)
   {
     auto mask = (i & (i - 1)) >> 1;
 

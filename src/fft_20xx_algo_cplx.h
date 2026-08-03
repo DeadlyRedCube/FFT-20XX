@@ -505,7 +505,6 @@ void NoFlipRadix4Pass(const ElementType *tableData, ElementType *data, const siz
   const auto sectionCount = length / (radix4Stride * 4);
   for (auto sectionIndex = 2_z; sectionIndex < sectionCount; sectionIndex++)
   {
-    // !!! on x64 do this as a bit reverse increment instead
     const auto angleIndex = BitRev(sectionIndex) >> (1 + std::countl_zero(sectionCount));
 
     const auto angles = LoadSingleAngleSet(tableData, angleIndex, sectionCount);
@@ -667,7 +666,6 @@ void SingleFlipRadix4Pass(const F *tableData, F *data, const size_t length, cons
       {
         assert(radix4Stride == 4 && length == 128);
 
-        // !!!
         const auto sectionCount = length / (radix4Stride * 4);
         for (auto sectionIndex = 0_z; sectionIndex < sectionCount; sectionIndex += 4)
         {
@@ -762,7 +760,6 @@ void SingleFlipRadix4Pass(const F *tableData, F *data, const size_t length, cons
     const auto sectionCount = length / (radix4Stride * 4);
     for (auto sectionIndex = 2_z; sectionIndex < sectionCount; sectionIndex += 2)
     {
-      // !!! Without native bit reverse, do this as a bitrev increment instead
       const auto angleIndex0 = BitRev(sectionIndex) >> (1 + std::countl_zero(sectionCount));
       auto angles0 = LoadSingleAngle(tableData, angleIndex0, sectionCount);
       const auto angleIndex1 = angleIndex0 + (sectionCount >> 1);
@@ -1046,8 +1043,9 @@ void LastDoubleFlipRadix4Pass(const ElementType *tableData, ElementType *data, c
       StorePackedComplex<Align>(&data[2 * (i + flipStride * 3)], d);
     }
   }
-  else if constexpr (VecSize == 2u)
+  else
   {
+    static_assert(VecSize == 2u);
     for (auto butterflySetStartIndex = 0_z; butterflySetStartIndex < flipStride; butterflySetStartIndex += 2 * VecSize)
     {
       // Use the partially-bit-reversed "groupStartIndex + butterflySetStartIndex" to get the angle
@@ -1103,11 +1101,6 @@ void LastDoubleFlipRadix4Pass(const ElementType *tableData, ElementType *data, c
       StorePackedComplex<Align>(&data[2 * (i + flipStride * 1) + ImaginaryOffset], c23);
       StorePackedComplex<Align>(&data[2 * (i + flipStride * 3) + ImaginaryOffset], d23);
     }
-  }
-  else
-  {
-    // !!! Scalar
-    static_assert(VecSize == 1u);
   }
 }
 

@@ -199,14 +199,14 @@ extern "C"
       { SSE2F32::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
   }
 
-  void fft_real_f32_sse2(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
+  void fft_real_f32_sse2(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
     COMMON_ASSERTS();
     SSE2F32::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
   }
 
 
-  void ifft_real_f32_sse2(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
+  void ifft_real_f32_sse2(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
     COMMON_ASSERTS();
     SSE2F32::RealInverseFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
