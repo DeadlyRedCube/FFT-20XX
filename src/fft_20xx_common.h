@@ -4,7 +4,7 @@
 
 #include "fft_20xx_platform.h"
 
-#include "fft_20xx/fft_20xx.h"
+#include "fft_20xx/fft_20xx.hpp"
 
 #define COMMON_ASSERTS() \
   assert(table != nullptr); \
@@ -60,13 +60,19 @@ namespace FFT20XX
     return (i & (alignment - 1)) == 0;
   }
 
-  template <typename T>
-  constexpr bool IsAlignedPtr(const T *ptr, size_t alignment)
+  constexpr bool IsAlignedPtr(const void *ptr, size_t alignment)
     { return IsAlignedInt(uintptr_t(ptr), alignment); }
 
-  template <typename T>
-  constexpr bool IsSIMDAlignedPtr(const T *ptr)
+  constexpr bool IsSIMDAlignedPtr(const void *ptr)
     { return IsAlignedInt(uintptr_t(ptr), SIMDAlignment); }
+
+  template <typename T>
+  constexpr T *SIMDAlignPtr(T *ptr)
+    { return reinterpret_cast<T *>((uintptr_t(ptr) + (SIMDAlignment - 1)) & (SIMDAlignment - 1)); }
+
+  constexpr intptr_t PtrByteOffset(const void *a, const void * b)
+    { return intptr_t(b) - intptr_t(a); }
+
   struct INegType;
   struct IType
   {

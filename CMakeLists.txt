@@ -22,7 +22,9 @@ target_sources(
 
   PUBLIC FILE_SET HEADERS FILES
     "include/fft_20xx/fft_20xx.h"
+    "include/fft_20xx/fft_20xx.hpp"
     "include/fft_20xx/fft_20xx_util.h"
+    "include/fft_20xx/fft_20xx_util.hpp"
 
   PRIVATE
     "src/fft_20xx_algo_cplx.h"

@@ -4,8 +4,8 @@
   #pragma warning (disable : 5045)
 #endif
 
-#include "fft_20xx/fft_20xx.h"
-#include "fft_20xx/fft_20xx_util.h"
+#include "fft_20xx/fft_20xx.hpp"
+#include "fft_20xx/fft_20xx_util.hpp"
 
 #include <bit>
 #include <cmath>

@@ -1,5 +1,5 @@
-#include "fft_20xx/fft_20xx.h"
-#include "fft_20xx/fft_20xx_util.h"
+#include "fft_20xx/fft_20xx.hpp"
+#include "fft_20xx/fft_20xx_util.hpp"
 
 #include "fft_20xx_common.h"
 

@@ -1,5 +1,5 @@
-#include "fft_20xx/fft_20xx.h"
-#include "fft_20xx/fft_20xx_util.h"
+#include "fft_20xx/fft_20xx.hpp"
+#include "fft_20xx/fft_20xx_util.hpp"
 
 #include "fft_20xx_common.h"
 #include "fft_20xx_platform.h"
@@ -98,27 +98,35 @@ namespace fft_20xx
 
 extern "C"
 {
+  size_t get_simd_alignment()
+    { return FFT20XX::SIMDAlignment; }
+
   #if CPU_X86_ANY
     fft_20xx::c::simd_support_flags_t fft_20xx_get_simd_support()
       { return fft_20xx::c::simd_support_flags_t(fft_20xx::s_simdSupport); }
   #endif
 
 
-  void *fft_20xx_allocate_bytes_simd_aligned(std::size_t byte_count)
+  void *fft_20xx_allocate_bytes_aligned(std::size_t byte_count, std::size_t pow_2_alignment)
   {
+    assert(FFT20XX::IsPowerOfTwo(pow_2_alignment));
+
     #if defined (_MSC_VER)
-      return _aligned_malloc(byte_count,  FFT20XX::SIMDAlignment);
+      return _aligned_malloc(byte_count,  pow_2_alignment);
     #else
-      return std::aligned_alloc(FFT20XX::SIMDAlignment, byte_count);
+      return std::aligned_alloc(pow_2_alignment, byte_count);
     #endif
   }
 
-  void fft_20xx_free_simd_aligned(void *mem)
+  void *fft_20xx_allocate_bytes_simd_aligned(std::size_t byte_count)
+    { return fft_20xx_allocate_bytes_aligned(byte_count, FFT20XX::SIMDAlignment); }
+
+  void fft_20xx_free_simd_aligned(const void *mem)
   {
     #if defined (_MSC_VER)
-      _aligned_free(mem);
+      _aligned_free(const_cast<void *>(mem));
     #else
-      std::free(mem);
+      std::free(const_cast<void *>(mem));
     #endif
   }
 
