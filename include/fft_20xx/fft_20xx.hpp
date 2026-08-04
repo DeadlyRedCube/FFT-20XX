@@ -65,6 +65,10 @@
         std::conditional_t<std::is_same_v<F, float>, c::fft_table_cplx_f32, c::fft_table_cplx_f64>,
         std::conditional_t<std::is_same_v<F, float>, c::fft_table_real_f32, c::fft_table_real_f64>>;
 
+      static size_t get_required_alignment();
+      static size_t get_byte_count_aligned(size_t max_fft_length);
+      static size_t get_byte_count_unaligned(size_t max_fft_length);
+
       // Allocate a new complex FFT table for FFTs up to the given maximum length.
       fft_table(size_t max_length);
 
@@ -163,99 +167,135 @@
     void ifft(const fft_table<type::cplx, F> &table, std::complex<F> *data, size_t length)
       { ifft(table, reinterpret_cast<F *>(data), length); }
 
-
-      // Allocate a new complex FFT table for FFTs up to the given maximum length.
-      template <type T, FFT_20XX_FLOAT_TYPE F>
-      fft_table<T, F>::fft_table(size_t max_length)
+    template <type T, std::floating_point F> size_t fft_table<T, F>::get_byte_count_aligned(size_t max_fft_length)
+    {
+      if constexpr (T == type::cplx)
       {
-        static_assert(std::is_floating_point_v<F>);
+        if constexpr (std::is_same_v<F, float>)
+          return c::get_fft_table_cplx_f32_byte_count_aligned(max_fft_length);
+        else
+          return c::get_fft_table_cplx_f64_byte_count_aligned(max_fft_length);
+      }
+      else
+      {
+        if constexpr (std::is_same_v<F, float>)
+          return c::get_fft_table_real_f32_byte_count_aligned(max_fft_length);
+        else
+          return c::get_fft_table_real_f64_byte_count_aligned(max_fft_length);
+      }
+    }
 
+    template <type T, std::floating_point F> size_t fft_table<T, F>::get_required_alignment()
+      { return c::get_simd_alignment(); }
+
+    template <type T, std::floating_point F> size_t fft_table<T, F>::get_byte_count_unaligned(size_t max_fft_length)
+    {
+      if constexpr (T == type::cplx)
+      {
+        if constexpr (std::is_same_v<F, float>)
+          return c::get_fft_table_cplx_f32_byte_count_unaligned(max_fft_length);
+        else
+          return c::get_fft_table_cplx_f64_byte_count_unaligned(max_fft_length);
+      }
+      else
+      {
+        if constexpr (std::is_same_v<F, float>)
+          return c::get_fft_table_real_f32_byte_count_unaligned(max_fft_length);
+        else
+          return c::get_fft_table_real_f64_byte_count_unaligned(max_fft_length);
+      }
+    }
+
+    // Allocate a new complex FFT table for FFTs up to the given maximum length.
+    template <type T, FFT_20XX_FLOAT_TYPE F>
+    fft_table<T, F>::fft_table(size_t max_length)
+    {
+      static_assert(std::is_floating_point_v<F>);
+
+      if constexpr (T == type::cplx)
+      {
+        if constexpr (std::is_same_v<F, float>)
+          _table = c::allocate_fft_table_cplx_f32(max_length);
+        else
+          _table = c::allocate_fft_table_cplx_f64(max_length);
+      }
+      else
+      {
+        if constexpr (std::is_same_v<F, float>)
+          _table = c::allocate_fft_table_real_f32(max_length);
+        else
+          _table = c::allocate_fft_table_real_f64(max_length);
+      }
+    }
+
+    // Use the given block of memory (with its given size) to create a new
+    template <type T, FFT_20XX_FLOAT_TYPE F>
+    fft_table<T, F>::fft_table(size_t max_length, void *ptr, size_t byte_count)
+    {
+      auto *t = [&]()
+        {
+          if constexpr (T == type::cplx)
+          {
+            if constexpr (std::same_as<F, float>)
+              return c::make_table_from_memory_cplx_f32(max_length, ptr, byte_count);
+            else
+              return c::make_table_from_memory_cplx_f64(max_length, ptr, byte_count);
+          }
+          else
+          {
+            if constexpr (std::same_as<F, float>)
+              return c::make_table_from_memory_real_f32(max_length, ptr, byte_count);
+            else
+              return c::make_table_from_memory_real_f64(max_length, ptr, byte_count);
+          }
+        }();
+
+      _table = t;
+    }
+
+    template <type T, FFT_20XX_FLOAT_TYPE F>
+    fft_table<T, F>::fft_table(fft_table &&other) noexcept
+      : _table{std::exchange(other._table, nullptr)}
+      , _owns_memory{std::exchange(other._owns_memory, false)}
+      { }
+
+    template <type T, FFT_20XX_FLOAT_TYPE F>
+    fft_table<T, F> &fft_table<T, F>::operator=(fft_table &&other) noexcept
+    {
+      if (&other != this)
+      {
+        release();
+        _table = std::exchange(other._table, nullptr);
+        _owns_memory = std::exchange(other._owns_memory, false);
+      }
+
+      return *this;
+    }
+
+    template <type T, FFT_20XX_FLOAT_TYPE F>
+    fft_table<T, F>::~fft_table() { release(); }
+
+    template <type T, FFT_20XX_FLOAT_TYPE F>
+    void fft_table<T, F>::release()
+    {
+      if (_owns_memory)
+      {
         if constexpr (T == type::cplx)
         {
           if constexpr (std::is_same_v<F, float>)
-            _table = c::allocate_fft_table_cplx_f32(max_length);
+            c::free_fft_table_cplx_f32(_table);
           else
-            _table = c::allocate_fft_table_cplx_f64(max_length);
+            c::free_fft_table_cplx_f64(_table);
         }
         else
         {
           if constexpr (std::is_same_v<F, float>)
-            _table = c::allocate_fft_table_real_f32(max_length);
+            c::free_fft_table_real_f32(_table);
           else
-            _table = c::allocate_fft_table_real_f64(max_length);
+            c::free_fft_table_real_f64(_table);
         }
       }
-
-      // Use the given block of memory (with its given size) to create a new
-      template <type T, FFT_20XX_FLOAT_TYPE F>
-      fft_table<T, F>::fft_table(size_t max_length, void *ptr, size_t byte_count)
-      {
-        auto *t = [&]()
-          {
-            if constexpr (T == type::cplx)
-            {
-              if constexpr (std::same_as<F, float>)
-                return c::make_table_from_memory_cplx_f32(max_length, ptr, byte_count);
-              else
-                return c::make_table_from_memory_cplx_f64(max_length, ptr, byte_count);
-            }
-            else
-            {
-              if constexpr (std::same_as<F, float>)
-                return c::make_table_from_memory_real_f32(max_length, ptr, byte_count);
-              else
-                return c::make_table_from_memory_real_f64(max_length, ptr, byte_count);
-            }
-          }();
-
-        _table = t;
-      }
-
-      template <type T, FFT_20XX_FLOAT_TYPE F>
-      fft_table<T, F>::fft_table(fft_table &&other) noexcept
-        : _table{std::exchange(other._table, nullptr)}
-        , _owns_memory{std::exchange(other._owns_memory, false)}
-        { }
-
-      template <type T, FFT_20XX_FLOAT_TYPE F>
-      fft_table<T, F> &fft_table<T, F>::operator=(fft_table &&other) noexcept
-      {
-        if (&other != this)
-        {
-          release();
-          _table = std::exchange(other._table, nullptr);
-          _owns_memory = std::exchange(other._owns_memory, false);
-        }
-
-        return *this;
-      }
-
-      template <type T, FFT_20XX_FLOAT_TYPE F>
-      fft_table<T, F>::~fft_table() { release(); }
-
-      template <type T, FFT_20XX_FLOAT_TYPE F>
-      void fft_table<T, F>::release()
-      {
-        if (_owns_memory)
-        {
-          if constexpr (T == type::cplx)
-          {
-            if constexpr (std::is_same_v<F, float>)
-              c::free_fft_table_cplx_f32(_table);
-            else
-              c::free_fft_table_cplx_f64(_table);
-          }
-          else
-          {
-            if constexpr (std::is_same_v<F, float>)
-              c::free_fft_table_real_f32(_table);
-            else
-              c::free_fft_table_real_f64(_table);
-          }
-        }
-
-      }
-
+    }
   }
 
   #undef FFT_20XX_FLOAT_TYPE

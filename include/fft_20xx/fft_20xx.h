@@ -22,6 +22,7 @@
     typedef struct fft_table_real_f32 fft_table_real_f32;
     typedef struct fft_table_real_f64 fft_table_real_f64;
 
+    // Allocate and free FFT tables for the various input/output types
 
     const fft_table_cplx_f32 *allocate_fft_table_cplx_f32(size_t length);
     void free_fft_table_cplx_f32(const fft_table_cplx_f32 *table);
