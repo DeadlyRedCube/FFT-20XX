@@ -4,8 +4,8 @@
   #pragma warning (disable: 5045) // Compiler will insert Spectre mitigation for memory load
 #endif
 
-#include "fft_20xx/fft_20xx.h"
-#include "fft_20xx/fft_20xx_util.h"
+#include "fft_20xx/fft_20xx.hpp"
+#include "fft_20xx/fft_20xx_util.hpp"
 
 #include <cassert>
 #include <chrono>
@@ -32,51 +32,51 @@ extern "C"
 {
   using namespace fft_20xx::c;
 
-  void fft_cplx_f32_scalar(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
-  void fft_cplx_f64_scalar(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
-  void ifft_cplx_f32_scalar(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
-  void ifft_cplx_f64_scalar(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
-  void fft_real_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t length);
-  void fft_real_f64_scalar(const fft_table_f64 *table, const double *input, double *output, size_t length);
-  void ifft_real_f32_scalar(const fft_table_f32 *table, const float *input, float *output, size_t length);
-  void ifft_real_f64_scalar(const fft_table_f64 *table, const double *input, double *output, size_t length);
+  void fft_cplx_f32_scalar(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length);
+  void fft_cplx_f64_scalar(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length);
+  void ifft_cplx_f32_scalar(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length);
+  void ifft_cplx_f64_scalar(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length);
+  void fft_real_f32_scalar(const fft_table_real_f32 *table, const float *input, float *output, size_t length);
+  void fft_real_f64_scalar(const fft_table_real_f64 *table, const double *input, double *output, size_t length);
+  void ifft_real_f32_scalar(const fft_table_real_f32 *table, const float *input, float *output, size_t length);
+  void ifft_real_f64_scalar(const fft_table_real_f64 *table, const double *input, double *output, size_t length);
 
   #if FFT_20XX_CPU_X86_ANY
-    void fft_cplx_f32_sse2(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
-    void fft_cplx_f64_sse2(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
-    void ifft_cplx_f32_sse2(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
-    void ifft_cplx_f64_sse2(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
-    void fft_real_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t length);
-    void fft_real_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t length);
-    void ifft_real_f32_sse2(const fft_table_f32 *table, const float *input, float *output, size_t length);
-    void ifft_real_f64_sse2(const fft_table_f64 *table, const double *input, double *output, size_t length);
+    void fft_cplx_f32_sse2(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length);
+    void fft_cplx_f64_sse2(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length);
+    void ifft_cplx_f32_sse2(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length);
+    void ifft_cplx_f64_sse2(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length);
+    void fft_real_f32_sse2(const fft_table_real_f32 *table, const float *input, float *output, size_t length);
+    void fft_real_f64_sse2(const fft_table_real_f64 *table, const double *input, double *output, size_t length);
+    void ifft_real_f32_sse2(const fft_table_real_f32 *table, const float *input, float *output, size_t length);
+    void ifft_real_f64_sse2(const fft_table_real_f64 *table, const double *input, double *output, size_t length);
 
-    void fft_cplx_f32_avx(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
-    void fft_cplx_f64_avx(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
-    void ifft_cplx_f32_avx(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
-    void ifft_cplx_f64_avx(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
-    void fft_real_f32_avx(const fft_table_f32 *table, const float *input, float *output, size_t length);
-    void fft_real_f64_avx(const fft_table_f64 *table, const double *input, double *output, size_t length);
-    void ifft_real_f32_avx(const fft_table_f32 *table, const float *input, float *output, size_t length);
-    void ifft_real_f64_avx(const fft_table_f64 *table, const double *input, double *output, size_t length);
+    void fft_cplx_f32_avx(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length);
+    void fft_cplx_f64_avx(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length);
+    void ifft_cplx_f32_avx(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length);
+    void ifft_cplx_f64_avx(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length);
+    void fft_real_f32_avx(const fft_table_real_f32 *table, const float *input, float *output, size_t length);
+    void fft_real_f64_avx(const fft_table_real_f64 *table, const double *input, double *output, size_t length);
+    void ifft_real_f32_avx(const fft_table_real_f32 *table, const float *input, float *output, size_t length);
+    void ifft_real_f64_avx(const fft_table_real_f64 *table, const double *input, double *output, size_t length);
 
-    void fft_cplx_f32_fma(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
-    void fft_cplx_f64_fma(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
-    void ifft_cplx_f32_fma(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
-    void ifft_cplx_f64_fma(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
-    void fft_real_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t length);
-    void fft_real_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t length);
-    void ifft_real_f32_fma(const fft_table_f32 *table, const float *input, float *output, size_t length);
-    void ifft_real_f64_fma(const fft_table_f64 *table, const double *input, double *output, size_t length);
+    void fft_cplx_f32_fma(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length);
+    void fft_cplx_f64_fma(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length);
+    void ifft_cplx_f32_fma(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length);
+    void ifft_cplx_f64_fma(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length);
+    void fft_real_f32_fma(const fft_table_real_f32 *table, const float *input, float *output, size_t length);
+    void fft_real_f64_fma(const fft_table_real_f64 *table, const double *input, double *output, size_t length);
+    void ifft_real_f32_fma(const fft_table_real_f32 *table, const float *input, float *output, size_t length);
+    void ifft_real_f64_fma(const fft_table_real_f64 *table, const double *input, double *output, size_t length);
   #elif FFT_20XX_CPU_ARM_ANY
-    void fft_cplx_f32_neon(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
-    void fft_cplx_f64_neon(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
-    void ifft_cplx_f32_neon(const fft_table_f32 *table, const std::complex<float> *input, std::complex<float> *output, size_t length);
-    void ifft_cplx_f64_neon(const fft_table_f64 *table, const std::complex<double> *input, std::complex<double> *output, size_t length);
-    void fft_real_f32_neon(const fft_table_f32 *table, const float *input, float *output, size_t length);
-    void fft_real_f64_neon(const fft_table_f64 *table, const double *input, double *output, size_t length);
-    void ifft_real_f32_neon(const fft_table_f32 *table, const float *input, float *output, size_t length);
-    void ifft_real_f64_neon(const fft_table_f64 *table, const double *input, double *output, size_t length);
+    void fft_cplx_f32_neon(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length);
+    void fft_cplx_f64_neon(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length);
+    void ifft_cplx_f32_neon(const fft_table_cplx_f32 *table, const float *input, float *output, size_t length);
+    void ifft_cplx_f64_neon(const fft_table_cplx_f64 *table, const double *input, double *output, size_t length);
+    void fft_real_f32_neon(const fft_table_real_f32 *table, const float *input, float *output, size_t length);
+    void fft_real_f64_neon(const fft_table_real_f64 *table, const double *input, double *output, size_t length);
+    void ifft_real_f32_neon(const fft_table_real_f32 *table, const float *input, float *output, size_t length);
+    void ifft_real_f64_neon(const fft_table_real_f64 *table, const double *input, double *output, size_t length);
   #endif
 }
 
@@ -220,7 +220,11 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
 
   for (auto size = 1u; size <= MaxFFTLength; size *= 2)
   {
-    auto table = fft_20xx::fft_table<F>{size};
+    using table_t = std::conditional_t<
+      T == TestType::Complex,
+      fft_20xx::fft_table_cplx<F>,
+      fft_20xx::fft_table_real<F>>;
+    auto table = table_t{size};
 
     using ElementType = std::conditional_t<T == TestType::Complex, std::complex<F>, F>;
 
@@ -273,13 +277,13 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
     {
       std::ranges::copy(input, outputTest.begin());
       std::ranges::copy(inputIFFT, ioutputTest.begin());
-      testFwd(table, outputTest.data(), outputTest.data(), size);
-      testInv(table, ioutputTest.data(), ioutputTest.data(), size);
+      testFwd(table, reinterpret_cast<F *>(outputTest.data()), reinterpret_cast<F *>(outputTest.data()), size);
+      testInv(table, reinterpret_cast<F *>(ioutputTest.data()), reinterpret_cast<F *>(ioutputTest.data()), size);
     }
     else
     {
-      testFwd(table, input.data(), outputTest.data(), size);
-      testInv(table, inputIFFT.data(), ioutputTest.data(), size);
+      testFwd(table, reinterpret_cast<F *>(input.data()), reinterpret_cast<F *>(outputTest.data()), size);
+      testInv(table, reinterpret_cast<F *>(inputIFFT.data()), reinterpret_cast<F *>(ioutputTest.data()), size);
     }
 
     constexpr auto Threshold = std::same_as<F, float> ? F(3e-5) : F(2e-13);

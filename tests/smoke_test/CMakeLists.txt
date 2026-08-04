@@ -14,7 +14,6 @@ target_sources(
 
   PRIVATE
     "smoke_test.cpp"
-    "../../src/reference/real.cpp"
 )
 
 target_link_libraries(smoke_test fft-20xx)
