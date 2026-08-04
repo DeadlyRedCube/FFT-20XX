@@ -10,6 +10,7 @@
 static_assert(CPU_X86 || CPU_X64);
 
 static_assert(SIMD_SSE2);
+static_assert(!SIMD_AVX);
 
 #if COMPILER_GCC
   #pragma GCC diagnostic ignored "-Wignored-attributes"
