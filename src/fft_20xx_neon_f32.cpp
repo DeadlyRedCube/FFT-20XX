@@ -33,10 +33,6 @@ namespace FFT20XX::NEON32
   };
 
 
-  bool IsSIMDAligned(const float *ptr)
-    { return (uintptr_t(ptr) & (sizeof(VecType) - 1)) == 0; }
-
-
   FORCE_INLINE auto Set1(float f) -> VecType
   {
     return vdupq_n_f32(f);
@@ -174,24 +170,24 @@ extern "C"
   void fft_cplx_f32_neon(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    NEON32::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
+    NEON32::RunComplex<Dir::Forward>(GetTableData(table), input, output, fftLength);
   }
 
   void ifft_cplx_f32_neon(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    NEON32::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
+    NEON32::RunComplex<Dir::Inverse>(GetTableData(table), input, output, fftLength);
   }
 
   void fft_real_f32_neon(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    NEON32::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
+    NEON32::RealForwardFFT(GetTableData(table), input, output, fftLength);
   }
 
   void ifft_real_f32_neon(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    NEON32::RealInverseFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
+    NEON32::RealInverseFFT(GetTableData(table), input, output, fftLength);
   }
 }

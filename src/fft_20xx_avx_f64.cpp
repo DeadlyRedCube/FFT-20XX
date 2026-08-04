@@ -26,32 +26,26 @@ extern "C"
   void fft_cplx_f64_avx(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    if (AVX64::IsSIMDAligned(input) && AVX64::IsSIMDAligned(output))
-      { AVX64::RunComplex<Dir::Forward, Alignment::Aligned>(GetTableData(table), input, output, fftLength); }
-    else
-      { AVX64::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
+    AVX64::RunComplex<Dir::Forward>(GetTableData(table), input, output, fftLength);
   }
 
 
   void ifft_cplx_f64_avx(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    if (AVX64::IsSIMDAligned(input) && AVX64::IsSIMDAligned(output))
-      { AVX64::RunComplex<Dir::Inverse, Alignment::Aligned>(GetTableData(table), input, output, fftLength); }
-    else
-      { AVX64::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
+    AVX64::RunComplex<Dir::Inverse>(GetTableData(table), input, output, fftLength);
   }
 
   void fft_real_f64_avx(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    AVX64::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
+    AVX64::RealForwardFFT(GetTableData(table), input, output, fftLength);
   }
 
 
   void ifft_real_f64_avx(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    AVX64::RealInverseFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
+    AVX64::RealInverseFFT(GetTableData(table), input, output, fftLength);
   }
 }

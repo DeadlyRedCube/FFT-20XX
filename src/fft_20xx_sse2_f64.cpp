@@ -34,10 +34,6 @@ namespace FFT20XX::SSE264
   };
 
 
-  bool IsSIMDAligned(const double *ptr)
-    { return (uintptr_t(ptr) & (sizeof(__m128) - 1)) == 0; }
-
-
   FORCE_INLINE auto Set1(double f) -> VecType
   {
     return _mm_set1_pd(f);
@@ -153,30 +149,24 @@ extern "C"
   void fft_cplx_f64_sse2(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    if (SSE264::IsSIMDAligned(input) && SSE264::IsSIMDAligned(output))
-      { SSE264::RunComplex<Dir::Forward, Alignment::Aligned>(GetTableData(table), input, output, fftLength); }
-    else
-      { SSE264::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
+    SSE264::RunComplex<Dir::Forward>(GetTableData(table), input, output, fftLength);
   }
 
   void ifft_cplx_f64_sse2(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    if (SSE264::IsSIMDAligned(input) && SSE264::IsSIMDAligned(output))
-      { SSE264::RunComplex<Dir::Inverse, Alignment::Aligned>(GetTableData(table), input, output, fftLength); }
-    else
-      { SSE264::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
+    SSE264::RunComplex<Dir::Inverse>(GetTableData(table), input, output, fftLength);
   }
 
   void fft_real_f64_sse2(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    SSE264::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
+    SSE264::RealForwardFFT(GetTableData(table), input, output, fftLength);
   }
 
   void ifft_real_f64_sse2(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    SSE264::RealInverseFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
+    SSE264::RealInverseFFT(GetTableData(table), input, output, fftLength);
   }
 }

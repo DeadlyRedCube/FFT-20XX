@@ -1169,3 +1169,25 @@ void RunComplex(
   //  The final flip (Which has to transpose within a SIMD set)
   LastDoubleFlipRadix4Pass<D, Align>(tableData, output, length);
 }
+
+
+template <Dir D, std::floating_point F = ElementType>
+void RunComplex(
+  const F *tableData,
+  const F *input,
+  F *output,
+  size_t length)
+{
+  // Only bother with aligned vs. unaligned switch on non-ARM CPUs where the vector alignment is larger than float
+  //  alignment (ARM has the same instruction for aligned vs. not so the switch doesn't matter there)
+  if constexpr (!CPU_ARM_ANY && alignof(VecType) > alignof(F))
+  {
+    if (IsAlignedPtr(input, alignof(VecType)) && IsAlignedPtr(output, alignof(VecType)))
+    {
+      RunComplex<D, Alignment::Aligned>(tableData, input, output, length);
+      return;
+    }
+  }
+
+  RunComplex<D, Alignment::Unaligned>(tableData, input, output, length);
+}

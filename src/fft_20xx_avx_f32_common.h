@@ -23,10 +23,6 @@ struct Angles
 };
 
 
-bool IsSIMDAligned(const float *ptr)
-  { return (uintptr_t(ptr) & (sizeof(VecType) - 1)) == 0; }
-
-
 FORCE_INLINE auto Set1(float f) -> VecType
 {
   return _mm256_set1_ps(f);

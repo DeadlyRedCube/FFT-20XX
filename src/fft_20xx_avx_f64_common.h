@@ -18,9 +18,6 @@ struct Angles
 };
 
 
-bool IsSIMDAligned(const double *ptr)
-  { return (uintptr_t(ptr) & (sizeof(VecType) - 1)) == 0; }
-
 
 FORCE_INLINE auto Set1(double f) -> VecType
 {
@@ -97,7 +94,7 @@ FORCE_INLINE void Store(double *ptr, VecType v)
   {
     return Sub(c, Mul(a, b));
   }
-#endif  
+#endif
 
 FORCE_INLINE void Transpose4x4(auto &a, auto &b, auto &c, auto &d)
 {

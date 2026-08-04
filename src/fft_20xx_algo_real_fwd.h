@@ -1346,3 +1346,20 @@ void RealForwardFFT(const F *tableData, const F *input, F *output, size_t fftLen
   //  be in-order.
   UntangleRealFFT<Align>(output, length);
 }
+
+template <std::floating_point F>
+void RealForwardFFT(const F *tableData, const F *input, F *output, size_t fftLength)
+{
+  // Only bother with aligned vs. unaligned switch on non-ARM CPUs where the vector alignment is larger than float
+  //  alignment (ARM has the same instruction for aligned vs. not so the switch doesn't matter there)
+  if constexpr (!CPU_ARM_ANY && alignof(VecType) > alignof(F))
+  {
+    if (IsAlignedPtr(input, alignof(VecType)) && IsAlignedPtr(output, alignof(VecType)))
+    {
+      RealForwardFFT<Alignment::Aligned>(tableData, input, output, fftLength);
+      return;
+    }
+  }
+
+  RealForwardFFT<Alignment::Unaligned>(tableData, input, output, fftLength);
+}

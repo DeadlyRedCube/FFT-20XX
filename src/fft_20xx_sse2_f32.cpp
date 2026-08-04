@@ -34,10 +34,6 @@ namespace FFT20XX::SSE2F32
   };
 
 
-  bool IsSIMDAligned(const float *ptr)
-    { return (uintptr_t(ptr) & (sizeof(__m128) - 1)) == 0; }
-
-
   FORCE_INLINE auto Set1(float f) -> VecType
   {
     return _mm_set1_ps(f);
@@ -183,32 +179,26 @@ extern "C"
   void fft_cplx_f32_sse2(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    if (SSE2F32::IsSIMDAligned(input) && SSE2F32::IsSIMDAligned(output))
-      { SSE2F32::RunComplex<Dir::Forward, Alignment::Aligned>(GetTableData(table), input, output, fftLength); }
-    else
-      { SSE2F32::RunComplex<Dir::Forward, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
+    SSE2F32::RunComplex<Dir::Forward>(GetTableData(table), input, output, fftLength);
   }
 
 
   void ifft_cplx_f32_sse2(const fft_table_cplx_f32 *table, const float *input, float *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    if (SSE2F32::IsSIMDAligned(input) && SSE2F32::IsSIMDAligned(output))
-      { SSE2F32::RunComplex<Dir::Inverse, Alignment::Aligned>(GetTableData(table), input, output, fftLength); }
-    else
-      { SSE2F32::RunComplex<Dir::Inverse, Alignment::Unaligned>(GetTableData(table), input, output, fftLength); }
+    SSE2F32::RunComplex<Dir::Inverse>(GetTableData(table), input, output, fftLength);
   }
 
   void fft_real_f32_sse2(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    SSE2F32::RealForwardFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
+    SSE2F32::RealForwardFFT(GetTableData(table), input, output, fftLength);
   }
 
 
   void ifft_real_f32_sse2(const fft_table_real_f32 *table, const float *input, float *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    SSE2F32::RealInverseFFT<Alignment::Unaligned>(GetTableData(table), input, output, fftLength);
+    SSE2F32::RealInverseFFT(GetTableData(table), input, output, fftLength);
   }
 }
