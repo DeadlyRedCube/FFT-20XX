@@ -9,8 +9,10 @@
 
 namespace FFT20XX
 {
+  // Use the maximum supported SIMD alignment here so that if someone serializes the table data to file, the offset
+  //  will be correct regardless of the platform (assuming endianness is the same, at least)
   template <std::floating_point F>
-  constexpr auto TableDataOffset = std::max({1_z, sizeof(size_t) / sizeof(F), SIMDAlignment / sizeof(F)});;
+  constexpr auto TableDataOffset = std::max({1_z, sizeof(size_t) / sizeof(F), MaxSIMDAlignment / sizeof(F)});
   static_assert(TableDataOffset<float> * sizeof(float) >= sizeof(size_t));
   static_assert(TableDataOffset<double> * sizeof(double) >= sizeof(size_t));
 

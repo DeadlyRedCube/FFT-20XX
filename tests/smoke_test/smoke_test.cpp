@@ -222,8 +222,8 @@ void SmokeTest(const char *name, auto testFwd, auto testInv)
   {
     using table_t = std::conditional_t<
       T == TestType::Complex,
-      fft_20xx::fft_table_cplx<F>,
-      fft_20xx::fft_table_real<F>>;
+      fft_20xx::fft_table<fft_20xx::cplx, F>,
+      fft_20xx::fft_table<fft_20xx::real, F>>;
     auto table = table_t{size};
 
     using ElementType = std::conditional_t<T == TestType::Complex, std::complex<F>, F>;
@@ -417,8 +417,8 @@ int main()
   auto doTests =
     []<BufferType B>()
     {
-      SmokeTest<Complex, B, float>("Auto", [&](auto &&...args) { fft_20xx::fft_cplx(args...); }, [&](auto &&...args) { fft_20xx::ifft_cplx(args...); });
-      SmokeTest<Complex, B, double>("Auto", [&](auto &&...args) { fft_20xx::fft_cplx(args...); }, [&](auto &&...args) { fft_20xx::ifft_cplx(args...); });
+      SmokeTest<Complex, B, float>("Auto", [&](auto &&...args) { fft_20xx::fft(args...); }, [&](auto &&...args) { fft_20xx::ifft(args...); });
+      SmokeTest<Complex, B, double>("Auto", [&](auto &&...args) { fft_20xx::fft(args...); }, [&](auto &&...args) { fft_20xx::ifft(args...); });
 
       SmokeTest<Complex, B, float>("Scalar", [&](auto &&...args) { fft_cplx_f32_scalar(args...); }, [&](auto &&...args) { ifft_cplx_f32_scalar(args...); });
       SmokeTest<Complex, B, double>("Scalar", [&](auto &&...args) { fft_cplx_f64_scalar(args...); }, [&](auto &&...args) { ifft_cplx_f64_scalar(args...); });
@@ -437,8 +437,8 @@ int main()
         SmokeTest<Complex, B, double>("NEON", [&](auto &&...args) { fft_cplx_f64_neon(args...); }, [&](auto &&...args) { ifft_cplx_f64_neon(args...); });
       #endif
 
-      SmokeTest<Real, B, float>("Auto", [&](auto &&...args) { fft_20xx::fft_real(args...); }, [&](auto &&...args) { fft_20xx::ifft_real(args...); });
-      SmokeTest<Real, B, double>("Auto", [&](auto &&...args) { fft_20xx::fft_real(args...); }, [&](auto &&...args) { fft_20xx::ifft_real(args...); });
+      SmokeTest<Real, B, float>("Auto", [&](auto &&...args) { fft_20xx::fft(args...); }, [&](auto &&...args) { fft_20xx::ifft(args...); });
+      SmokeTest<Real, B, double>("Auto", [&](auto &&...args) { fft_20xx::fft(args...); }, [&](auto &&...args) { fft_20xx::ifft(args...); });
 
       SmokeTest<Real, B, float>("Scalar", [&](auto &&...args) { fft_real_f32_scalar(args...); }, [&](auto &&...args) { ifft_real_f32_scalar(args...); });
       SmokeTest<Real, B, double>("Scalar", [&](auto &&...args) { fft_real_f64_scalar(args...); }, [&](auto &&...args) { ifft_real_f64_scalar(args...); });

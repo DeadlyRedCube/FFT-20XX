@@ -5,6 +5,15 @@
   #include "fft_20xx/fft_20xx.h"
   #undef FFT_20XX_INCLUDING_FROM_CPP
 
+  #if __has_include(<concepts>)
+    #include <concepts>
+  #endif
+
+  #ifdef __cpp_concepts
+    #define FFT_20XX_FLOAT_TYPE std::floating_point
+  #else
+    #define FFT_20XX_FLOAT_TYPE typename
+  #endif
   #if defined(_MSC_VER)
     #pragma warning (push)
     #pragma warning (disable: 4514) // unreferenced inline function has been removed
@@ -13,66 +22,69 @@
 
   namespace fft_20xx
   {
-    template <typename F> class fft_table_cplx;
-    template <typename F> class fft_table_real;
+    enum class type
+    {
+      cplx,
+      real,
+    };
 
-    inline void fft_cplx(const fft_table_cplx<float> &, const std::complex<float> *input, std::complex<float> *output, size_t length);
-    inline void fft_cplx(const fft_table_cplx<float> &, const float *input, float *output, size_t length);
-    inline void fft_cplx(const fft_table_cplx<float> &, std::complex<float> *data, size_t length);
-    inline void fft_cplx(const fft_table_cplx<float> &, float *data, size_t length);
-
-    inline void fft_cplx(const fft_table_cplx<double> &, const std::complex<double> *input, std::complex<double> *output, size_t length);
-    inline void fft_cplx(const fft_table_cplx<double> &, const double *input, double *output, size_t length);
-    inline void fft_cplx(const fft_table_cplx<double> &, std::complex<double> *data, size_t length);
-    inline void fft_cplx(const fft_table_cplx<double> &, double *data, size_t length);
-
-    inline void ifft_cplx(const fft_table_cplx<float> &, const std::complex<float> *input, std::complex<float> *output, size_t length);
-    inline void ifft_cplx(const fft_table_cplx<float> &, const float *input, float *output, size_t length);
-    inline void ifft_cplx(const fft_table_cplx<float> &, std::complex<float> *data, size_t length);
-    inline void ifft_cplx(const fft_table_cplx<float> &, float *data, size_t length);
-
-    inline void ifft_cplx(const fft_table_cplx<double> &, const std::complex<double> *input, std::complex<double> *output, size_t length);
-    inline void ifft_cplx(const fft_table_cplx<double> &, const double *input, double *output, size_t length);
-    inline void ifft_cplx(const fft_table_cplx<double> &, std::complex<double> *data, size_t length);
-    inline void ifft_cplx(const fft_table_cplx<double> &, double *data, size_t length);
+    #ifdef __cpp_using_enum
+      using enum type;
+    #endif
 
 
+    template <type T, FFT_20XX_FLOAT_TYPE F> class fft_table;
 
-    inline void fft_real(const fft_table_real<float> &table, const float *input, float *output, size_t length);
-    inline void fft_real(const fft_table_real<float> &table, float *data, size_t length);
+    // float array FFT functions
 
-    inline void fft_real(const fft_table_real<double> &table, const double *input, double *output, size_t length);
-    inline void fft_real(const fft_table_real<double> &table, double *data, size_t length);
+    template <type T, FFT_20XX_FLOAT_TYPE F> void fft(const fft_table<T, F> &, const F *input, F *output, size_t length);
+    template <type T, FFT_20XX_FLOAT_TYPE F> void fft(const fft_table<T, F> &, F *data, size_t length);
+    template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(const fft_table<T, F> &, const F *input, F *output, size_t length);
+    template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(const fft_table<T, F> &, F *data, size_t length);
 
+    // Complex FFTs can also take std::complex inputs/output arrays
 
+    template <FFT_20XX_FLOAT_TYPE F>
+    void fft(const fft_table<type::cplx, F> &, const std::complex<F> *input, std::complex<F> *output, size_t length);
 
-    inline void ifft_real(const fft_table_real<float> &table, const float *input, float *output, size_t length);
-    inline void ifft_real(const fft_table_real<float> &table, float *data, size_t length);
+    template <FFT_20XX_FLOAT_TYPE F>
+    void fft(const fft_table<type::cplx, F> &, std::complex<F> *data, size_t length);
 
-    inline void ifft_real(const fft_table_real<double> &table, const double *input, double *output, size_t length);
-    inline void ifft_real(const fft_table_real<double> &table, double *data, size_t length);
+    template <FFT_20XX_FLOAT_TYPE F>
+    void ifft(const fft_table<type::cplx, F> &, const std::complex<F> *input, std::complex<F> *output, size_t length);
 
+    template <FFT_20XX_FLOAT_TYPE F>
+    void ifft(const fft_table<type::cplx, F> &, std::complex<F> *data, size_t length);
 
-    template <typename F> class fft_table_cplx
+    // The fft_table class wraps the c table, with optional ownership (and proper cleanup on destruction)
+    template <type T, FFT_20XX_FLOAT_TYPE F> class fft_table
     {
     public:
-      using c_table_t = std::conditional_t<std::is_same_v<F, float>, c::fft_table_cplx_f32, c::fft_table_cplx_f64>;
+      using c_table_t = std::conditional_t<
+        (T == type::cplx),
+        std::conditional_t<std::is_same_v<F, float>, c::fft_table_cplx_f32, c::fft_table_cplx_f64>,
+        std::conditional_t<std::is_same_v<F, float>, c::fft_table_real_f32, c::fft_table_real_f64>>;
 
       // Allocate a new complex FFT table for FFTs up to the given maximum length.
-      fft_table_cplx(size_t max_length);
+      fft_table(size_t max_length);
 
-      // Use the given block of memory (with its given size) to create a new  
-      fft_table_cplx(size_t max_length, void *ptr, size_t byte_count);
+      // Use the given block of memory (with its given size) to create a new table that supports the given max length.
+      fft_table(size_t max_length, void *ptr, size_t byte_count);
 
-      fft_table_cplx(const fft_table_cplx &) = delete;
-      fft_table_cplx &operator=(const fft_table_cplx &) = delete;
-      fft_table_cplx(fft_table_cplx &&other) noexcept;
-      fft_table_cplx &operator=(fft_table_cplx &&other) noexcept;
-      ~fft_table_cplx();
+      // These tables cannot be copied
+      fft_table(const fft_table &) = delete;
+      fft_table &operator=(const fft_table &) = delete;
 
+      // They are move-compatible, however
+      fft_table(fft_table &&other) noexcept;
+      fft_table &operator=(fft_table &&other) noexcept;
+      ~fft_table();
+
+      // Get a pointer to the C version of the table
       const c_table_t *c_table() const
         { assert(_table != nullptr); return _table; }
 
+      // Implicit conversion to the C version of the table.
       operator const c_table_t *() const
         { return c_table(); }
 
@@ -82,116 +94,171 @@
       bool _owns_memory = false;
     };
 
-    template <typename F>
-    class fft_table_real
+
+
+    // Inline function definitions follow
+
+
+
+    template <type T, FFT_20XX_FLOAT_TYPE F> void fft(const fft_table<T, F> &table, const F *input, F *output, size_t length)
     {
-    public:
-      using c_table_t = std::conditional_t<std::is_same_v<F, float>, c::fft_table_real_f32, c::fft_table_real_f64>;
+      static_assert(std::is_floating_point_v<F>, "Expected a floating point type for the data parameters");
 
-      fft_table_real(size_t max_length);
-      fft_table_real(size_t max_length, void *ptr, size_t byte_count);
+      if constexpr (T == type::cplx)
+      {
+        if constexpr (std::same_as<F, float>)
+          return c::fft_cplx_f32(table.c_table(), input, output, length);
+        else
+          return c::fft_cplx_f64(table.c_table(), input, output, length);
+      }
+      else
+      {
+        if constexpr (std::same_as<F, float>)
+          return c::fft_real_f32(table.c_table(), input, output, length);
+        else
+          return c::fft_real_f64(table.c_table(), input, output, length);
+      }
+    }
 
-      fft_table_real(const fft_table_real &) = delete;
-      fft_table_real &operator=(const fft_table_real &) = delete;
-      fft_table_real(fft_table_real &&other) noexcept;
-      fft_table_real &operator=(fft_table_real &&other) noexcept;
-      ~fft_table_real();
+    template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(const fft_table<T, F> &table, const F *input, F *output, size_t length)
+    {
+      static_assert(std::is_floating_point_v<F>, "Expected a floating point type for the data parameters");
 
-      const c_table_t *c_table() const
-        { assert(_table != nullptr); return _table; }
+      if constexpr (T == type::cplx)
+      {
+        if constexpr (std::same_as<F, float>)
+          return c::ifft_cplx_f32(table.c_table(), input, output, length);
+        else
+          return c::ifft_cplx_f64(table.c_table(), input, output, length);
+      }
+      else
+      {
+        if constexpr (std::same_as<F, float>)
+          return c::ifft_real_f32(table.c_table(), input, output, length);
+        else
+          return c::ifft_real_f64(table.c_table(), input, output, length);
+      }
+    }
 
-      operator const c_table_t *() const
-        { return c_table(); }
+    template <type T, FFT_20XX_FLOAT_TYPE F> void fft(const fft_table<T, F> &table, F *data, size_t length)
+      { fft(table, data, data, length);}
 
-    private:
-      void release();
-      const c_table_t *_table = nullptr;
-      bool _owns_memory = false;
-    };
-
-    // Inline function definitions
-
-
-    inline void fft_cplx(
-        const fft_table_cplx<float> &table,
-        const std::complex<float> *input,
-        std::complex<float> *output,
-        size_t length)
-      { return c::fft_cplx_f32(table.c_table(), reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), length); }
-    inline void fft_cplx(
-        const fft_table_cplx<double> &table,
-        const std::complex<double> *input,
-        std::complex<double> *output,
-        size_t length)
-      { return c::fft_cplx_f64(table.c_table(), reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), length); }
-
-    inline void fft_cplx(const fft_table_cplx<float> &table, const float *input, float *output, size_t length)
-      { return c::fft_cplx_f32(table.c_table(), input, output, length); }
-    inline void fft_cplx(const fft_table_cplx<double> &table, const double *input, double *output, size_t length)
-      { return c::fft_cplx_f64(table.c_table(), input, output, length); }
-
-    inline void fft_cplx(const fft_table_cplx<float> &table, std::complex<float> *data, size_t length)
-      { return c::fft_cplx_f32(table.c_table(), reinterpret_cast<float *>(data), reinterpret_cast<float *>(data), length); }
-    inline void fft_cplx(const fft_table_cplx<double> &table, std::complex<double> *data, size_t length)
-      { return c::fft_cplx_f64(table.c_table(), reinterpret_cast<double *>(data), reinterpret_cast<double *>(data), length); }
-
-    inline void fft_cplx(const fft_table_cplx<float> &table, float *data, size_t length)
-      { return c::fft_cplx_f32(table.c_table(), data, data, length); }
-    inline void fft_cplx(const fft_table_cplx<double> &table, double *data, size_t length)
-      { return c::fft_cplx_f64(table.c_table(), data, data, length); }
-
-    inline void ifft_cplx(
-        const fft_table_cplx<float> &table,
-        const std::complex<float> *input,
-        std::complex<float> *output,
-        size_t length)
-      { return c::ifft_cplx_f32(table.c_table(), reinterpret_cast<const float *>(input), reinterpret_cast<float *>(output), length); }
-    inline void ifft_cplx(
-        const fft_table_cplx<double> &table,
-        const std::complex<double> *input,
-        std::complex<double> *output,
-        size_t length)
-      { return c::ifft_cplx_f64(table.c_table(), reinterpret_cast<const double *>(input), reinterpret_cast<double *>(output), length); }
-
-    inline void ifft_cplx(const fft_table_cplx<float> &table, const float *input, float *output, size_t length)
-      { return c::ifft_cplx_f32(table.c_table(), input, output, length); }
-    inline void ifft_cplx(const fft_table_cplx<double> &table, const double *input, double *output, size_t length)
-      { return c::ifft_cplx_f64(table.c_table(), input, output, length); }
-
-    inline void ifft_cplx(const fft_table_cplx<float> &table, std::complex<float> *data, size_t length)
-      { return c::ifft_cplx_f32(table.c_table(), reinterpret_cast<float *>(data), reinterpret_cast<float *>(data), length); }
-    inline void ifft_cplx(const fft_table_cplx<double> &table, std::complex<double> *data, size_t length)
-      { return c::ifft_cplx_f64(table.c_table(), reinterpret_cast<double *>(data), reinterpret_cast<double *>(data), length); }
-
-    inline void ifft_cplx(const fft_table_cplx<float> &table, float *data, size_t length)
-      { return c::ifft_cplx_f32(table.c_table(), data, data, length); }
-    inline void ifft_cplx(const fft_table_cplx<double> &table, double *data, size_t length)
-      { return c::ifft_cplx_f64(table.c_table(), data, data, length); }
+    template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(const fft_table<T, F> &table, F *data, size_t length)
+      { ifft(table, data, data, length);}
 
 
+    template <FFT_20XX_FLOAT_TYPE F>
+    void fft(const fft_table<type::cplx, F> &table, const std::complex<F> *input, std::complex<F> *output, size_t length)
+      { fft(table, reinterpret_cast<const F *>(input), reinterpret_cast<F *>(output), length); }
 
-    inline void fft_real(const fft_table_real<float> &table, const float *input, float *output, size_t length)
-      { return c::fft_real_f32(table.c_table(), input, output, length); }
-    inline void fft_real(const fft_table_real<double> &table, const double *input, double *output, size_t length)
-      { return c::fft_real_f64(table.c_table(), input, output, length); }
+    template <FFT_20XX_FLOAT_TYPE F>
+    void fft(const fft_table<type::cplx, F> &table, std::complex<F> *data, size_t length)
+      { fft(table, reinterpret_cast<F *>(data), length); }
 
-    inline void fft_real(const fft_table_real<float> &table, float *data, size_t length)
-      { return c::fft_real_f32(table.c_table(), data, data, length); }
-    inline void fft_real(const fft_table_real<double> &table, double *data, size_t length)
-      { return c::fft_real_f64(table.c_table(), data, data, length); }
+    template <FFT_20XX_FLOAT_TYPE F>
+    void ifft(const fft_table<type::cplx, F> &table, const std::complex<F> *input, std::complex<F> *output, size_t length)
+      { ifft(table, reinterpret_cast<const F *>(input), reinterpret_cast<F *>(output), length); }
+
+    template <FFT_20XX_FLOAT_TYPE F>
+    void ifft(const fft_table<type::cplx, F> &table, std::complex<F> *data, size_t length)
+      { ifft(table, reinterpret_cast<F *>(data), length); }
 
 
+      // Allocate a new complex FFT table for FFTs up to the given maximum length.
+      template <type T, FFT_20XX_FLOAT_TYPE F>
+      fft_table<T, F>::fft_table(size_t max_length)
+      {
+        static_assert(std::is_floating_point_v<F>);
 
-    inline void ifft_real(const fft_table_real<float> &table, const float *input, float *output, size_t length)
-      { return c::ifft_real_f32(table.c_table(), input, output, length); }
-    inline void ifft_real(const fft_table_real<double> &table, const double *input, double *output, size_t length)
-      { return c::ifft_real_f64(table.c_table(), input, output, length); }
+        if constexpr (T == type::cplx)
+        {
+          if constexpr (std::is_same_v<F, float>)
+            _table = c::allocate_fft_table_cplx_f32(max_length);
+          else
+            _table = c::allocate_fft_table_cplx_f64(max_length);
+        }
+        else
+        {
+          if constexpr (std::is_same_v<F, float>)
+            _table = c::allocate_fft_table_real_f32(max_length);
+          else
+            _table = c::allocate_fft_table_real_f64(max_length);
+        }
+      }
 
-    inline void ifft_real(const fft_table_real<float> &table, float *data, size_t length)
-      { return c::ifft_real_f32(table.c_table(), data, data, length); }
-    inline void ifft_real(const fft_table_real<double> &table, double *data, size_t length)
-      { return c::ifft_real_f64(table.c_table(), data, data, length); }
+      // Use the given block of memory (with its given size) to create a new
+      template <type T, FFT_20XX_FLOAT_TYPE F>
+      fft_table<T, F>::fft_table(size_t max_length, void *ptr, size_t byte_count)
+      {
+        auto *t = [&]()
+          {
+            if constexpr (T == type::cplx)
+            {
+              if constexpr (std::same_as<F, float>)
+                return c::make_table_from_memory_cplx_f32(max_length, ptr, byte_count);
+              else
+                return c::make_table_from_memory_cplx_f64(max_length, ptr, byte_count);
+            }
+            else
+            {
+              if constexpr (std::same_as<F, float>)
+                return c::make_table_from_memory_real_f32(max_length, ptr, byte_count);
+              else
+                return c::make_table_from_memory_real_f64(max_length, ptr, byte_count);
+            }
+          }();
+
+        _table = t;
+      }
+
+      template <type T, FFT_20XX_FLOAT_TYPE F>
+      fft_table<T, F>::fft_table(fft_table &&other) noexcept
+        : _table{std::exchange(other._table, nullptr)}
+        , _owns_memory{std::exchange(other._owns_memory, false)}
+        { }
+
+      template <type T, FFT_20XX_FLOAT_TYPE F>
+      fft_table<T, F> &fft_table<T, F>::operator=(fft_table &&other) noexcept
+      {
+        if (&other != this)
+        {
+          release();
+          _table = std::exchange(other._table, nullptr);
+          _owns_memory = std::exchange(other._owns_memory, false);
+        }
+
+        return *this;
+      }
+
+      template <type T, FFT_20XX_FLOAT_TYPE F>
+      fft_table<T, F>::~fft_table() { release(); }
+
+      template <type T, FFT_20XX_FLOAT_TYPE F>
+      void fft_table<T, F>::release()
+      {
+        if (_owns_memory)
+        {
+          if constexpr (T == type::cplx)
+          {
+            if constexpr (std::is_same_v<F, float>)
+              c::free_fft_table_cplx_f32(_table);
+            else
+              c::free_fft_table_cplx_f64(_table);
+          }
+          else
+          {
+            if constexpr (std::is_same_v<F, float>)
+              c::free_fft_table_real_f32(_table);
+            else
+              c::free_fft_table_real_f64(_table);
+          }
+        }
+
+      }
+
   }
+
+  #undef FFT_20XX_FLOAT_TYPE
 
   #if defined(_MSC_VER)
     #pragma warning (pop)

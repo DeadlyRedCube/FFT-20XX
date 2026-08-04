@@ -16,14 +16,23 @@
 
 namespace FFT20XX
 {
+  // Use a maximum SIMD alignment that is large enough to hold any supported alignment. In this case it has been
+  //  set to the size of an AVX-512 vector, even though those are not supported, just because.
+  constexpr auto MaxSIMDAlignment = 16 * sizeof(float);
+
   #if CPU_X86_ANY
-    constexpr auto SIMDAlignment = 16 * sizeof(float);
+    // For now we support up to AVX (non-512) sizes, so this is the alignment here.
+    constexpr auto SIMDAlignment = 8 * sizeof(float);
   #elif CPU_ARM_ANY
+    // ARM vectors are 128 bits (4 cloats)
     constexpr auto SIMDAlignment = 4 * sizeof(float);
   #else
+    // For purposes of the table we want to be aligned at least to size_t or double, whichever is larger (probably
+    //  neither)
     constexpr auto SIMDAlignment = std::max(sizeof(size_t), sizeof(double));
   #endif
 
+  static_assert(SIMDAlignment <= MaxSIMDAlignment);
 
 
   enum class Dir

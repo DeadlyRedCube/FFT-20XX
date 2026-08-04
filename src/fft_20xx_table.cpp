@@ -131,130 +131,6 @@ namespace
   }
 }
 
-namespace fft_20xx
-{
-  template <typename F>
-  fft_table_cplx<F>::fft_table_cplx(size_t max_length)
-  {
-    static_assert(std::is_floating_point_v<F>);
-
-    if constexpr (std::is_same_v<F, float>)
-      { _table = c::allocate_fft_table_cplx_f32(max_length); }
-    else
-      { _table = c::allocate_fft_table_cplx_f64(max_length); }
-  }
-
-  template <typename F>
-  fft_table_cplx<F>::fft_table_cplx(size_t max_length, void *ptr, size_t byte_count)
-  : _owns_memory(false)
-  {
-    auto *t = [&]()
-      {
-        if constexpr (std::same_as<F, float>)
-          { return c::make_table_from_memory_cplx_f32(max_length, ptr, byte_count); }
-        else
-          { return c::make_table_from_memory_cplx_f64(max_length, ptr, byte_count); }
-      }();
-
-    _table = t;
-  }
-
-  template <typename F>
-  fft_table_cplx<F>::~fft_table_cplx() { release(); }
-
-  template <typename F>
-  void fft_table_cplx<F>::release()
-  {
-    if (_owns_memory)
-    {
-      if constexpr (std::is_same_v<F, float>)
-        { c::free_fft_table_cplx_f32(_table); }
-      else
-        { c::free_fft_table_cplx_f64(_table); }
-    }
-  }
-
-  template <typename F>
-  fft_table_cplx<F>::fft_table_cplx(fft_table_cplx &&other) noexcept
-    : _table{std::exchange(other._table, nullptr)}
-    { }
-
-  template <typename F>
-  fft_table_cplx<F> &fft_table_cplx<F>::operator=(fft_table_cplx &&other) noexcept
-  {
-    if (&other != this)
-    {
-      release();
-      _table = std::exchange(other._table, nullptr);
-    }
-
-    return *this;
-  }
-
-  template class fft_table_cplx<float>;
-  template class fft_table_cplx<double>;
-
-  template <typename F>
-  fft_table_real<F>::fft_table_real(size_t max_length)
-  {
-    static_assert(std::is_floating_point_v<F>);
-
-    if constexpr (std::is_same_v<F, float>)
-      { _table = c::allocate_fft_table_real_f32(max_length); }
-    else
-      { _table = c::allocate_fft_table_real_f64(max_length); }
-  }
-
-  template <typename F>
-  fft_table_real<F>::fft_table_real(size_t max_length, void *ptr, size_t byte_count)
-  : _owns_memory(false)
-  {
-    auto *t = [&]()
-      {
-        if constexpr (std::same_as<F, float>)
-          { return c::make_table_from_memory_real_f32(max_length, ptr, byte_count); }
-        else
-          { return c::make_table_from_memory_real_f64(max_length, ptr, byte_count); }
-      }();
-
-    _table = t;
-  }
-
-  template <typename F>
-  fft_table_real<F>::~fft_table_real() { release(); }
-
-  template <typename F>
-  void fft_table_real<F>::release()
-  {
-    if (_owns_memory)
-    {
-      if constexpr (std::is_same_v<F, float>)
-        { c::free_fft_table_real_f32(_table); }
-      else
-        { c::free_fft_table_real_f64(_table); }
-    }
-  }
-
-  template <typename F>
-  fft_table_real<F>::fft_table_real(fft_table_real &&other) noexcept
-    : _table{std::exchange(other._table, nullptr)}
-    { }
-
-  template <typename F>
-  fft_table_real<F> &fft_table_real<F>::operator=(fft_table_real &&other) noexcept
-  {
-    if (&other != this)
-    {
-      release();
-      _table = std::exchange(other._table, nullptr);
-    }
-
-    return *this;
-  }
-
-  template class fft_table_real<float>;
-  template class fft_table_real<double>;
-}
 
 extern "C"
 {
@@ -274,7 +150,9 @@ extern "C"
 
 
 
-
+    // These get an extra SIMDAlignment amount of bytes so that we can offset the pointer to get something aligned.
+    //  (Technically this is allocating a byte more than necessary but, in practice, it's going to round to pages
+    //  anyway, so it's unlikely to actually matter)
     size_t get_fft_table_cplx_f32_byte_count_unaligned(size_t maxFFTLength)
       { return get_fft_table_cplx_f32_byte_count_aligned(maxFFTLength) + SIMDAlignment; }
 
@@ -304,6 +182,8 @@ extern "C"
       InitializeComplexTable(t + TableDataOffset<float>, maxFFTLength);
       return reinterpret_cast<const fft_table_cplx_f32 *>(t);
     }
+
+
 
     const fft_table_cplx_f64 *make_table_from_memory_cplx_f64(size_t maxFFTLength, void *memory, size_t byteCount)
     {
@@ -340,6 +220,8 @@ extern "C"
       InitializeRealTable(t + TableDataOffset<float>, maxFFTLength);
       return reinterpret_cast<const fft_table_real_f32 *>(t);
     }
+
+
 
     const fft_table_real_f64 *make_table_from_memory_real_f64(size_t maxFFTLength, void *memory, size_t byteCount)
     {
