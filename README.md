@@ -74,7 +74,7 @@ void example_real_fft(const float *input, float *output, size_t fftLength)
   // Run the forward FFT
   fft_20xx::fft(table, input, output, fftLength);
 
-  // In this case, no need to clean up the table, we're using RIAA up in here!
+  // In this case, no need to clean up the table, we're using RAII up in here!
 }
 ```
 Like the C API, there is functionality to allow you to handle the allocation yourself:
