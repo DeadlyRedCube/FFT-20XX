@@ -638,7 +638,7 @@ void LargeTanglePairs(const ElementType *input, ElementType *output, size_t subL
   // There are 3 possible results:
   //  - For ForwardLargest we result in: Adcb|efgh|ilkj|mnop|QNOP|MLKJ|IFGH|EDCB
   //  - For InverseLargest:              abcd|ehgf|ijkl|mpon|QPON|MJKL|IHGF|EBCD
-  //  - Otherwise (no 3-reverses):        Adcb|ehgf|ilkj|mpon|QNOP|MJKL|IFGH|EBCD
+  //  - Otherwise (no 3-reverses):       Adcb|ehgf|ilkj|mpon|QNOP|MJKL|IFGH|EBCD
 
   if constexpr (VV == 2)
   {
@@ -905,48 +905,24 @@ void Copy4Pairs(const ElementType *input, ElementType *output)
 
 
 
-template <Alignment Align, TangleType Type, uint32_t VV = TangleVecSize, typename VT = TangleVecType>
+template <Alignment Align, uint32_t VV = TangleVecSize, typename VT = TangleVecType>
 void TangleFinal4Pairs(const ElementType *input, ElementType *output)
 {
-  if constexpr (Type == TangleType::ForwardLargest)
+  //  AbBa -> AaBb, but this is the same code for the inverse: AaBb -> AbBa
+  if constexpr (VV == 2)
   {
-    //  AbBa -> AaBb
-    if constexpr (VV == 2)
-    {
-      VT A, b, B, a;
-      LoadStridedSets<Align>(input, 2, A, b, B, a);
-      StoreStridedSets<Align>(output, 2, A, a, B, b);
-    }
-    else
-    {
-      static_assert(VV == 4);
-      VT Ab, Ba;
-      LoadStridedSets<Align>(input, 4, Ab, Ba);
-      auto Aa = InsertTopHalf(Ab, Ba);
-      auto Bb = InsertTopHalf(Ba, Ab);
-      StoreStridedSets<Align>(output, 4, Aa, Bb);
-    }
+    VT A, b, B, a;
+    LoadStridedSets<Align>(input, 2, A, b, B, a);
+    StoreStridedSets<Align>(output, 2, A, a, B, b);
   }
   else
   {
-    // AaBb -> AbBa
-    static_assert(Type == TangleType::InverseLargest);
-
-    if constexpr (VV == 2)
-    {
-      VT A, a, B, b;
-      LoadStridedSets<Align>(input, 2, A, a, B, b);
-      StoreStridedSets<Align>(output, 2, A, b, B, a);
-    }
-    else
-    {
-      static_assert(VV == 4);
-      VT Aa, Bb;
-      LoadStridedSets<Align>(input, 4, Aa, Bb);
-      auto Ab = InsertTopHalf(Aa, Bb);
-      auto Ba = InsertTopHalf(Bb, Aa);
-      StoreStridedSets<Align>(output, 4, Ab, Ba);
-    }
+    static_assert(VV == 4);
+    VT Ab, Ba;
+    LoadStridedSets<Align>(input, 4, Ab, Ba);
+    auto Aa = InsertTopHalf(Ab, Ba);
+    auto Bb = InsertTopHalf(Ba, Ab);
+    StoreStridedSets<Align>(output, 4, Aa, Bb);
   }
 }
 
@@ -1502,7 +1478,7 @@ void TangleRealFFT(const F *input, F *output, size_t length)
 
   case 16:
     Copy4Pairs<Align>(input, output);
-    TangleFinal4Pairs<Align, TangleType::InverseLargest>(input + 8, output + 8);
+    TangleFinal4Pairs<Align>(input + 8, output + 8);
     return;
   }
 }

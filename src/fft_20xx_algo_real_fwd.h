@@ -1286,7 +1286,7 @@ void UntangleRealFFT(F *data, size_t length)
     [[fallthrough]];
 
   case 16:
-    TangleFinal4Pairs<Align, TangleType::InverseLargest>(data + 8, data + 8);
+    TangleFinal4Pairs<Align>(data + 8, data + 8);
     break;
   }
 }

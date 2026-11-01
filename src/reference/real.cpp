@@ -18,8 +18,6 @@ namespace FFT20XX
   {
     // Some helper functions here just to make it easier
 
-
-
     constexpr size_t operator""_z(unsigned long long l)
       { return size_t(l); }
 
