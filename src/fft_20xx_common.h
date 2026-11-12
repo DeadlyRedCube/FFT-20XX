@@ -7,11 +7,11 @@
 #include "fft_20xx/fft_20xx.hpp"
 
 #define COMMON_ASSERTS() \
-  assert(table != nullptr); \
   assert(input != nullptr); \
   assert(output != nullptr); \
   assert(IsPowerOfTwo(fftLength)); \
-  assert(GetTableMaxFFTLength(table) >= fftLength)
+  assert(GetTableMaxFFTLength(table, fftLength) >= fftLength); \
+  assert(table != nullptr) /* GetTableMaxFFTLength updates table to be valid */
 
 
 namespace FFT20XX
@@ -69,17 +69,17 @@ namespace FFT20XX
     return (i & (alignment - 1)) == 0;
   }
 
-  constexpr bool IsAlignedPtr(const void *ptr, size_t alignment)
+  inline bool IsAlignedPtr(const void *ptr, size_t alignment)
     { return IsAlignedInt(uintptr_t(ptr), alignment); }
 
-  constexpr bool IsSIMDAlignedPtr(const void *ptr)
+  inline bool IsSIMDAlignedPtr(const void *ptr)
     { return IsAlignedInt(uintptr_t(ptr), SIMDAlignment); }
 
   template <typename T>
-  constexpr T *SIMDAlignPtr(T *ptr)
+  T *SIMDAlignPtr(T *ptr)
     { return reinterpret_cast<T *>((uintptr_t(ptr) + (SIMDAlignment - 1)) & (SIMDAlignment - 1)); }
 
-  constexpr intptr_t PtrByteOffset(const void *a, const void * b)
+  inline intptr_t PtrByteOffset(const void *a, const void * b)
     { return intptr_t(b) - intptr_t(a); }
 
   struct INegType;

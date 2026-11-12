@@ -38,7 +38,7 @@ extern "C"
     if (fftLength < 64)
       { return fft_cplx_f32_sse2(table, input, output, fftLength); }
     COMMON_ASSERTS();
-    AVX32::RunComplex<Dir::Forward>(GetTableData(table), input, output, fftLength);
+    AVX32::RunComplex<Dir::Forward>(GetTableData(table, fftLength), input, output, fftLength);
   }
 
 
@@ -47,7 +47,7 @@ extern "C"
     if (fftLength < 64)
       { return ifft_cplx_f32_sse2(table, input, output, fftLength); }
     COMMON_ASSERTS();
-    AVX32::RunComplex<Dir::Inverse, Alignment::Aligned>(GetTableData(table), input, output, fftLength);
+    AVX32::RunComplex<Dir::Inverse>(GetTableData(table, fftLength), input, output, fftLength);
   }
 
 
@@ -61,7 +61,7 @@ extern "C"
     }
 
     COMMON_ASSERTS();
-    AVX32::RealForwardFFT(GetTableData(table), input, output, fftLength);
+    AVX32::RealForwardFFT(GetTableData(table, fftLength), input, output, fftLength);
   }
 
 
@@ -74,6 +74,6 @@ extern "C"
     }
 
     COMMON_ASSERTS();
-    AVX32::RealInverseFFT(GetTableData(table), input, output, fftLength);
+    AVX32::RealInverseFFT(GetTableData(table, fftLength), input, output, fftLength);
   }
 }

@@ -22,14 +22,23 @@
 
   namespace fft_20xx
   {
-    enum class type
-    {
-      cplx,
-      real,
-    };
-
     #ifdef __cpp_using_enum
+      // If we can, make this more strongly-typed (and then "using" it so that fft_20xx::cplx and ::real are easy to
+      // use)
+      enum class type
+      {
+        cplx,
+        real,
+      };
+
       using enum type;
+    #else
+      // Use a basic enum for this instead
+      enum type
+      {
+        cplx,
+        real,
+      };
     #endif
 
 
@@ -41,6 +50,14 @@
     template <type T, FFT_20XX_FLOAT_TYPE F> void fft(const fft_table<T, F> &, F *data, size_t length);
     template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(const fft_table<T, F> &, const F *input, F *output, size_t length);
     template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(const fft_table<T, F> &, F *data, size_t length);
+
+    // Float array FFT functions with no specified table
+
+    template <type T, FFT_20XX_FLOAT_TYPE F> void fft(const F *input, F *output, size_t length);
+    template <type T, FFT_20XX_FLOAT_TYPE F> void fft(F *data, size_t length);
+    template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(const F *input, F *output, size_t length);
+    template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(F *data, size_t length);
+
 
     // Complex FFTs can also take std::complex inputs/output arrays
 
@@ -55,6 +72,21 @@
 
     template <FFT_20XX_FLOAT_TYPE F>
     void ifft(const fft_table<type::cplx, F> &, std::complex<F> *data, size_t length);
+
+    // Complex FFTs that take std::complex, with no specified table
+
+    template <FFT_20XX_FLOAT_TYPE F>
+    void fft(const std::complex<F> *input, std::complex<F> *output, size_t length);
+
+    template <FFT_20XX_FLOAT_TYPE F>
+    void fft(std::complex<F> *data, size_t length);
+
+    template <FFT_20XX_FLOAT_TYPE F>
+    void ifft(const std::complex<F> *input, std::complex<F> *output, size_t length);
+
+    template <FFT_20XX_FLOAT_TYPE F>
+    void ifft(std::complex<F> *data, size_t length);
+
 
     // The fft_table class wraps the c table, with optional ownership (and proper cleanup on destruction)
     template <type T, FFT_20XX_FLOAT_TYPE F> class fft_table
@@ -150,6 +182,51 @@
     template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(const fft_table<T, F> &table, F *data, size_t length)
       { ifft(table, data, data, length);}
 
+    template <type T, FFT_20XX_FLOAT_TYPE F> void fft(const F *input, F *output, size_t length)
+    {
+      static_assert(std::is_floating_point_v<F>, "Expected a floating point type for the data parameters");
+
+      if constexpr (T == type::cplx)
+      {
+        if constexpr (std::same_as<F, float>)
+          return c::fft_cplx_f32(nullptr, input, output, length);
+        else
+          return c::fft_cplx_f64(nullptr, input, output, length);
+      }
+      else
+      {
+        if constexpr (std::same_as<F, float>)
+          return c::fft_real_f32(nullptr, input, output, length);
+        else
+          return c::fft_real_f64(nullptr, input, output, length);
+      }
+    }
+
+    template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(const F *input, F *output, size_t length)
+    {
+      static_assert(std::is_floating_point_v<F>, "Expected a floating point type for the data parameters");
+
+      if constexpr (T == type::cplx)
+      {
+        if constexpr (std::same_as<F, float>)
+          return c::ifft_cplx_f32(nullptr, input, output, length);
+        else
+          return c::ifft_cplx_f64(nullptr, input, output, length);
+      }
+      else
+      {
+        if constexpr (std::same_as<F, float>)
+          return c::ifft_real_f32(nullptr, input, output, length);
+        else
+          return c::ifft_real_f64(nullptr, input, output, length);
+      }
+    }
+
+    template <type T, FFT_20XX_FLOAT_TYPE F> void fft(F *data, size_t length)
+      { fft(data, data, length);}
+
+    template <type T, FFT_20XX_FLOAT_TYPE F> void ifft(F *data, size_t length)
+      { ifft(data, data, length);}
 
     template <FFT_20XX_FLOAT_TYPE F>
     void fft(const fft_table<type::cplx, F> &table, const std::complex<F> *input, std::complex<F> *output, size_t length)
@@ -166,6 +243,22 @@
     template <FFT_20XX_FLOAT_TYPE F>
     void ifft(const fft_table<type::cplx, F> &table, std::complex<F> *data, size_t length)
       { ifft(table, reinterpret_cast<F *>(data), length); }
+
+    template <FFT_20XX_FLOAT_TYPE F>
+    void fft(const std::complex<F> *input, std::complex<F> *output, size_t length)
+      { fft(reinterpret_cast<const F *>(input), reinterpret_cast<F *>(output), length); }
+
+    template <FFT_20XX_FLOAT_TYPE F>
+    void fft(std::complex<F> *data, size_t length)
+      { fft(reinterpret_cast<F *>(data), length); }
+
+    template <FFT_20XX_FLOAT_TYPE F>
+    void ifft(const std::complex<F> *input, std::complex<F> *output, size_t length)
+      { ifft(reinterpret_cast<const F *>(input), reinterpret_cast<F *>(output), length); }
+
+    template <FFT_20XX_FLOAT_TYPE F>
+    void ifft(std::complex<F> *data, size_t length)
+      { ifft(reinterpret_cast<F *>(data), length); }
 
     template <type T, std::floating_point F> size_t fft_table<T, F>::get_byte_count_aligned(size_t max_fft_length)
     {

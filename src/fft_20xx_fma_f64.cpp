@@ -30,26 +30,26 @@ extern "C"
   void fft_cplx_f64_fma(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    FMA64::RunComplex<Dir::Forward>(GetTableData(table), input, output, fftLength);
+    FMA64::RunComplex<Dir::Forward>(GetTableData(table, fftLength), input, output, fftLength);
   }
 
 
   void ifft_cplx_f64_fma(const fft_table_cplx_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    FMA64::RunComplex<Dir::Inverse>(GetTableData(table), input, output, fftLength);
+    FMA64::RunComplex<Dir::Inverse>(GetTableData(table, fftLength), input, output, fftLength);
   }
 
   void fft_real_f64_fma(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    FMA64::RealForwardFFT(GetTableData(table), input, output, fftLength);
+    FMA64::RealForwardFFT(GetTableData(table, fftLength), input, output, fftLength);
   }
 
 
   void ifft_real_f64_fma(const fft_table_real_f64 *table, const double *input, double *output, size_t fftLength)
   {
     COMMON_ASSERTS();
-    FMA64::RealInverseFFT(GetTableData(table), input, output, fftLength);
+    FMA64::RealInverseFFT(GetTableData(table, fftLength), input, output, fftLength);
   }
 }

@@ -16,24 +16,34 @@ namespace FFT20XX
   static_assert(TableDataOffset<float> * sizeof(float) >= sizeof(size_t));
   static_assert(TableDataOffset<double> * sizeof(double) >= sizeof(size_t));
 
-  #define FFT20XX_TABLE_INIT(Table, F) \
-    inline const F *GetTableData(const fft_20xx::c::Table *t) \
+  #define FFT20XX_TABLE_INIT(Table, F, Type) \
+    const fft_20xx::c::Table *GetManagedTable##Type(size_t maxSize); \
+    \
+    inline const F *GetTableData(const fft_20xx::c::Table *t, size_t maxSize) \
     { \
+      if (t == nullptr) \
+      { \
+        t = GetManagedTable##Type(maxSize); \
+      } \
       assert(IsSIMDAlignedPtr(t)); \
       return reinterpret_cast<const F *>(t) + TableDataOffset<F>; \
     } \
     \
-    inline size_t GetTableMaxFFTLength(const fft_20xx::c::Table *t) \
+    inline size_t GetTableMaxFFTLength(const fft_20xx::c::Table * &t, size_t maxSize) \
     { \
+      if (t == nullptr) \
+      { \
+        t = GetManagedTable##Type(maxSize); \
+      } \
       size_t r; \
       memcpy(&r, t, sizeof(size_t)); \
       return r; \
     }
 
-  FFT20XX_TABLE_INIT(fft_table_cplx_f32, float);
-  FFT20XX_TABLE_INIT(fft_table_cplx_f64, double);
-  FFT20XX_TABLE_INIT(fft_table_real_f32, float);
-  FFT20XX_TABLE_INIT(fft_table_real_f64, double);
+  FFT20XX_TABLE_INIT(fft_table_cplx_f32, float, CplxF32);
+  FFT20XX_TABLE_INIT(fft_table_cplx_f64, double, CplxF64);
+  FFT20XX_TABLE_INIT(fft_table_real_f32, float, RealF32);
+  FFT20XX_TABLE_INIT(fft_table_real_f64, double, RealF64);
 
   #undef FFT20XX_TABLE_INIT
 }
