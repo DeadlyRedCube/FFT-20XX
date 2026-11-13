@@ -659,15 +659,15 @@ A set of flags for the various types of SIMD support that FFT-20XX knows about.
 ```cpp
 enum class simd_support_flags
 {
-  none = c::FFT_20XX_SIMD_SUPPORT_FLAG_NONE,
-  sse2 = c::FFT_20XX_SIMD_SUPPORT_FLAG_SSE2,
-  sse3 = c::FFT_20XX_SIMD_SUPPORT_FLAG_SSE3,
-  ssse3 = c::FFT_20XX_SIMD_SUPPORT_FLAG_SSSE3,
-  sse4_1 = c::FFT_20XX_SIMD_SUPPORT_FLAG_SSE4_1,
-  sse4_2 = c::FFT_20XX_SIMD_SUPPORT_FLAG_SSE4_2,
-  avx = c::FFT_20XX_SIMD_SUPPORT_FLAG_AVX,
-  fma = c::FFT_20XX_SIMD_SUPPORT_FLAG_FMA,
-  avx2 = c::FFT_20XX_SIMD_SUPPORT_FLAG_AVX2,
+  none,
+  sse2,
+  sse3,
+  ssse3,
+  sse4_1,
+  sse4_2,
+  avx,
+  fma,
+  avx2,
 };
 ```
 
