@@ -5,7 +5,7 @@ This documents the C API for FFT-20XX. If you're using C++, please refer to the 
 #  Contents
 - [Overview](#overview)
   - [Example: Without Tables](#example-without-tables)
-  - [Example: Allocated Table](#exmaple-allocated-table)
+  - [Example: Allocated Table](#example-allocated-table)
   - [Example: User-Managed Table](#example-user-managed-table)
 - [Tables](#tables)
   - [Table Types](#table-types)
@@ -165,10 +165,10 @@ corresponding FFT functions.
 Allocate an FFT table that supports FFTs up to the given maximum length.
 
 ```cpp
-const fft_table_cplx_f32 *allocate_fft_table_cplx_f32(size_t max_length)
-const fft_table_cplx_f64 *allocate_fft_table_cplx_f64(size_t max_length)
-const fft_table_real_f32 *allocate_fft_table_real_f32(size_t max_length)
-const fft_table_real_f64 *allocate_fft_table_real_f64(size_t max_length)
+const fft_table_cplx_f32 *allocate_fft_table_cplx_f32(size_t max_length);
+const fft_table_cplx_f64 *allocate_fft_table_cplx_f64(size_t max_length);
+const fft_table_real_f32 *allocate_fft_table_real_f32(size_t max_length);
+const fft_table_real_f64 *allocate_fft_table_real_f64(size_t max_length);
 ```
 ### Parameters:
 - `max_length`: The maximum FFT length this table needs to support. **Must be a power of 2.**
@@ -191,10 +191,10 @@ Free the FFT table memory that was allocated by the corresponding [`allocate_fft
 function.
 
 ```cpp
-void free_fft_table_cplx_f32(const fft_table_cplx_f32 *table)
-void free_fft_table_cplx_f64(const fft_table_cplx_f64 *table)
-void free_fft_table_real_f32(const fft_table_real_f32 *table)
-void free_fft_table_real_f64(const fft_table_real_f64 *table)
+void free_fft_table_cplx_f32(const fft_table_cplx_f32 *table);
+void free_fft_table_cplx_f64(const fft_table_cplx_f64 *table);
+void free_fft_table_real_f32(const fft_table_real_f32 *table);
+void free_fft_table_real_f64(const fft_table_real_f64 *table);
 ```
 
 ### Parameters:
@@ -223,10 +223,10 @@ Returns the count of bytes needed to initialize an FFT table with the given maxi
 is correctly SIMD-aligned.
 
 ```cpp
-size_t get_fft_table_cplx_f32_byte_count_aligned(size_t max_length)
-size_t get_fft_table_cplx_f64_byte_count_aligned(size_t max_length)
-size_t get_fft_table_real_f32_byte_count_aligned(size_t max_length)
-size_t get_fft_table_real_f64_byte_count_aligned(size_t max_length)
+size_t get_fft_table_cplx_f32_byte_count_aligned(size_t max_length);
+size_t get_fft_table_cplx_f64_byte_count_aligned(size_t max_length);
+size_t get_fft_table_real_f32_byte_count_aligned(size_t max_length);
+size_t get_fft_table_real_f64_byte_count_aligned(size_t max_length);
 ```
 ### Parameters:
 - `max_length`: The maximum FFT length that the table would need to support. **Must be a power of 2.**
@@ -245,10 +245,10 @@ Returns the count of bytes needed to initialize an FFT table with the given maxi
 is *not* SIMD-aligned.
 
 ```cpp
-size_t get_fft_table_cplx_f32_byte_count_unaligned(size_t max_length)
-size_t get_fft_table_cplx_f64_byte_count_unaligned(size_t max_length)
-size_t get_fft_table_real_f32_byte_count_unaligned(size_t max_length)
-size_t get_fft_table_real_f64_byte_count_unaligned(size_t max_length)
+size_t get_fft_table_cplx_f32_byte_count_unaligned(size_t max_length);
+size_t get_fft_table_cplx_f64_byte_count_unaligned(size_t max_length);
+size_t get_fft_table_real_f32_byte_count_unaligned(size_t max_length);
+size_t get_fft_table_real_f64_byte_count_unaligned(size_t max_length);
 ```
 ### Parameters:
 - `max_length`: The maximum FFT length that the table would need to support. **Must be a power of 2.**
@@ -268,23 +268,23 @@ Initialize an FFT table of the given type at a given memory location.
 ```cpp
 const fft_table_cplx_f32 *make_table_from_memory_cplx_f32(
   size_t max_length,
-  void *memory,
+  void *memory,;
   size_t byte_count)
 
 const fft_table_cplx_f64 *make_table_from_memory_cplx_f64(
   size_t max_length,
   void *memory,
-  size_t byte_count)
+  size_t byte_count);
 
 const fft_table_real_f32 *make_table_from_memory_real_f32(
   size_t max_length,
   void *memory,
-  size_t byte_count)
+  size_t byte_count);
 
 const fft_table_real_f64 *make_table_from_memory_real_f64(
   size_t max_length,
   void *memory,
-  size_t byte_count)
+  size_t byte_count);
 ```
 ### Parameters:
 - `max_length`: The max FFT length that this table needs to support. **Must be a power of 2.**
@@ -421,7 +421,7 @@ void fft_real_f64(const fft_table_real_f64 *table, const double *input, double *
 ### `ifft_real_<float>`
 
 Perform an inverse FFT (IFFT) of the given length, reading the "half-complex" frequency-domain samples (in the format
-output by the [fft_real_<float>](#fft_real_float) functions) and writing real-valued time-domain samples.
+output by the [`fft_real_<float>`](#fft_real_float) functions) and writing real-valued time-domain samples.
 
 ```cpp
 void ifft_real_f32(const fft_table_real_f32 *table, const float  *input, float  *output, size_t length);
@@ -472,7 +472,7 @@ allocating memory for use with SIMD functions).
 Allocates a given number of bytes, with a given memory alignment.
 
 ```cpp
-void *fft_20xx_allocate_bytes_aligned(size_t byte_count, size_t pow_2_alignment)
+void *fft_20xx_allocate_bytes_aligned(size_t byte_count, size_t pow_2_alignment);
 ```
 
 ### Parameters:
@@ -496,7 +496,7 @@ Allocates a given number of bytes, aligned to the system's maximum SIMD vector s
 your memory to be SIMD-aligned but don't know the precise alignment of the SIMD types on the target platform.
 
 ```cpp
-void *fft_20xx_allocate_bytes_simd_aligned(size_t byte_count)
+void *fft_20xx_allocate_bytes_simd_aligned(size_t byte_count);
 ```
 
 ### Parameters:
@@ -518,7 +518,7 @@ void *fft_20xx_allocate_bytes_simd_aligned(size_t byte_count)
 Frees memory that was allocated by [fft_20xx_allocate_bytes_aligned](#fft_20xx_allocate_bytes_aligned) or
 [fft_20xx_allocate_bytes_simd_aligned](#fft_20xx_allocate_bytes_simd_aligned).
 ```cpp
-void fft_20xx_free_aligned(const void *memory)
+void fft_20xx_free_aligned(const void *memory);
 ```
 
 ### Parameters:
@@ -540,7 +540,7 @@ void fft_20xx_free_aligned(const void *memory)
 On x86 and x64 processors, does a runtime check to determine which SIMD modes are supported by the current machine.
 
 ```cpp
-fft_20xx_simd_support_flags_t fft_20xx_get_simd_support()
+fft_20xx_simd_support_flags_t fft_20xx_get_simd_support();
 ```
 > ***NOTE***: This function only exists on x86 or x64 platforms.
 
@@ -586,7 +586,7 @@ On x86, x64, or ARM, this function enables or disables flushing [subnormal float
 numbers rounding to 0).
 
 ```cpp
-void fft_20xx_set_flush_subnormals_to_zero(bool flush_to_zero)
+void fft_20xx_set_flush_subnormals_to_zero(bool flush_to_zero);
 ```
 
 ### Parameters:

@@ -5,7 +5,7 @@ This documents the C++ API for FFT-20XX. If you're using C, please refer to the 
 #  Contents
 - [Overview](#overview)
   - [Example: Without Tables](#example-without-tables)
-  - [Example: Allocated Table](#exmaple-allocated-table)
+  - [Example: Allocated Table](#example-allocated-table)
   - [Example: User-Managed Table](#example-user-managed-table)
 - [Type](#type)
 - [Tables](#tables)
@@ -21,7 +21,7 @@ This documents the C++ API for FFT-20XX. If you're using C, please refer to the 
 
 # Overview
 
-FFT-20XX was designed to be simple to use. The processing functions make use of read-only [FFT Tables](#table-types),
+FFT-20XX was designed to be simple to use. The processing functions make use of read-only [FFT Tables](#tables),
 which can be used in a few different ways, depending on use case:
 - FFT-20XX can internally manage the table memory and allocate larger tables as-needed: [Example](#example-without-tables)
 - The user can pre-make a table with the maximum required FFT length at a time of their choosing:
@@ -132,10 +132,9 @@ enum type
 
 &nbsp;
 
-
 # Tables
 
-The C++ API has a `fft_table` type that encompasses all of the available FFT table types:
+The C++ API has a templated `fft_table` type that encompasses all of the available FFT table types:
 
 ---
 ### `fft_table`:
@@ -179,6 +178,7 @@ static size_t get_required_alignment()
 
 ### Return Value:
 - Returns the system's SIMD alignment.
+
 &nbsp;
 
 &nbsp;
@@ -300,7 +300,7 @@ const c_table_t *c_table() const
 ---
 ### `fft_table::operator const c_table_t *`
 
-Allow auto-conversion to a pointer to the C API version of the table. Equivalent to calling [`c_table()`](fft_tablec_table)
+Allow auto-conversion to a pointer to the C API version of the table. Equivalent to calling [`c_table()`](#fft_tablec_table)
 
 ```cpp
 operator const c_table_t *() const
@@ -612,8 +612,8 @@ T *allocate_bytes_simd_aligned(size_t element_count)
 ### `free_aligned`
 
 Frees memory that was allocated by [allocate_bytes_aligned](#allocate_bytes_aligned),
-[fft_20xx_allocate_bytes_simd_aligned](#fft_20xx_allocate_bytes_simd_aligned),
-or [fft_20xx_allocate_trivial_type_simd_aligned](#fft_20xx_allocate_trivial_type_simd_aligned).
+[allocate_bytes_simd_aligned](#allocate_bytes_simd_aligned),
+or [allocate_trivial_type_simd_aligned](#allocate_trivial_type_simd_aligned).
 
 ```cpp
 void free_aligned(const void *memory)
@@ -622,8 +622,8 @@ void free_aligned(const void *memory)
 ### Parameters:
 - `memory`: A pointer to memory that was allocated with one of
   [allocate_bytes_aligned](#allocate_bytes_aligned),
-  [fft_20xx_allocate_bytes_simd_aligned](#fft_20xx_allocate_bytes_simd_aligned),
-  or [fft_20xx_allocate_trivial_type_simd_aligned](#fft_20xx_allocate_trivial_type_simd_aligned).
+  [allocate_bytes_simd_aligned](#allocate_bytes_simd_aligned),
+  or [allocate_trivial_type_simd_aligned](#allocate_trivial_type_simd_aligned).
 
 > ***NOTE***: It is safe to call this with a null pointer.
 
