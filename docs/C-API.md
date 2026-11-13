@@ -268,8 +268,8 @@ Initialize an FFT table of the given type at a given memory location.
 ```cpp
 const fft_table_cplx_f32 *make_table_from_memory_cplx_f32(
   size_t max_length,
-  void *memory,;
-  size_t byte_count)
+  void *memory,
+  size_t byte_count);
 
 const fft_table_cplx_f64 *make_table_from_memory_cplx_f64(
   size_t max_length,
