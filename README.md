@@ -35,9 +35,11 @@ The library is straightforward to use, simply include the header for your langua
 
 #### C
 
+[Full C API documentation](docs/C-API.md)
+
 Here is a simple C example of using the library to do a 32-bit float real forward FFT:
 
-```c
+```cpp
 #include "fft_20xx/fft_20xx.h"
 
 void example_real_fft(const float *input, float *output, size_t fftLength)
@@ -61,9 +63,11 @@ If you want to allocate your own memory for the table (due to some specific memo
 
 #### C++
 
+[Full C++ API documentation](docs/CPP-API.md)
+
 Here is an equivalent example to the above, but for C++:
 
-```c++
+```cpp
 #include "fft_20xx/fft_20xx.hpp"
 
 void example_real_fft(const float *input, float *output, size_t fftLength)
@@ -87,7 +91,7 @@ Like the C API, there is functionality to allow you to handle the allocation you
 
 (This section will be expanded at some point with more details. Possibly too many more details)
 
-The core of the algorithm used here was to do a Radix-4 FFT, but halfway through processing to start doing the bit reversals on the fly (2 bits at a time, which effectively makes each radix-4 set a 4x4 matrix transpose), so that no pre- or post-sorting pass is necessary. 
+The core of the algorithm used here was to do a Radix-4 FFT, but halfway through processing to start doing the bit reversals on the fly (2 bits at a time, which effectively makes each radix-4 set a 4x4 matrix transpose), so that no pre- or post-sorting pass is necessary.
 This is also done entirely in-place, unlike many other libraries that require scratch space to do the sorting.
 
 No generative AI was used in the creation of this project.

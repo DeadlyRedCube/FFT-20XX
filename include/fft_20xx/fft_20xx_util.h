@@ -32,24 +32,24 @@
         void *fft_20xx_allocate_bytes_simd_aligned(size_t byte_count);
 
         // Free the given block of aligned memory.
-        void fft_20xx_free_simd_aligned(const void *memory);
+        void fft_20xx_free_aligned(const void *memory);
 
         #if FFT_20XX_CPU_X86_ANY
-          typedef enum simd_support_flags_t
+          typedef enum fft_20xx_simd_support_flags_t
           {
-            SIMD_SUPPORT_FLAG_NONE = 0x00,
+            FFT_20XX_SIMD_SUPPORT_FLAG_NONE    = 0x00,
 
-            SIMD_SUPPORT_FLAG_SSE2    = 0x01,
-            SIMD_SUPPORT_FLAG_SSE3    = 0x02,
-            SIMD_SUPPORT_FLAG_SSSE3   = 0x04,
-            SIMD_SUPPORT_FLAG_SSE4_1  = 0x08,
-            SIMD_SUPPORT_FLAG_SSE4_2  = 0x10,
-            SIMD_SUPPORT_FLAG_AVX     = 0x20,
-            SIMD_SUPPORT_FLAG_FMA     = 0x40,
-            SIMD_SUPPORT_FLAG_AVX2    = 0x80,
-          } simd_support_flags_t;
+            FFT_20XX_SIMD_SUPPORT_FLAG_SSE2    = 0x01,
+            FFT_20XX_SIMD_SUPPORT_FLAG_SSE3    = 0x02,
+            FFT_20XX_SIMD_SUPPORT_FLAG_SSSE3   = 0x04,
+            FFT_20XX_SIMD_SUPPORT_FLAG_SSE4_1  = 0x08,
+            FFT_20XX_SIMD_SUPPORT_FLAG_SSE4_2  = 0x10,
+            FFT_20XX_SIMD_SUPPORT_FLAG_AVX     = 0x20,
+            FFT_20XX_SIMD_SUPPORT_FLAG_FMA     = 0x40,
+            FFT_20XX_SIMD_SUPPORT_FLAG_AVX2    = 0x80,
+          } fft_20xx_simd_support_flags_t;
 
-          simd_support_flags_t fft_20xx_get_simd_support();
+          fft_20xx_simd_support_flags_t fft_20xx_get_simd_support();
         #endif
 
         #if FFT_20XX_CPU_X86_ANY || FFT_20XX_CPU_ARM_ANY

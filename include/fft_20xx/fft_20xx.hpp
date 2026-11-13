@@ -1,6 +1,10 @@
 #ifndef FFT_20XX_HPP_INCLUDE_GUARD
   #define FFT_20XX_HPP_INCLUDE_GUARD
 
+  #include <cassert>
+  #include <complex>
+  #include <utility>
+
   #define FFT_20XX_INCLUDING_FROM_CPP
   #include "fft_20xx/fft_20xx.h"
   #undef FFT_20XX_INCLUDING_FROM_CPP

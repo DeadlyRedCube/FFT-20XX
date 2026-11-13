@@ -21,23 +21,23 @@
     inline auto allocate_bytes_simd_aligned(size_t byte_count) -> void *;
 
     // Allocate the given number of typed elements, aligned to the system's max SIMD size.
-    template <typename T> auto allocate_type_simd_aligned(size_t element_count) -> T *;
+    template <typename T> auto allocate_trivial_type_simd_aligned(size_t element_count) -> T *;
 
     // Free the given block of aligned memory.
-    inline void free_simd_aligned(const void *memory);
+    inline void free_aligned(const void *memory);
 
     #if FFT_20XX_CPU_X86_ANY
       enum class simd_support_flags
       {
-        none = c::SIMD_SUPPORT_FLAG_NONE,
-        sse2 = c::SIMD_SUPPORT_FLAG_SSE2,
-        sse3 = c::SIMD_SUPPORT_FLAG_SSE3,
-        ssse3 = c::SIMD_SUPPORT_FLAG_SSSE3,
-        sse4_1 = c::SIMD_SUPPORT_FLAG_SSE4_1,
-        sse4_2 = c::SIMD_SUPPORT_FLAG_SSE4_2,
-        avx = c::SIMD_SUPPORT_FLAG_AVX,
-        fma = c::SIMD_SUPPORT_FLAG_FMA,
-        avx2 = c::SIMD_SUPPORT_FLAG_AVX2,
+        none = c::FFT_20XX_SIMD_SUPPORT_FLAG_NONE,
+        sse2 = c::FFT_20XX_SIMD_SUPPORT_FLAG_SSE2,
+        sse3 = c::FFT_20XX_SIMD_SUPPORT_FLAG_SSE3,
+        ssse3 = c::FFT_20XX_SIMD_SUPPORT_FLAG_SSSE3,
+        sse4_1 = c::FFT_20XX_SIMD_SUPPORT_FLAG_SSE4_1,
+        sse4_2 = c::FFT_20XX_SIMD_SUPPORT_FLAG_SSE4_2,
+        avx = c::FFT_20XX_SIMD_SUPPORT_FLAG_AVX,
+        fma = c::FFT_20XX_SIMD_SUPPORT_FLAG_FMA,
+        avx2 = c::FFT_20XX_SIMD_SUPPORT_FLAG_AVX2,
       };
 
       // Allow simd_support_flags to act as flags
@@ -70,15 +70,17 @@
       { return c::fft_20xx_allocate_bytes_simd_aligned(byte_count); }
 
     template <typename T>
-    auto allocate_type_simd_aligned(size_t element_count) -> T *
-     {
+    auto allocate_trivial_type_simd_aligned(size_t element_count) -> T *
+    {
+      static_assert(std::is_trivially_constructible_v<T> && std::is_trivially_destructible_v<T>);
+
       return static_cast<T *>(allocate_bytes_aligned(
         element_count * sizeof(T),
         std::max(alignof(T), c::get_simd_alignment())));
     }
 
-    inline void free_simd_aligned(const void *memory)
-      { c::fft_20xx_free_simd_aligned(memory); }
+    inline void free_aligned(const void *memory)
+      { c::fft_20xx_free_aligned(memory); }
 
     #if FFT_20XX_CPU_X86_ANY
       inline auto operator&(simd_support_flags a, simd_support_flags b) -> simd_support_flags

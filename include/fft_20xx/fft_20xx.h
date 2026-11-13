@@ -8,9 +8,6 @@
     #ifndef FFT_20XX_INCLUDING_FROM_CPP
       #error This header is intended for C only. Please include "fft_20xx.hpp" instead.
     #endif
-    #include <cassert>
-    #include <complex>
-    #include <utility>
 
     extern "C"
     {
@@ -24,13 +21,13 @@
 
     // Allocate and free FFT tables for the various input/output types
 
-    const fft_table_cplx_f32 *allocate_fft_table_cplx_f32(size_t length);
+    const fft_table_cplx_f32 *allocate_fft_table_cplx_f32(size_t max_length);
     void free_fft_table_cplx_f32(const fft_table_cplx_f32 *table);
 
     const fft_table_cplx_f64 *allocate_fft_table_cplx_f64(size_t max_length);
     void free_fft_table_cplx_f64(const fft_table_cplx_f64 *table);
 
-    const fft_table_real_f32 *allocate_fft_table_real_f32(size_t length);
+    const fft_table_real_f32 *allocate_fft_table_real_f32(size_t max_length);
     void free_fft_table_real_f32(const fft_table_real_f32 *table);
 
     const fft_table_real_f64 *allocate_fft_table_real_f64(size_t max_length);
@@ -41,26 +38,26 @@
     // Get the number of bytes needed to allocate a FFT table of the given float and type that supports the given
     //  maximum length when the allocation is guaranteed to be aligned to the result of get_simd_alignment.
 
-    size_t get_fft_table_cplx_f32_byte_count_aligned(size_t maxFFTLength);
-    size_t get_fft_table_cplx_f64_byte_count_aligned(size_t maxFFTLength);
-    size_t get_fft_table_real_f32_byte_count_aligned(size_t maxFFTLength);
-    size_t get_fft_table_real_f64_byte_count_aligned(size_t maxFFTLength);
+    size_t get_fft_table_cplx_f32_byte_count_aligned(size_t max_length);
+    size_t get_fft_table_cplx_f64_byte_count_aligned(size_t max_length);
+    size_t get_fft_table_real_f32_byte_count_aligned(size_t max_length);
+    size_t get_fft_table_real_f64_byte_count_aligned(size_t max_length);
 
     // Get the number of bytes needed to allocate a FFT table of the given float and type that supports the given
     //  maximum length when the allocation is not guaranteed to be aligned.
 
-    size_t get_fft_table_cplx_f32_byte_count_unaligned(size_t maxFFTLength);
-    size_t get_fft_table_cplx_f64_byte_count_unaligned(size_t maxFFTLength);
-    size_t get_fft_table_real_f32_byte_count_unaligned(size_t maxFFTLength);
-    size_t get_fft_table_real_f64_byte_count_unaligned(size_t maxFFTLength);
+    size_t get_fft_table_cplx_f32_byte_count_unaligned(size_t max_length);
+    size_t get_fft_table_cplx_f64_byte_count_unaligned(size_t max_length);
+    size_t get_fft_table_real_f32_byte_count_unaligned(size_t max_length);
+    size_t get_fft_table_real_f64_byte_count_unaligned(size_t max_length);
 
     // Return a pointer to a table of the corresponding type initialized within the given block of memory.
     //  Will assert (if assertions are enabled) and return nullptr if the given byte count was insufficient.
 
-    const fft_table_cplx_f32 *make_table_from_memory_cplx_f32(size_t maxFFTLength, void *memory, size_t byteCount);
-    const fft_table_cplx_f64 *make_table_from_memory_cplx_f64(size_t maxFFTLength, void *memory, size_t byteCount);
-    const fft_table_real_f32 *make_table_from_memory_real_f32(size_t maxFFTLength, void *memory, size_t byteCount);
-    const fft_table_real_f64 *make_table_from_memory_real_f64(size_t maxFFTLength, void *memory, size_t byteCount);
+    const fft_table_cplx_f32 *make_table_from_memory_cplx_f32(size_t max_length, void *memory, size_t byte_count);
+    const fft_table_cplx_f64 *make_table_from_memory_cplx_f64(size_t max_length, void *memory, size_t byte_count);
+    const fft_table_real_f32 *make_table_from_memory_real_f32(size_t max_length, void *memory, size_t byte_count);
+    const fft_table_real_f64 *make_table_from_memory_real_f64(size_t max_length, void *memory, size_t byte_count);
 
     // Run a complex FFT of the given power-of-two length. Note that `input` and `output` are allowed to be the same
     //  pointer, which means the calculation will run in-place.

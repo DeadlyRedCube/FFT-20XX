@@ -102,8 +102,8 @@ extern "C"
     { return FFT20XX::SIMDAlignment; }
 
   #if CPU_X86_ANY
-    fft_20xx::c::simd_support_flags_t fft_20xx_get_simd_support()
-      { return fft_20xx::c::simd_support_flags_t(fft_20xx::s_simdSupport); }
+    fft_20xx::c::fft_20xx_simd_support_flags_t fft_20xx_get_simd_support()
+      { return fft_20xx::c::fft_20xx_simd_support_flags_t(fft_20xx::s_simdSupport); }
   #endif
 
 
@@ -121,7 +121,7 @@ extern "C"
   void *fft_20xx_allocate_bytes_simd_aligned(std::size_t byte_count)
     { return fft_20xx_allocate_bytes_aligned(byte_count, FFT20XX::SIMDAlignment); }
 
-  void fft_20xx_free_simd_aligned(const void *mem)
+  void fft_20xx_free_aligned(const void *mem)
   {
     #if defined (_MSC_VER)
       _aligned_free(const_cast<void *>(mem));

@@ -146,7 +146,12 @@ namespace
   template <TableType Type, std::floating_point F>
   const CTableType<Type, F> *AllocateAndInitializeTable(size_t maxFFTLength)
   {
-    F *t = fft_20xx::allocate_type_simd_aligned<F>(GetTableElementCount<Type>(maxFFTLength) + TableDataOffset<F>);
+    F *t = fft_20xx::allocate_trivial_type_simd_aligned<F>(GetTableElementCount<Type>(maxFFTLength) + TableDataOffset<F>);
+    if (t == nullptr)
+    {
+      return nullptr;
+    }
+
     memset(t, 0, TableDataOffset<F> * sizeof(F));
     memcpy(t, &maxFFTLength, sizeof(size_t));
     InitializeTable<Type>(t + TableDataOffset<F>, maxFFTLength);
@@ -195,7 +200,7 @@ namespace
 
     ~ManagedTable()
     {
-      fft_20xx::free_simd_aligned(table);
+      fft_20xx::free_aligned(table);
     }
 
     const CTableType<Type, F> *table;
@@ -307,7 +312,7 @@ extern "C"
       { return AllocateAndInitializeTable<TableType::Complex, float>(maxFFTLength); }
 
     void free_fft_table_cplx_f32(const fft_table_cplx_f32 *table)
-      { free_simd_aligned(table); }
+      { free_aligned(table); }
 
 
 
@@ -315,7 +320,7 @@ extern "C"
       { return AllocateAndInitializeTable<TableType::Complex, double>(maxFFTLength); }
 
     void free_fft_table_cplx_f64(const fft_table_cplx_f64 *table)
-      { free_simd_aligned(table); }
+      { free_aligned(table); }
 
 
 
@@ -323,7 +328,7 @@ extern "C"
       { return AllocateAndInitializeTable<TableType::Real, float>(maxFFTLength); }
 
     void free_fft_table_real_f32(const fft_table_real_f32 *table)
-      { free_simd_aligned(table); }
+      { free_aligned(table); }
 
 
 
@@ -331,6 +336,6 @@ extern "C"
       { return AllocateAndInitializeTable<TableType::Real, double>(maxFFTLength); }
 
     void free_fft_table_real_f64(const fft_table_real_f64 *table)
-      { free_simd_aligned(table); }
+      { free_aligned(table); }
   }
 }
